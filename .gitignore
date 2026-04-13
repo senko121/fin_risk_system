@@ -1,0 +1,12 @@
+# Bỏ qua thư mục build của Java
+backend/target/
+backend/.mvn/
+backend/mvnw
+backend/mvnw.cmd
+
+# Bỏ qua thư viện của React
+frontend/node_modules/
+frontend/dist/
+
+# Bỏ qua file cấu hình môi trường
+.env
