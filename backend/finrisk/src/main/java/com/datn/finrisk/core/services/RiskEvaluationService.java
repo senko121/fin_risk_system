@@ -3,11 +3,13 @@ package com.datn.finrisk.core.services;
 import com.datn.finrisk.core.entities.Rule;
 import com.datn.finrisk.core.entities.Transaction;
 import com.datn.finrisk.core.repository.RuleRepository;
+import com.datn.finrisk.core.repository.TransactionRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -16,20 +18,39 @@ public class RiskEvaluationService {
     @Autowired
     private RuleRepository ruleRepository;
 
+    @Autowired
+    private TransactionRepository transactionRepository;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    // Hàm này nhận vào 1 giao dịch và trả về TỔNG ĐIỂM RỦI RO [cite: 98-103]
-    public int evaluateRisk(Transaction transaction) {
+    public int evaluateRisk(Transaction transaction, boolean isNewRecipient) {
         int totalRiskScore = 0;
+        System.out.println("🤖 BẮT ĐẦU CHẠY RULE ENGINE DYNAMIC LẤY TỪ DATABASE...");
 
-        // 1. Lấy tất cả các luật đang bật (is_active = true) [cite: 100]
+        // 1. Lấy tất cả các luật đang bật
         List<Rule> activeRules = ruleRepository.findByIsActiveTrue();
 
-        // 2. Duyệt qua từng luật để kiểm tra [cite: 101]
+        // 🚀 KIỂM TRA 1: CHỐNG SPAM GIAO DỊCH
+        LocalDateTime oneMinuteAgo = LocalDateTime.now().minusMinutes(1);
+        int recentTxCount = transactionRepository.countRecentTransactions(
+                transaction.getFromAccount().getId(), 
+                oneMinuteAgo
+        );
+
+        if (recentTxCount >= 3) {
+            System.out.println("🚨 ANTI-FRAUD: Phát hiện Spam Giao dịch! | Cộng: 40 điểm");
+            totalRiskScore += 40;
+        }
+
+        // 🚀 KIỂM TRA 2: CỜ ĐỎ TỪ HỆ THỐNG TRUY VẾT THIẾT BỊ/IP (FAKE GEO)
+        if (transaction.getFromAccount().getUser().isSuspiciousSession()) {
+            System.out.println("🚨 ANTI-FRAUD: Phát hiện đăng nhập từ IP/Thiết bị lạ! | Cộng: 30 điểm");
+            totalRiskScore += 30;
+        }
+
+        // 2. Duyệt qua từng luật lấy từ DB để kiểm tra
         for (Rule rule : activeRules) {
             try {
-                // Đọc cột conditions (JSON) dưới DB
-                // Ví dụ: {"field": "amount", "operator": ">", "value": 50000000}
                 JsonNode conditionNode = objectMapper.readTree(rule.getConditions());
                 String field = conditionNode.get("field").asText();
                 String operator = conditionNode.get("operator").asText();
@@ -44,21 +65,22 @@ public class RiskEvaluationService {
                     
                     if (operator.equals(">") && txAmount > ruleValue) isMatched = true;
                     if (operator.equals(">=") && txAmount >= ruleValue) isMatched = true;
-                    // Bro có thể thêm <, <=, == tùy ý
                 } 
                 else if (field.equals("emotion")) {
-                    // Logic cộng điểm nếu cảm xúc là STRESS [cite: 97]
                     if (operator.equals("==") && value.equals(transaction.getEmotionSignal())) {
                         isMatched = true;
                     }
                 }
-                // (Bro có thể mở rộng thêm check device, location ở đây sau)
+                else if (field.equals("history")) {
+                    if (operator.equals("==") && value.equals("NEW_RECIPIENT") && isNewRecipient) {
+                        isMatched = true;
+                    }
+                }
 
-                // 4. Nếu vi phạm luật -> Cộng điểm [cite: 102]
+                // 4. Nếu vi phạm luật -> Cộng điểm
                 if (isMatched) {
                     totalRiskScore += rule.getActionScore();
-                    System.out.println("⚠️ Vi phạm luật: " + rule.getRuleName() + " | Cộng: " + rule.getActionScore() + " điểm");
-                    // Tương lai: Mình sẽ Save thông tin vi phạm này vào bảng risk_scores ở đây
+                    System.out.println("⚠️ Kích hoạt luật: [" + rule.getRuleName() + "] | Cộng: " + rule.getActionScore() + " điểm");
                 }
 
             } catch (Exception e) {
@@ -66,6 +88,7 @@ public class RiskEvaluationService {
             }
         }
 
+        System.out.println("🎯 TỔNG ĐIỂM RỦI RO (TỪ DB): " + totalRiskScore);
         return totalRiskScore;
     }
 }

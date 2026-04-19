@@ -18,9 +18,25 @@ export default function Login() {
       const response = await axios.post('http://localhost:8081/api/auth/login', {
         username, password
       });
-      localStorage.setItem('currentUser', JSON.stringify(response.data));
-      navigate('/dashboard');
+      
+      // Bóc tách và cất 2 cái Token + Thông tin User vào ví (LocalStorage)
+      localStorage.setItem('accessToken', response.data.accessToken);
+      localStorage.setItem('refreshToken', response.data.refreshToken);
+      localStorage.setItem('currentUser', JSON.stringify(response.data.user));
+
+      // 🚀 SỬA Ở ĐÂY: Lấy chức vụ ra để phân luồng giao thông
+      const userRole = response.data.user.role; 
+
+      if (userRole === 'ADMIN') {
+          // Nếu là Quản trị viên -> Đá thẳng vào màn hình Admin
+          navigate('/admin');
+      } else {
+          // Nếu là Khách hàng bình thường -> Đá vào màn hình Chuyển tiền
+          navigate('/dashboard');
+      }
+      
     } catch (error) {
+      // Backend của mình trả về lỗi dạng chuỗi ở error.response.data
       setErrorMsg(error.response?.data || 'Lỗi kết nối đến Server Backend!');
     } finally {
       setIsLoading(false);
