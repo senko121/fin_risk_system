@@ -30,5 +30,7 @@ public class TransactionLedger {
     @Column(nullable = false)
     private BigDecimal balanceAfter; // Số dư sau khi thực hiện
 
+    private String description;
+
     private LocalDateTime createdAt = LocalDateTime.now();
 }

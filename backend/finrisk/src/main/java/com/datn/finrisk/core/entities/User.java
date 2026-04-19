@@ -29,5 +29,24 @@ public class User {
 
     private String status = "ACTIVE";
 
+    @Column(columnDefinition = "LONGTEXT")
+    private String base64FaceImage;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Role role = Role.USER;
+ 
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    @Column(length = 500)
+    private String currentRefreshToken;
+
+    @Column(length = 45) // IPv6 có thể dài đến 45 ký tự
+    private String lastLoginIp;
+
+    @Column(length = 255)
+    private String lastLoginDevice;
+
+    // Trường này cực quan trọng: Cờ hiệu rủi ro để Rule Engine đọc
+    private boolean isSuspiciousSession = false;
 }

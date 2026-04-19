@@ -1,6 +1,6 @@
 server:
   port: 8081
-  
+
 spring:
   datasource:
     url: jdbc:mysql://localhost:3306/fin_risk_db?useSSL=false&serverTimezone=UTC
@@ -16,3 +16,38 @@ spring:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.MySQLDialect
+
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: "thach042005@gmail.com"
+    password: "pmnheonoluancowb"
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+twilio:
+  account:
+    sid: AC69a38680d4a6732652f4229b7d50a4de
+  auth:
+    token: df91e438863da00c5efd73e7b321c83d
+  phone:
+    number: "+17655725425"
+
+app:
+  test:
+    phone:
+      number: "+84794386146"
+    email: "thach042005@gmail.com"
+jwt:
+  secret: "FinRiskSuperSecretKeyForJwtTokenGenerationMustBeVeryLongAndSecure2026!!!"
+  expiration: 300000
+  refreshExpiration: 604800000

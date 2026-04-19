@@ -20,12 +20,14 @@ public class Transaction {
     private String toAccountNumber;
     private String toBankCode;
     private BigDecimal amount;
+    private String description;
     private String deviceFingerprint;
     
-    private String emotionSignal; // Tín hiệu cảm xúc thu được [cite: 121-122]
+    private String emotionSignal; // Tín hiệu cảm xúc thu được
     private Integer totalRiskScore = 0;
-    private String riskLevel; // LOW, MEDIUM, HIGH [cite: 113-115]
+    private String riskLevel; // LOW, MEDIUM, HIGH
     
     private String status = "PENDING";
     private LocalDateTime createdAt = LocalDateTime.now();
+
 }

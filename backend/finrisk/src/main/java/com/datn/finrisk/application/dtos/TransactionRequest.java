@@ -9,4 +9,5 @@ public class TransactionRequest {
     private String toAccount;   // Số tài khoản người nhận
     private BigDecimal amount;  // Số tiền
     private String emotion;     // Cảm xúc lấy từ Camera React
+    private String description;
 }

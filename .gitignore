@@ -10,3 +10,5 @@ frontend/dist/
 
 # Bỏ qua file cấu hình môi trường
 .env
+
+finrisk-ai-service/venv
