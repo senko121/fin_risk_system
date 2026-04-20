@@ -95,7 +95,7 @@ public class TransactionController {
                     return ResponseEntity.badRequest().body("OTP sai hoặc đã hết hạn!");
                 }
 
-                Transaction completedTx = transactionService.executeLedgerTransaction(tx.getId());
+                Transaction completedTx = transactionService.executeAfterOtp(tx);
                 
                 // 🚀 GHI LOG: CHỐT SỔ THÀNH CÔNG QUA ẢI OTP
                 auditLogService.logAction(username, "TRANSACTION_SUCCESS", "Chuyển thành công " + tx.getAmount() + " VND (Xác thực qua OTP). ID Giao dịch: " + tx.getId());

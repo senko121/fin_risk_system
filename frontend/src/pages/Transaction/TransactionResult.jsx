@@ -4,7 +4,9 @@ import { useLocation, useNavigate } from 'react-router-dom';
 export default function TransactionResult() {
   const { state } = useLocation();
   const navigate = useNavigate();
-  const { result, formData, recipientName } = state || {};
+  
+  // 🚀 FIX LỖI 1: Gán mặc định formData = {} để nó không bị undefined nữa
+  const { result, formData = {}, recipientName } = state || {};
 
   // Lấy thông tin người dùng hiện tại từ localStorage để làm "Người gửi"
   const storedUser = JSON.parse(localStorage.getItem('currentUser'));
@@ -31,12 +33,12 @@ export default function TransactionResult() {
             {isSuccess ? 'Giao dịch thành công' : 'Giao dịch bị chặn'}
           </h2>
           <p className="text-white/80 text-xs mt-1 font-medium">
-            {new Date().toLocaleString('vi-VN')}
+            {new Date(result.createdAt || Date.now()).toLocaleString('vi-VN')}
           </p>
         </div>
 
         <div className="p-8 space-y-6">
-          {/* Section 1: Phân tích AI (Điểm nhấn đồ án của bro) */}
+          {/* Section 1: Phân tích AI */}
           <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100">
             <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Hệ thống AI bảo mật</h3>
             <div className="flex justify-between items-center mb-2">
@@ -48,11 +50,12 @@ export default function TransactionResult() {
             <div className="w-full bg-gray-200 h-1.5 rounded-full overflow-hidden">
               <div 
                 className={`h-full transition-all duration-1000 ${result.riskLevel === 'LOW' ? 'bg-green-500' : 'bg-orange-500'}`}
-                style={{ width: `${result.totalRiskScore}%` }}
+                style={{ width: `${Math.min(result.totalRiskScore, 100)}%` }}
               ></div>
             </div>
+            {/* 🚀 FIX LỖI 2: Ưu tiên lấy emotionSignal từ Backend */}
             <p className="text-[10px] text-gray-400 mt-3 italic leading-tight">
-              * AI nhận diện cảm xúc <strong>{formData.emotion}</strong>. Trạng thái: An toàn.
+              * AI nhận diện cảm xúc <strong>{result.emotionSignal || formData.emotion || 'Không xác định'}</strong>. 
             </p>
           </div>
 
@@ -63,8 +66,8 @@ export default function TransactionResult() {
             <div className="flex justify-between items-start">
               <span className="text-gray-400 text-sm font-medium">Từ tài khoản</span>
               <div className="text-right">
-                <p className="text-gray-900 font-bold text-sm">{storedUser?.fullName || 'Tài khoản của tôi'}</p>
-                <p className="text-[11px] text-gray-400 font-mono">{storedUser?.accountNumber || 'N/A'}</p>
+                <p className="text-gray-900 font-bold text-sm">{storedUser?.fullName || result.fromAccount?.user?.fullName || 'Tài khoản của tôi'}</p>
+                <p className="text-[11px] text-gray-400 font-mono">{storedUser?.accountNumber || result.fromAccount?.accountNumber || 'N/A'}</p>
               </div>
             </div>
 
@@ -74,8 +77,9 @@ export default function TransactionResult() {
             <div className="flex justify-between items-start">
               <span className="text-gray-400 text-sm font-medium">Đến người nhận</span>
               <div className="text-right">
-                <p className="text-gray-900 font-bold text-sm">{recipientName}</p>
-                <p className="text-[11px] text-gray-400 font-mono">{formData.toAccount}</p>
+                <p className="text-gray-900 font-bold text-sm">{recipientName || 'Người nhận'}</p>
+                {/* 🚀 FIX LỖI 3: Lấy toAccountNumber từ Backend */}
+                <p className="text-[11px] text-gray-400 font-mono">{result.toAccountNumber || formData.toAccount}</p>
               </div>
             </div>
 
@@ -83,7 +87,8 @@ export default function TransactionResult() {
             <div className="flex justify-between pt-4 border-t border-dashed border-gray-200">
               <span className="text-gray-400 text-sm font-medium">Số tiền</span>
               <span className="text-2xl font-black text-blue-600">
-                {Number(formData.amount).toLocaleString()} <span className="text-sm">VND</span>
+                {/* 🚀 FIX LỖI 4: Lấy amount từ Backend */}
+                {Number(result.amount || formData.amount || 0).toLocaleString()} <span className="text-sm">VND</span>
               </span>
             </div>
 
@@ -91,7 +96,8 @@ export default function TransactionResult() {
             <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100/50">
               <p className="text-[10px] text-blue-400 uppercase font-bold mb-1">Nội dung chuyển khoản</p>
               <p className="text-gray-700 text-sm font-medium italic">
-                "{formData.description || "Chuyển tiền nhanh FinRisk"}"
+                {/* 🚀 FIX LỖI 5: Lấy description từ Backend */}
+                "{result.description || formData.description || "Chuyển tiền nhanh FinRisk"}"
               </p>
             </div>
           </div>

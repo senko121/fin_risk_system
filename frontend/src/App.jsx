@@ -12,6 +12,8 @@ import AdminRoute from './components/AdminRoute';
 import AdminDashboard from './pages/Admin/AdminDashboard';
 import TransactionHistory from './pages/History/TransactionHistory';
 import ExpenseAnalytics from './pages/Analytics/ExpenseAnalytics';
+import AdminRuleDashboard from './pages/Admin/AdminRuleDashboard';
+import AdminUserDashboard from './pages/Admin/AdminUserDashboard';
 
 function App() {
   return (
@@ -47,6 +49,9 @@ function App() {
             <Route path="/analytics" element={<ExpenseAnalytics />} />
 
             <Route path="/admin" element={<AdminRoute> <AdminDashboard /> </AdminRoute>} />
+            <Route path="/admin/rules" element={<AdminRoute> <AdminRuleDashboard /> </AdminRoute>} />
+            <Route path="/admin/users" element={<AdminRoute> <AdminUserDashboard /> </AdminRoute>} />
+
           </Routes>
           
         </main>
