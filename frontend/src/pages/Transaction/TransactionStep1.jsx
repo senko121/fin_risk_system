@@ -80,16 +80,31 @@ export default function TransactionStep1() {
     }, 2500);
   };
 
-  const handleSubmit = async (e) => {
+const handleSubmit = async (e) => {
     e.preventDefault();
     
+    // 1. Check rỗng cơ bản
     if (!formData.toAccount || !formData.amount) {
         toast.warning("⚠️ Vui lòng nhập đầy đủ thông tin giao dịch!");
         return;
     }
     
+    // 2. Check đã tra cứu ra tên người nhận chưa
     if (!recipientName) {
         toast.error("❌ Vui lòng nhập đúng số tài khoản người nhận!");
+        return;
+    }
+
+    // 🚀 VÁ LỖ HỔNG 1: Chặn chuyển tiền cho chính mình
+    if (String(formData.toAccount).trim() === String(currentUser.accountNumber).trim()) {
+        toast.error("🚨 Lỗi: Bạn không thể tự chuyển tiền cho chính mình!");
+        return;
+    }
+
+    // 🚀 VÁ LỖ HỔNG 2: Chặn số tiền âm, số 0 hoặc chữ cái
+    const transferAmount = Number(formData.amount);
+    if (isNaN(transferAmount) || transferAmount <= 0) {
+        toast.error("🚨 Lỗi: Số tiền giao dịch phải lớn hơn 0!");
         return;
     }
 
@@ -132,7 +147,7 @@ export default function TransactionStep1() {
       }
 
     } catch (error) {
-      // 🚀 BẮT LỖI TỪ BACKEND
+      // BẮT LỖI TỪ BACKEND
       toast.error("Lỗi: " + (error.response?.data || error.message));
     } finally {
       setIsLoading(false);

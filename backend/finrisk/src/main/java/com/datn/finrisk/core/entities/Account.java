@@ -24,4 +24,7 @@ public class Account {
     private String currency = "VND";
 
     private String status = "ACTIVE";
+    
+    @Version
+    private Integer version;
 }
