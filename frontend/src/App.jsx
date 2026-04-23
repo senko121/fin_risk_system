@@ -12,6 +12,8 @@ import AdminRoute from './components/AdminRoute';
 import AdminDashboard from './pages/Admin/AdminDashboard';
 import TransactionHistory from './pages/History/TransactionHistory';
 import ExpenseAnalytics from './pages/Analytics/ExpenseAnalytics';
+import ChangePassword from './pages/Auth/ChangePassword';
+import SecuritySettings from './pages/Security/SecuritySettings'; 
 import AdminRuleDashboard from './pages/Admin/AdminRuleDashboard';
 import AdminUserDashboard from './pages/Admin/AdminUserDashboard';
 
@@ -36,7 +38,7 @@ function App() {
           />
 
           <Routes>
-            {/* 🚀 TRONG NÀY BÂY GIỜ CHỈ CÓ ROUTE THÔI */}
+            {/*   TRONG NÀY BÂY GIỜ CHỈ CÓ ROUTE THÔI */}
             <Route path="/" element={<Navigate to="/login" />} />
             <Route path="/login" element={<Login />} />
             <Route path="/dashboard" element={<Dashboard />} />
@@ -47,6 +49,8 @@ function App() {
             <Route path="/verify-face" element={<FaceVerification />} />
             <Route path="/history" element={<TransactionHistory />} />
             <Route path="/analytics" element={<ExpenseAnalytics />} />
+            <Route path="/security" element={<SecuritySettings />} />
+            <Route path="/change-password" element={<ChangePassword />} />
 
             <Route path="/admin" element={<AdminRoute> <AdminDashboard /> </AdminRoute>} />
             <Route path="/admin/rules" element={<AdminRoute> <AdminRuleDashboard /> </AdminRoute>} />

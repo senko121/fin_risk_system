@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axiosClient from '../../api/axiosClient'; // 🚀 DÙNG AXIOS CHUẨN CỦA DỰ ÁN
+import axiosClient from '../../api/axiosClient'; //   DÙNG AXIOS CHUẨN CỦA DỰ ÁN
 import { toast } from 'react-toastify';
 import { Link } from 'react-router-dom';
 
@@ -101,7 +101,7 @@ export default function AdminRuleDashboard() {
     <div className="min-h-screen bg-slate-50 p-8 pb-16">
       <div className="max-w-6xl mx-auto">
         
-        {/* 🚀 HEADER MỚI CÓ NÚT QUAY LẠI */}
+        {/*   HEADER MỚI CÓ NÚT QUAY LẠI */}
         <div className="mb-8 flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-black text-slate-900 tracking-tight">FinRisk Rule Engine</h1>

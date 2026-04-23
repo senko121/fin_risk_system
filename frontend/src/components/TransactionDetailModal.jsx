@@ -41,9 +41,20 @@ export default function TransactionDetailModal({ isOpen, onClose, transaction, f
               <span className="font-mono font-bold text-gray-800">#{transaction.id * 10203}</span>
             </div>
             {/* THÊM TÀI KHOẢN NGƯỜI NHẬN */}
-            {transaction.toAccountNumber && transaction.toAccountNumber !== "N/A" && (
-              <div className="flex justify-between border-b border-gray-50 pb-3">
-                <span className="text-gray-500">Đến tài khoản</span>
+            {/* 🚀 HIỂN THỊ TÊN NGƯỜI GỬI / NHẬN (Sử dụng relatedName từ Backend) */}
+            <div className="flex justify-between items-center border-b border-gray-50 pb-3">
+              <span className="text-gray-500 whitespace-nowrap">
+                {transaction.type === 'CREDIT' ? 'Nhận từ' : 'Chuyển đến'}
+              </span>
+              <span className="font-bold text-gray-800 text-right max-w-[60%] truncate" title={transaction.relatedName}>
+                {transaction.relatedName || 'Người nhận'}
+              </span>
+            </div>
+
+            {/* 🚀 NẾU LÀ CHUYỂN ĐI (DEBIT), HIỆN THÊM SỐ TÀI KHOẢN ĐỂ DỄ ĐỐI CHIẾU */}
+            {transaction.type === 'DEBIT' && transaction.toAccountNumber && transaction.toAccountNumber !== "N/A" && (
+              <div className="flex justify-between items-center border-b border-gray-50 pb-3">
+                <span className="text-gray-500">STK thụ hưởng</span>
                 <span className="font-mono font-bold text-gray-800">{transaction.toAccountNumber}</span>
               </div>
             )}
@@ -61,7 +72,7 @@ export default function TransactionDetailModal({ isOpen, onClose, transaction, f
             </div>
           </div>
 
-          {/* 🚀 KHU VỰC AI SECURITY (Đã lắp đạn thật) */}
+          {/*   KHU VỰC AI SECURITY (Đã lắp đạn thật) */}
           <div className="mt-6 p-4 rounded-2xl border border-orange-200 bg-orange-50/50 relative overflow-hidden">
             <div className="absolute top-0 right-0 p-2 opacity-10">
               <svg className="w-16 h-16" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path></svg>

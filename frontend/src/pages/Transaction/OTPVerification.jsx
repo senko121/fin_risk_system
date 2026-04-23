@@ -1,13 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react'; // 🚀 Nhớ thêm useRef
+import React, { useState, useEffect, useRef } from 'react'; //   Nhớ thêm useRef
 import { useLocation, useNavigate } from 'react-router-dom';
-import { toast } from 'react-toastify'; // 🚀 IMPORT SÚNG BÁO LỖI
+import { toast } from 'react-toastify'; //   IMPORT SÚNG BÁO LỖI
 
 import axiosClient from '../../api/axiosClient';
 
 export default function OTPVerification() {
   const navigate = useNavigate();
   const location = useLocation();
-  const inputRef = useRef(null); // 🚀 Dùng để Auto-focus
+  const inputRef = useRef(null); //   Dùng để Auto-focus
   
   // Lấy ID giao dịch và các dữ liệu liên quan từ trang trước truyền sang
   const { transactionId, formData, recipientName } = location.state || {};
@@ -57,7 +57,7 @@ export default function OTPVerification() {
   const handleVerify = async (e) => {
     e.preventDefault();
     if (otp.length !== 6) {
-      toast.warning("⚠️ Vui lòng nhập đủ 6 số OTP"); // 🚀 BÁO TOAST
+      toast.warning("⚠️ Vui lòng nhập đủ 6 số OTP"); //   BÁO TOAST
       return;
     }
 
@@ -71,7 +71,7 @@ export default function OTPVerification() {
         authCode: otp
       });
 
-      // 🚀 CHỐT SỔ THÀNH CÔNG
+      //   CHỐT SỔ THÀNH CÔNG
       toast.success("🎉 Xác thực thành công! Giao dịch đã được duyệt.");
       navigate('/transaction-result', {
         state: {
@@ -82,7 +82,7 @@ export default function OTPVerification() {
       });
       
     } catch (error) {
-      // 🚀 BẮT LỖI TỪ BACKEND
+      //   BẮT LỖI TỪ BACKEND
       const errorMsg = error.response?.data || "Lỗi xác thực, vui lòng thử lại!";
       toast.error("❌ " + errorMsg);
       setOtp(''); // Nhập sai thì xóa trắng ô input cho người ta nhập lại
@@ -112,7 +112,7 @@ export default function OTPVerification() {
 
         <form onSubmit={handleVerify}>
           <input 
-            ref={inputRef} // 🚀 GẮN REF ĐỂ AUTO-FOCUS
+            ref={inputRef} //   GẮN REF ĐỂ AUTO-FOCUS
             type="text" 
             maxLength="6"
             value={otp}

@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import Webcam from 'react-webcam';
 import { useNavigate } from 'react-router-dom';
 import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
-import { toast } from 'react-toastify'; // 🚀 IMPORT SÚNG BÁO LỖI VÀO ĐÂY
+import { toast } from 'react-toastify'; //   IMPORT SÚNG BÁO LỖI VÀO ĐÂY
 
 import axiosClient from '../../api/axiosClient'; 
 

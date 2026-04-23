@@ -3,9 +3,9 @@ package com.datn.finrisk.web.controllers;
 import com.datn.finrisk.application.dtos.LoginRequest;
 import com.datn.finrisk.application.dtos.UserDTO; 
 import com.datn.finrisk.core.entities.User;
-import com.datn.finrisk.core.entities.Account; // 🚀 1. IMPORT ACCOUNT
+import com.datn.finrisk.core.entities.Account; //   1. IMPORT ACCOUNT
 import com.datn.finrisk.core.repository.UserRepository;
-import com.datn.finrisk.core.repository.AccountRepository; // 🚀 2. IMPORT ACCOUNT REPO
+import com.datn.finrisk.core.repository.AccountRepository; //   2. IMPORT ACCOUNT REPO
 import com.datn.finrisk.core.security.JwtUtils;
 import com.datn.finrisk.core.services.AuthService;
 import com.datn.finrisk.core.services.RateLimitService;
@@ -32,7 +32,7 @@ public class AuthController {
     @Autowired
     private UserRepository userRepository;
 
-    // 🚀 3. GỌI THẰNG QUẢN LÝ KHO TÀI KHOẢN VÀO ĐÂY
+    //   3. GỌI THẰNG QUẢN LÝ KHO TÀI KHOẢN VÀO ĐÂY
     @Autowired
     private AccountRepository accountRepository;
 
@@ -94,7 +94,7 @@ public class AuthController {
             userRepository.save(user);
 
             // =========================================================
-            // 🚀 4. MẶC ÁO KHOÁC VÀ NHÉT TIỀN VÀO TÚI CHO USERDTO
+            //   4. MẶC ÁO KHOÁC VÀ NHÉT TIỀN VÀO TÚI CHO USERDTO
             // =========================================================
             UserDTO userSafeData = new UserDTO(user);
             

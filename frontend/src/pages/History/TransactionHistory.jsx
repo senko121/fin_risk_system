@@ -12,7 +12,7 @@ export default function TransactionHistory() {
   const [isHistoryLoading, setIsHistoryLoading] = useState(true); 
   const [selectedTx, setSelectedTx] = useState(null);
 
-  // 🚀 TÍNH NĂNG 1: STATE CHO BỘ LỌC (Tất cả, Tiền vào, Tiền ra)
+  //   TÍNH NĂNG 1: STATE CHO BỘ LỌC (Tất cả, Tiền vào, Tiền ra)
   const [filter, setFilter] = useState('ALL');
 
   useEffect(() => {
@@ -56,7 +56,7 @@ export default function TransactionHistory() {
     return date.toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
   };
 
-  // 🚀 TÍNH NĂNG 1: LOGIC LỌC DỮ LIỆU
+  //   TÍNH NĂNG 1: LOGIC LỌC DỮ LIỆU
   const filteredHistory = history.filter(item => {
     if (filter === 'IN') return item.type === 'CREDIT';
     if (filter === 'OUT') return item.type === 'DEBIT';
@@ -83,7 +83,7 @@ export default function TransactionHistory() {
           </div>
         </div>
 
-        {/* 🚀 TÍNH NĂNG 1: GIAO DIỆN BỘ LỌC TABS */}
+        {/*   TÍNH NĂNG 1: GIAO DIỆN BỘ LỌC TABS */}
         <div className="flex space-x-2 mb-6 bg-white p-1.5 rounded-2xl shadow-sm border border-gray-100 w-fit">
           <button 
             onClick={() => setFilter('ALL')}
@@ -109,7 +109,7 @@ export default function TransactionHistory() {
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-2 min-h-[400px]">
           {isHistoryLoading ? (
             
-            // 🚀 TÍNH NĂNG 2: HIỆU ỨNG SKELETON LOADER ĐỈNH CAO
+            //   TÍNH NĂNG 2: HIỆU ỨNG SKELETON LOADER ĐỈNH CAO
             <div className="space-y-2 p-2">
               {[1, 2, 3, 4, 5].map((skeleton) => (
                 <div key={skeleton} className="flex items-center justify-between p-4 animate-pulse">
@@ -140,24 +140,40 @@ export default function TransactionHistory() {
                 onClick={() => setSelectedTx(item)} 
                 className={`flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors rounded-2xl ${index !== filteredHistory.length - 1 ? 'border-b border-gray-50' : ''}`}
               >
-                <div className="flex items-center">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center mr-4 ${item.type === 'CREDIT' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                {/* Khối bên trái: Icon và Thông tin */}
+                <div className="flex items-center flex-1 min-w-0">
+                  <div className={`w-10 h-10 flex-shrink-0 rounded-full flex items-center justify-center mr-4 ${item.type === 'CREDIT' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
                     {item.type === 'CREDIT' ? (
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
                     ) : (
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path></svg>
                     )}
                   </div>
-                  <div>
-                    <p className="font-bold text-gray-800 text-sm">{item.description}</p>
-                    <p className="text-xs text-gray-400">{formatDate(item.date)}</p>
+                  
+                  {/* Bố cục thông tin 3 dòng rõ ràng */}
+                  <div className="flex-1 min-w-0 pr-4">
+                    {/* Dòng 1: Tiêu đề chính là Tên người giao dịch */}
+                    <p className="font-bold text-gray-800 text-sm truncate">
+                      {item.type === 'CREDIT' ? 'Nhận từ: ' : 'Chuyển đến: '}
+                      {item.relatedName || 'Hệ thống'}
+                    </p>
+                    
+                    {/* Dòng 2: Nội dung lời nhắn */}
+                    <p className="text-xs text-gray-500 mt-0.5 truncate">
+                      {item.description}
+                    </p>
+                    
+                    {/* Dòng 3: Thời gian */}
+                    <p className="text-[10px] text-gray-400 mt-0.5">{formatDate(item.date)}</p>
                   </div>
                 </div>
-                <div className="text-right">
+                
+                {/* Khối bên phải: Tiền và Số dư */}
+                <div className="text-right flex-shrink-0">
                   <p className={`font-black ${item.type === 'CREDIT' ? 'text-green-600' : 'text-gray-900'}`}>
                     {item.type === 'CREDIT' ? '+' : '-'}{formatMoney(item.amount)}
                   </p>
-                  <p className="text-xs text-gray-400">SD: {formatMoney(item.balanceAfter)}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">SD: {formatMoney(item.balanceAfter)}</p>
                 </div>
               </div>
             ))

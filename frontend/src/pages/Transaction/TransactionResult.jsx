@@ -5,7 +5,7 @@ export default function TransactionResult() {
   const { state } = useLocation();
   const navigate = useNavigate();
   
-  // 🚀 FIX LỖI 1: Gán mặc định formData = {} để nó không bị undefined nữa
+  //   FIX LỖI 1: Gán mặc định formData = {} để nó không bị undefined nữa
   const { result, formData = {}, recipientName } = state || {};
 
   // Lấy thông tin người dùng hiện tại từ localStorage để làm "Người gửi"
@@ -53,9 +53,13 @@ export default function TransactionResult() {
                 style={{ width: `${Math.min(result.totalRiskScore, 100)}%` }}
               ></div>
             </div>
-            {/* 🚀 FIX LỖI 2: Ưu tiên lấy emotionSignal từ Backend */}
-            <p className="text-[10px] text-gray-400 mt-3 italic leading-tight">
-              * AI nhận diện cảm xúc <strong>{result.emotionSignal || formData.emotion || 'Không xác định'}</strong>. 
+            <p className="text-[10px] mt-3 italic leading-tight">
+              <span className="text-gray-400">* AI nhận diện cảm xúc: </span>
+              {result.emotionSignal ? (
+                <strong className="text-blue-600 uppercase">{result.emotionSignal}</strong>
+              ) : (
+                <span className="text-gray-400 font-medium">Không yêu cầu (Giao dịch an toàn)</span>
+              )}
             </p>
           </div>
 
@@ -67,7 +71,7 @@ export default function TransactionResult() {
               <span className="text-gray-400 text-sm font-medium">Từ tài khoản</span>
               <div className="text-right">
                 <p className="text-gray-900 font-bold text-sm">{storedUser?.fullName || result.fromAccount?.user?.fullName || 'Tài khoản của tôi'}</p>
-                <p className="text-[11px] text-gray-400 font-mono">{storedUser?.accountNumber || result.fromAccount?.accountNumber || 'N/A'}</p>
+                <p className="text-[16px] text-gray-500 font-mono">{storedUser?.accountNumber || result.fromAccount?.accountNumber || 'N/A'}</p>
               </div>
             </div>
 
@@ -78,8 +82,8 @@ export default function TransactionResult() {
               <span className="text-gray-400 text-sm font-medium">Đến người nhận</span>
               <div className="text-right">
                 <p className="text-gray-900 font-bold text-sm">{recipientName || 'Người nhận'}</p>
-                {/* 🚀 FIX LỖI 3: Lấy toAccountNumber từ Backend */}
-                <p className="text-[11px] text-gray-400 font-mono">{result.toAccountNumber || formData.toAccount}</p>
+                {/*   FIX LỖI 3: Lấy toAccountNumber từ Backend */}
+                <p className="text-[16px] text-gray-500 font-mono">{result.toAccountNumber || formData.toAccount}</p>
               </div>
             </div>
 
@@ -87,7 +91,7 @@ export default function TransactionResult() {
             <div className="flex justify-between pt-4 border-t border-dashed border-gray-200">
               <span className="text-gray-400 text-sm font-medium">Số tiền</span>
               <span className="text-2xl font-black text-blue-600">
-                {/* 🚀 FIX LỖI 4: Lấy amount từ Backend */}
+                {/*   FIX LỖI 4: Lấy amount từ Backend */}
                 {Number(result.amount || formData.amount || 0).toLocaleString()} <span className="text-sm">VND</span>
               </span>
             </div>
@@ -96,8 +100,8 @@ export default function TransactionResult() {
             <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100/50">
               <p className="text-[10px] text-blue-400 uppercase font-bold mb-1">Nội dung chuyển khoản</p>
               <p className="text-gray-700 text-sm font-medium italic">
-                {/* 🚀 FIX LỖI 5: Lấy description từ Backend */}
-                "{result.description || formData.description || "Chuyển tiền nhanh FinRisk"}"
+                {/*   FIX LỖI 5: Lấy description từ Backend */}
+                "{formData.description || result.description || "Chuyển tiền nhanh FinRisk"}"
               </p>
             </div>
           </div>

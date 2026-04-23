@@ -12,3 +12,4 @@ frontend/dist/
 .env
 
 finrisk-ai-service/venv
+emotion-ai-services/venv_emotion

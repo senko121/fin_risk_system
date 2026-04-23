@@ -7,7 +7,11 @@ import com.datn.finrisk.core.entities.Transaction;
 import com.datn.finrisk.core.repository.TransactionRepository;
 import com.datn.finrisk.core.services.OtpService;
 import com.datn.finrisk.core.services.TransactionService;
-import com.datn.finrisk.core.services.AuditLogService; // 🚀 IMPORT THƯ KÝ
+import com.datn.finrisk.core.strategies.FaceScanActionStrategy;
+
+import jakarta.validation.Valid;
+
+import com.datn.finrisk.core.services.AuditLogService; //   IMPORT THƯ KÝ
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +25,7 @@ import com.datn.finrisk.core.repository.TransactionLedgerRepository;
 import com.datn.finrisk.core.entities.TransactionLedger;
 import com.datn.finrisk.core.repository.AccountRepository;
 import com.datn.finrisk.core.entities.Account;
+import com.datn.finrisk.core.services.EmailService;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
@@ -49,23 +54,25 @@ public class TransactionController {
     private OtpService otpService;
 
     @Autowired
-    private com.datn.finrisk.core.services.EmailService emailService;
+    private EmailService emailService;
 
-    // 🚀 GỌI THƯ KÝ VÀO GHI SỔ GIAO DỊCH
+    @Autowired private FaceScanActionStrategy faceScanActionStrategy;
+
+    //   GỌI THƯ KÝ VÀO GHI SỔ GIAO DỊCH
     @Autowired
     private AuditLogService auditLogService;
 
-    @PostMapping("/process")
-    public ResponseEntity<?> processTransaction(@RequestBody TransactionRequest request) {
+@PostMapping("/process")
+    public ResponseEntity<?> processTransaction(@Valid @RequestBody TransactionRequest request) {
         try {
             Transaction result = transactionService.initiateTransaction(
                     request.getFromAccountId(),
                     request.getToAccount(),
                     request.getAmount(),
-                    request.getEmotion()
+                    request.getDescription()
             );
 
-            // 🚀 GHI LOG TẠO LỆNH THÀNH CÔNG (Nhưng chưa chốt tiền)
+            //   GHI LOG TẠO LỆNH THÀNH CÔNG (Nhưng chưa chốt tiền)
             String username = result.getFromAccount().getUser().getUsername();
             auditLogService.logAction(username, "TRANSACTION_INITIATED", "Tạo lệnh chuyển " + request.getAmount() + " VND đến STK " + request.getToAccount() + ". Mức rủi ro: " + result.getRiskLevel());
 
@@ -90,64 +97,45 @@ public class TransactionController {
                 boolean isValid = otpService.verifyOtp(tx.getId(), request.getAuthCode());
 
                 if (!isValid) {
-                    // 🚀 GHI LOG: NHẬP SAI OTP
+                    //   GHI LOG: NHẬP SAI OTP
                     auditLogService.logAction(username, "OTP_VERIFY_FAILED", "Nhập sai mã OTP cho giao dịch " + tx.getId());
                     return ResponseEntity.badRequest().body("OTP sai hoặc đã hết hạn!");
                 }
-
+ 
                 Transaction completedTx = transactionService.executeAfterOtp(tx);
                 
-                // 🚀 GHI LOG: CHỐT SỔ THÀNH CÔNG QUA ẢI OTP
+                //   GHI LOG: CHỐT SỔ THÀNH CÔNG QUA ẢI OTP
                 auditLogService.logAction(username, "TRANSACTION_SUCCESS", "Chuyển thành công " + tx.getAmount() + " VND (Xác thực qua OTP). ID Giao dịch: " + tx.getId());
                 
                 return ResponseEntity.ok(completedTx);
             }
 
-            // ==========================================================
-            // LUỒNG 2: XỬ LÝ QUÉT MẶT (CHƯA CHỐT SỔ, CHUYỂN TIẾP SANG OTP)
-            // ==========================================================
             else if (request.getAuthType().equals("FACE")) {
-
                 String liveImage = request.getFaceImageBase64();
-                String registeredImage = tx.getFromAccount().getUser().getBase64FaceImage();
+                
+                // 🚀 GỌI CHIẾN THUẬT XÁC THỰC SONG SONG ĐÃ VIẾT Ở BƯỚC 1
+                boolean isSecure = faceScanActionStrategy.validateFaceAndEmotion(tx, liveImage);
 
-                if (registeredImage == null || registeredImage.isEmpty()) {
-                    return ResponseEntity.badRequest().body("Chưa đăng ký khuôn mặt!");
+                if (!isSecure) {
+                    tx.setStatus("BLOCKED"); // Khóa giao dịch
+                    transactionRepository.save(tx);
+                    
+                    auditLogService.logAction(username, "AI_REJECT", "Giao dịch bị chặn do AI xác định rủi ro sinh trắc học hoặc tâm lý.");
+                    return ResponseEntity.status(403).body("Cảnh báo an ninh: Xác thực thất bại hoặc phát hiện dấu hiệu bị cưỡng ép!");
                 }
 
-                String pythonUrl = "http://localhost:5000/api/ai/verify-face";
-                HttpHeaders headers = new HttpHeaders();
-                headers.setContentType(MediaType.APPLICATION_JSON);
-
-                Map<String, String> body = new HashMap<>();
-                body.put("live_image_base64", liveImage);
-                body.put("registered_image_base64", registeredImage);
-
-                HttpEntity<Map<String, String>> requestEntity = new HttpEntity<>(body, headers);
-                RestTemplate restTemplate = new RestTemplate();
-
-                FaceAIResponse aiResponse = restTemplate.postForObject(pythonUrl, requestEntity, FaceAIResponse.class);
-
-                if (aiResponse == null || !aiResponse.isMatched()) {
-                    // 🚀 GHI LOG: QUÉT MẶT SAI NGƯỜI
-                    auditLogService.logAction(username, "FACE_SCAN_FAILED", "Kẻ lạ mặt cố gắng xác thực giao dịch " + tx.getId() + ". AI từ chối khớp ảnh.");
-                    return ResponseEntity.badRequest().body("Face không khớp!");
-                }
-
-                // 🚀 GHI LOG: QUÉT MẶT ĐÚNG CHÍNH CHỦ
-                auditLogService.logAction(username, "FACE_SCAN_SUCCESS", "Xác thực khuôn mặt thành công. Chuyển tiếp sang vòng OTP bảo mật kép.");
-
+                // --- VƯỢT ẢI THÀNH CÔNG ---
+                auditLogService.logAction(username, "AI_PASS", "Xác thực AI thành công. Chuyển tiếp vòng OTP.");
                 tx.setStatus("PENDING_OTP");
                 transactionRepository.save(tx);
 
+                // Tạo và gửi OTP (Giữ nguyên logic cũ của bro)
                 String newOtp = String.format("%06d", new java.util.Random().nextInt(999999));
                 otpService.saveOtp(tx.getId(), newOtp);
-                
                 try {
-                    String userEmail = tx.getFromAccount().getUser().getEmail();
-                    emailService.sendOtpEmail(userEmail, newOtp);
+                    emailService.sendOtpEmail(tx.getFromAccount().getUser().getEmail(), newOtp);
                 } catch (Exception e) {
-                    System.err.println("❌ Lỗi gửi email lớp 2: " + e.getMessage());
+                    log.error("Lỗi gửi mail OTP: {}", e.getMessage());
                 }
 
                 return ResponseEntity.ok(tx);
@@ -161,13 +149,15 @@ public class TransactionController {
         }
     }
 
-    // ... (Giữ nguyên các hàm lấy Lịch sử, Tra cứu tên, Recent Recipients bên dưới) ...
-    @GetMapping("/history/{accountId}")
-        public ResponseEntity<?> getTransactionHistory(@PathVariable Long accountId) {
-            try {
+@GetMapping("/history/{accountId}")
+    public ResponseEntity<?> getTransactionHistory(@PathVariable Long accountId) {
+        try {
             List<TransactionLedger> ledgers = ledgerRepository.findByAccountIdOrderByCreatedAtDesc(accountId);
             List<Map<String, Object>> result = ledgers.stream().map(l -> {
                 Map<String, Object> map = new HashMap<>();
+                
+                // 🚀 BƯỚC 1: Kéo Giao dịch gốc ra trước để dùng cho toàn bộ logic bên dưới
+                Transaction rootTx = l.getTransaction();
                 
                 // Dữ liệu Sổ cái (Kế toán)
                 map.put("id", l.getId());
@@ -175,25 +165,45 @@ public class TransactionController {
                 map.put("amount", l.getAmount());
                 map.put("balanceAfter", l.getBalanceAfter());
                 map.put("date", l.getCreatedAt());
-                map.put("description", l.getDescription() != null ? l.getDescription() : (l.getEntryType().equals("DEBIT") ? "Chuyển tiền đi" : "Nhận tiền đến"));
                 
-                // 🚀 BỔ SUNG DỮ LIỆU TỪ BẢNG GIAO DỊCH GỐC (AI & Security)
-                Transaction rootTx = l.getTransaction();
+                // 🚀 BƯỚC 2: ĐÃ FIX LOGIC LỜI NHẮN (Ưu tiên lấy từ rootTx)
+                String txDescription = (rootTx != null && rootTx.getDescription() != null && !rootTx.getDescription().isEmpty()) 
+                        ? rootTx.getDescription() 
+                        : (l.getEntryType().equals("DEBIT") ? "Chuyển khoản đi" : "Nhận tiền chuyển khoản");
+                map.put("description", txDescription);
+                
+                // BƯỚC 3: BỔ SUNG DỮ LIỆU BẢO MẬT VÀ TÊN NGƯỜI LIÊN QUAN
                 if (rootTx != null) {
                     map.put("toAccountNumber", rootTx.getToAccountNumber());
                     map.put("riskLevel", rootTx.getRiskLevel());
                     map.put("totalRiskScore", rootTx.getTotalRiskScore());
                     map.put("emotionSignal", rootTx.getEmotionSignal());
+
+                    // TÌM TÊN NGƯỜI LIÊN QUAN (NGƯỜI GỬI / NGƯỜI NHẬN)
+                    String relatedName = "Người dùng ẩn danh";
+                    if ("DEBIT".equals(l.getEntryType())) {
+                        // Tiền trừ đi: Tìm tên người nhận
+                        relatedName = accountRepository.findByAccountNumber(rootTx.getToAccountNumber())
+                                .map(acc -> acc.getUser().getFullName())
+                                .orElse("Người nhận ngoài hệ thống");
+                    } else {
+                        // Tiền cộng vào: Lấy tên người gửi
+                        relatedName = rootTx.getFromAccount().getUser().getFullName();
+                    }
+                    map.put("relatedName", relatedName); 
+
                 } else {
                     // Fallback nếu không có transaction gốc (VD: tiền nạp ban đầu)
                     map.put("toAccountNumber", "N/A");
                     map.put("riskLevel", "LOW");
                     map.put("totalRiskScore", 0);
                     map.put("emotionSignal", "N/A");
+                    map.put("relatedName", "Hệ thống FinRisk");
                 }
 
                 return map;
             }).collect(Collectors.toList());
+            
             return ResponseEntity.ok(result);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Lỗi lấy lịch sử: " + e.getMessage());

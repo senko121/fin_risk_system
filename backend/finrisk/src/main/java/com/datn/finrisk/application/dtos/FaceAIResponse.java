@@ -7,11 +7,14 @@ import lombok.Data;
 public class FaceAIResponse {
 
     @JsonProperty("is_matched")
-    private boolean matched;   // 🔥 đổi tên field
+    private boolean matched;
 
     @JsonProperty("similarity_distance")
     private double similarityDistance;
 
     @JsonProperty("threshold")
     private double threshold;
+
+    @JsonProperty("emotion")
+    private String emotion; 
 }

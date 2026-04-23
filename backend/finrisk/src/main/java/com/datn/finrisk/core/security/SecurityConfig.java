@@ -6,6 +6,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
@@ -27,7 +29,7 @@ public class SecurityConfig {
             // Báo cho Spring biết là hệ thống không dùng Session (Stateless)
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             
-            // 🚀 ĐÂY LÀ CHỖ CHIA ĐƯỜNG KẺ VẠCH ĐÂY
+            //   ĐÂY LÀ CHỖ CHIA ĐƯỜNG KẺ VẠCH ĐÂY
             .authorizeHttpRequests(auth -> auth
                 // 1. Cho phép thả cửa khu vực Đăng nhập / Làm mới Token / Đăng ký mặt
                 .requestMatchers("/api/auth/**").permitAll()
@@ -43,5 +45,11 @@ public class SecurityConfig {
         http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    //   MUA MÁY BĂM MẬT KHẨU (KHAI BÁO BEAN)
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
     }
 }

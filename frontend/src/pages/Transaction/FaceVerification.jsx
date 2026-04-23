@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import Webcam from 'react-webcam';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
-import { toast } from 'react-toastify'; // 🚀 IMPORT TOAST VÀO ĐÂY
+import { toast } from 'react-toastify'; //   IMPORT TOAST VÀO ĐÂY
 
 import axiosClient from '../../api/axiosClient';
 
@@ -117,7 +117,7 @@ export default function FaceVerification() {
     } catch (error) {
       const errorMsg = error.response?.data || "Xác thực khuôn mặt thất bại!";
       setStatus("❌ TỪ CHỐI GIAO DỊCH: " + errorMsg);
-      toast.error("🚨 Lỗi: " + errorMsg); // 🚀 BẮT LỖI BẰNG TOAST
+      toast.error("🚨 Lỗi: " + errorMsg); //   BẮT LỖI BẰNG TOAST
       setIsProcessing(false);
     }
   }, [webcamRef, transactionId, formData, recipientName, navigate]);
@@ -145,7 +145,7 @@ export default function FaceVerification() {
               ref={webcamRef}
               screenshotFormat="image/jpeg"
               videoConstraints={{ facingMode: "user" }}
-              className="w-full h-full object-cover transform scale-x-[-1]" // 🚀 LẬT NGƯỢC CAMERA (MIRROR)
+              className="w-full h-full object-cover transform scale-x-[-1]" //   LẬT NGƯỢC CAMERA (MIRROR)
             />
           ) : (
             <div className="w-full h-full bg-slate-900 flex items-center justify-center">
