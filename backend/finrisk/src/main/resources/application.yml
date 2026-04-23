@@ -49,5 +49,5 @@ app:
     email: "thach042005@gmail.com"
 jwt:
   secret: "FinRiskSuperSecretKeyForJwtTokenGenerationMustBeVeryLongAndSecure2026!!!"
-  expiration: 300000
+  expiration: 600000
   refreshExpiration: 604800000

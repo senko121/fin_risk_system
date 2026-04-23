@@ -14,8 +14,12 @@ import TransactionHistory from './pages/History/TransactionHistory';
 import ExpenseAnalytics from './pages/Analytics/ExpenseAnalytics';
 import ChangePassword from './pages/Auth/ChangePassword';
 import SecuritySettings from './pages/Security/SecuritySettings'; 
+import TransferMethod from './pages/Transaction/TransferMethod';
+import UserSettings from './pages/Account/UserSettings';
 import AdminRuleDashboard from './pages/Admin/AdminRuleDashboard';
 import AdminUserDashboard from './pages/Admin/AdminUserDashboard';
+import AdminLogDashboard from './pages/Admin/AdminLogDashboard';
+
 
 function App() {
   return (
@@ -42,7 +46,9 @@ function App() {
             <Route path="/" element={<Navigate to="/login" />} />
             <Route path="/login" element={<Login />} />
             <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/transfer" element={<TransactionStep1 />} />
+            <Route path="/account" element={<UserSettings />} />
+            <Route path="/transfer" element={<TransferMethod />} />
+            <Route path="/transfer/stk" element={<TransactionStep1 />} />
             <Route path="/verify-otp" element={<OTPVerification />} />
             <Route path="/transaction-result" element={<TransactionResult />} />
             <Route path="/register-face" element={<FaceRegister />} />
@@ -55,7 +61,7 @@ function App() {
             <Route path="/admin" element={<AdminRoute> <AdminDashboard /> </AdminRoute>} />
             <Route path="/admin/rules" element={<AdminRoute> <AdminRuleDashboard /> </AdminRoute>} />
             <Route path="/admin/users" element={<AdminRoute> <AdminUserDashboard /> </AdminRoute>} />
-
+            <Route path="/admin/logs" element={<AdminRoute> <AdminLogDashboard /> </AdminRoute>} />
           </Routes>
           
         </main>
