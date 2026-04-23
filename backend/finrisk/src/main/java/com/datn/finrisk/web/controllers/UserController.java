@@ -1,14 +1,23 @@
 package com.datn.finrisk.web.controllers;
 
+import com.datn.finrisk.core.entities.Account;
+import com.datn.finrisk.core.repository.AccountRepository;
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.client.j2se.MatrixToImageWriter;
+import com.google.zxing.common.BitMatrix;
+import com.google.zxing.qrcode.QRCodeWriter;
+import java.io.ByteArrayOutputStream;
+import java.util.Base64;
+
 import com.datn.finrisk.application.dtos.FaceRegisterRequest;
 import com.datn.finrisk.core.entities.User;
 import com.datn.finrisk.core.repository.UserRepository;
-import com.datn.finrisk.core.services.UserService; //   IMPORT THÊM SERVICE NÀY
+import com.datn.finrisk.core.services.UserService; 
+import com.datn.finrisk.core.repository.UserContactRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.Map; //   IMPORT THÊM THẰNG NÀY ĐỂ ĐỌC MAP
+import java.util.Map; 
 
 @RestController
 @RequestMapping("/api/users")
@@ -18,13 +27,15 @@ public class UserController {
     @Autowired
     private UserRepository userRepository;
 
-    //   BƠM THÊM USER SERVICE VÀO ĐÂY ĐỂ XỬ LÝ ĐỔI PASS
     @Autowired
     private UserService userService;
 
-    // ==========================================================
-    // KHU VỰC 1: CÁC API VỀ FACE ID (CỦA BRO GIỮ NGUYÊN)
-    // ==========================================================
+    @Autowired
+    private UserContactRepository contactRepo;
+
+    @Autowired
+    private AccountRepository accountRepository;
+
 
     // API 1: Đăng ký khuôn mặt gốc (Lưu Base64 vào Database)
     @PostMapping("/register-face")
@@ -65,9 +76,6 @@ public class UserController {
         }
     }
 
-    // ==========================================================
-    // KHU VỰC 2: CÁC API VỀ BẢO MẬT TÀI KHOẢN (THÊM MỚI)
-    // ==========================================================
 
     // API 3: Đổi mật khẩu an toàn (Băm BCrypt)
     @PostMapping("/{id}/change-password")
@@ -80,6 +88,50 @@ public class UserController {
             return ResponseEntity.ok("Cập nhật mật khẩu thành công!");
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @GetMapping("/{userId}/contacts")
+    public ResponseEntity<?> getContacts(@PathVariable Long userId) {
+        // Dùng method mới vừa viết ở trên
+        return ResponseEntity.ok(contactRepo.findContactsWithLastTransaction(userId));
+    }
+
+
+    // ==========================================
+    // API 4: TẠO MÃ QR NHẬN TIỀN CHO USER
+    // ==========================================
+    @GetMapping("/{userId}/generate-qr")
+    public ResponseEntity<?> generateMyQRCode(@PathVariable Long userId) {
+        try {
+            // 1. Tìm User
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng!"));
+
+            // 2. Tìm Tài khoản của User đó (Nhờ cái file bro vừa gửi)
+            Account account = accountRepository.findByUser(user)
+                    .orElseThrow(() -> new RuntimeException("Người dùng chưa có tài khoản ngân hàng!"));
+
+            // 3. Tạo nội dung chuỗi QR (Format: FINRISK|SỐ_TÀI_KHOẢN|TÊN_NGƯỜI_NHẬN)
+            String qrContent = String.format("FINRISK|%s|%s", account.getAccountNumber(), user.getFullName());
+
+            // 4. Dùng thuật toán ZXing vẽ ma trận QR Code (Kích thước 300x300 pixel)
+            QRCodeWriter qrCodeWriter = new QRCodeWriter();
+            BitMatrix bitMatrix = qrCodeWriter.encode(qrContent, BarcodeFormat.QR_CODE, 300, 300);
+
+            // 5. Chuyển ma trận thành ảnh PNG và mã hóa sang Base64
+            ByteArrayOutputStream pngOutputStream = new ByteArrayOutputStream();
+            MatrixToImageWriter.writeToStream(bitMatrix, "PNG", pngOutputStream);
+            byte[] pngData = pngOutputStream.toByteArray();
+            
+            // Ép thêm tiền tố "data:image/png;base64," để React nhét thẳng vào thẻ <img> được luôn
+            String base64Image = "data:image/png;base64," + Base64.getEncoder().encodeToString(pngData);
+
+            // Trả về cho Frontend
+            return ResponseEntity.ok(Map.of("qrCodeBase64", base64Image, "content", qrContent));
+            
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Lỗi tạo mã QR: " + e.getMessage()));
         }
     }
 }
