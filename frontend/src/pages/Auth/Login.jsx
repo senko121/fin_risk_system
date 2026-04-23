@@ -24,7 +24,7 @@ export default function Login() {
       localStorage.setItem('refreshToken', response.data.refreshToken);
       localStorage.setItem('currentUser', JSON.stringify(response.data.user));
 
-      // 🚀 SỬA Ở ĐÂY: Lấy chức vụ ra để phân luồng giao thông
+      //   SỬA Ở ĐÂY: Lấy chức vụ ra để phân luồng giao thông
       const userRole = response.data.user.role; 
 
       if (userRole === 'ADMIN') {

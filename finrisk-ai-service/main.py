@@ -15,22 +15,23 @@ class FaceVerificationRequest(BaseModel):
 # Hàm giải mã Base64 thành mảng hình ảnh cho OpenCV
 def decode_base64_image(base64_string):
     try:
+        # 🔥 BƯỚC QUAN TRỌNG: Cắt bỏ tiền tố rác "data:image/...;base64,"
         if "," in base64_string:
             base64_string = base64_string.split(",")[1]
         
+        # Giải mã chuỗi đã dọn dẹp
         img_data = base64.b64decode(base64_string)
         nparr = np.frombuffer(img_data, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
         if img is None:
-            raise ValueError("Ảnh decode ra NULL")
+            raise ValueError("Ảnh decode ra NULL - Có thể định dạng ảnh không hỗ trợ")
 
-        # 🔥 FIX: BGR → RGB
+        # Đổi BGR sang RGB cho DeepFace
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-
         return img
     except Exception as e:
-        raise ValueError("Lỗi giải mã ảnh Base64: " + str(e))
+        raise ValueError(f"Lỗi giải mã ảnh Face ID: {str(e)}")
 
 @app.post("/api/ai/verify-face")
 async def verify_face(request: FaceVerificationRequest):

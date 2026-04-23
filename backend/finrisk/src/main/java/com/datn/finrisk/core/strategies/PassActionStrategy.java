@@ -82,7 +82,7 @@ public class PassActionStrategy implements RiskActionStrategy {
         tx.setRiskLevel("LOW");
         tx.setStatus("SUCCESS");
         
-        // 🚀 TẠO BIẾN MỚI (savedTx) ĐỂ JAVA KHÔNG CHỬI LỖI "EFFECTIVELY FINAL"
+        //   TẠO BIẾN MỚI (savedTx) ĐỂ JAVA KHÔNG CHỬI LỖI "EFFECTIVELY FINAL"
         Transaction savedTx = transactionRepository.save(tx);
 
         // TỪ ĐÂY TRỞ XUỐNG DÙNG savedTx THAY CHO tx

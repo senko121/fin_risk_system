@@ -2,7 +2,7 @@ package com.datn.finrisk.application.dtos;
 
 import com.datn.finrisk.core.entities.User;
 import lombok.Data;
-import java.math.BigDecimal; // 🚀 Nhớ phải import cái này để dùng BigDecimal
+import java.math.BigDecimal; //   Nhớ phải import cái này để dùng BigDecimal
 
 @Data
 public class UserDTO {
@@ -14,7 +14,7 @@ public class UserDTO {
     private String role;
     private String base64FaceImage;
     
-    // 🚀 BỔ SUNG 2 BIẾN NÀY ĐỂ REACT HIỂN THỊ SỐ TÀI KHOẢN VÀ SỐ DƯ
+    //   BỔ SUNG 2 BIẾN NÀY ĐỂ REACT HIỂN THỊ SỐ TÀI KHOẢN VÀ SỐ DƯ
     private String accountNumber;
     private BigDecimal balance;
 

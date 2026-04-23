@@ -1,198 +1,5 @@
 
 
-// import React, { useState, useEffect } from 'react';
-// import axiosClient from '../../api/axiosClient';
-// import { toast } from 'react-toastify';
-// import { Link } from 'react-router-dom';
-
-// export default function AdminUserDashboard() {
-//   const [users, setUsers] = useState([]);
-//   const [isLoading, setIsLoading] = useState(true);
-  
-//   // 🚀 BƯỚC 2: STATE LƯU TRỮ TỪ KHÓA TÌM KIẾM
-//   const [searchTerm, setSearchTerm] = useState('');
-
-//   // 1. Lấy danh sách người dùng từ API Backend
-//   const fetchUsers = async () => {
-//     try {
-//       setIsLoading(true);
-//       const response = await axiosClient.get('/admin/users');
-//       setUsers(response.data);
-//     } catch (error) {
-//       console.error('Lỗi tải danh sách người dùng:', error);
-//       toast.error("Không thể kết nối máy chủ để lấy danh sách người dùng!");
-//     } finally {
-//       setIsLoading(false);
-//     }
-//   };
-
-//   useEffect(() => {
-//     fetchUsers();
-//   }, []);
-
-//   // 2. Xử lý Khóa/Mở khóa tài khoản
-//   const handleToggleStatus = async (id) => {
-//     try {
-//       await axiosClient.patch(`/admin/users/${id}/toggle-status`, null, {
-//         headers: { 'X-Admin-Username': 'admin_thach' } 
-//       });
-//       toast.success("Cập nhật trạng thái tài khoản thành công!");
-//       fetchUsers(); // Refresh lại danh sách
-//     } catch (error) {
-//       toast.error("Lỗi khi thực hiện khóa tài khoản!");
-//     }
-//   };
-
-//   // 3. Xử lý Đánh dấu/Gỡ nghi ngờ IP
-//   const handleToggleSuspicious = async (id) => {
-//     try {
-//       await axiosClient.patch(`/admin/users/${id}/toggle-suspicious`, null, {
-//         headers: { 'X-Admin-Username': 'admin_thach' }
-//       });
-//       toast.info("Đã cập nhật mức độ tin cậy của phiên đăng nhập");
-//       fetchUsers();
-//     } catch (error) {
-//       toast.error("Lỗi hệ thống khi cập nhật cờ rủi ro!");
-//     }
-//   };
-
-//   // 🚀 BƯỚC 2: HÀM LỌC DANH SÁCH USER (REAL-TIME)
-//   const filteredUsers = users.filter(user => {
-//     const searchLower = searchTerm.toLowerCase();
-//     // Tìm trong: Tên đầy đủ, Username, Số ĐT, hoặc Email
-//     return (
-//       (user.fullName && user.fullName.toLowerCase().includes(searchLower)) ||
-//       (user.username && user.username.toLowerCase().includes(searchLower)) ||
-//       (user.phoneNumber && user.phoneNumber.includes(searchLower)) ||
-//       (user.email && user.email.toLowerCase().includes(searchLower))
-//     );
-//   });
-
-//   return (
-//     <div className="min-h-screen bg-slate-50 p-8 pb-16">
-//       <div className="max-w-7xl mx-auto">
-        
-//         {/* HEADER */}
-//         <div className="mb-8 flex justify-between items-center">
-//           <div>
-//             <h1 className="text-3xl font-black text-slate-900 tracking-tight flex items-center">
-//                Quản lý Người dùng
-//             </h1>
-//             <p className="text-slate-500 font-medium mt-1">Giám sát hoạt động và quản lý trạng thái bảo mật của khách hàng</p>
-//           </div>
-//           <Link to="/admin" className="px-5 py-2.5 bg-slate-900 text-white font-bold rounded-xl hover:bg-black transition-colors shadow-lg flex items-center">
-//             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-//             Quay lại Dashboard
-//           </Link>
-//         </div>
-
-//         {/* 🚀 BƯỚC 2: THANH TÌM KIẾM (SEARCH BAR) */}
-//         <div className="mb-6">
-//           <div className="relative w-full max-w-md">
-//             <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
-//               <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-//             </div>
-//             <input 
-//               type="text" 
-//               placeholder="Tìm kiếm theo Tên, SĐT, Email..." 
-//               value={searchTerm}
-//               onChange={(e) => setSearchTerm(e.target.value)}
-//               className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-2xl font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all"
-//             />
-//           </div>
-//         </div>
-
-//         {/* BẢNG DANH SÁCH USER */}
-//         <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
-//           <div className="overflow-x-auto">
-//             {isLoading ? (
-//               <div className="text-center py-20 font-bold text-slate-400 animate-pulse">Đang truy xuất cơ sở dữ liệu người dùng...</div>
-//             ) : (
-//               <table className="w-full text-left">
-//                 <thead className="bg-slate-50/50">
-//                   <tr className="border-b border-slate-100 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-//                     <th className="px-6 py-4">ID</th>
-//                     <th className="px-6 py-4">Thông tin cơ bản</th>
-//                     <th className="px-6 py-4">Liên hệ</th>
-//                     <th className="px-6 py-4">Trạng thái</th>
-//                     <th className="px-6 py-4">Bảo mật IP</th>
-//                     <th className="px-6 py-4 text-right">Hành động</th>
-//                   </tr>
-//                 </thead>
-//                 <tbody className="divide-y divide-slate-50">
-//                   {/* 🚀 BƯỚC 2: ĐỔI MẢNG MAP TỪ users SANG filteredUsers */}
-//                   {filteredUsers.map(user => (
-//                     <tr key={user.id} className="hover:bg-slate-50/80 transition-colors group">
-//                       <td className="px-6 py-5 text-slate-400 font-mono text-xs">#{user.id}</td>
-//                       <td className="px-6 py-5">
-//                         <p className="font-bold text-slate-800">{user.fullName}</p>
-//                         <p className="text-xs text-slate-400">@{user.username}</p>
-//                       </td>
-//                       <td className="px-6 py-5 text-sm">
-//                         <p className="text-slate-600 font-medium">{user.phoneNumber}</p>
-//                         <p className="text-xs text-slate-400">{user.email}</p>
-//                       </td>
-//                       <td className="px-6 py-5">
-//                         <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${user.status === 'ACTIVE' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
-//                           {user.status}
-//                         </span>
-//                       </td>
-//                       <td className="px-6 py-5">
-//                         {user.suspiciousSession ? (
-//                           <div className="flex items-center text-orange-600 font-bold text-xs bg-orange-50 px-3 py-1 rounded-lg border border-orange-100 w-fit">
-//                             <span className="w-2 h-2 bg-orange-600 rounded-full animate-ping mr-2"></span>
-//                             IP NGHI VẤN
-//                           </div>
-//                         ) : (
-//                           <span className="text-slate-400 text-xs font-medium">An toàn</span>
-//                         )}
-//                       </td>
-//                       <td className="px-6 py-5 text-right space-x-2">
-//                         <button 
-//                           onClick={() => handleToggleSuspicious(user.id)}
-//                           className={`p-2 rounded-lg transition-all ${user.suspiciousSession ? 'bg-slate-100 text-slate-600' : 'bg-orange-50 text-orange-600 hover:bg-orange-100'}`}
-//                           title={user.suspiciousSession ? "Gỡ bỏ cảnh báo IP" : "Đánh dấu IP đáng ngờ"}
-//                         >
-//                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-//                         </button>
-                        
-//                         <button 
-//                           onClick={() => handleToggleStatus(user.id)}
-//                           className={`px-4 py-2 rounded-lg font-bold text-xs transition-all ${user.status === 'ACTIVE' ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-green-50 text-green-600 hover:bg-green-100'}`}
-//                         >
-//                           {user.status === 'ACTIVE' ? 'KHÓA TK' : 'MỞ KHÓA'}
-//                         </button>
-//                       </td>
-//                     </tr>
-//                   ))}
-                  
-//                   {/* Hiển thị khi tìm kiếm không ra kết quả */}
-//                   {filteredUsers.length === 0 && !isLoading && (
-//                     <tr>
-//                       <td colSpan="6" className="py-12 text-center">
-//                         <p className="text-slate-400 font-bold text-lg">Không tìm thấy người dùng nào 🕵️‍♂️</p>
-//                         <p className="text-slate-400 text-sm mt-1">Thử đổi từ khóa tìm kiếm khác xem sao.</p>
-//                       </td>
-//                     </tr>
-//                   )}
-//                 </tbody>
-//               </table>
-//             )}
-//           </div>
-//         </div>
-
-//         {/* FOOTER INFO */}
-//         <div className="mt-6 flex justify-between items-center px-4">
-//            <p className="text-slate-400 text-xs font-medium">Đang hiển thị: {filteredUsers.length} / {users.length} người dùng</p>
-//            <div className="bg-blue-50 text-blue-700 px-4 py-2 rounded-xl text-[11px] font-bold border border-blue-100">
-//              TIP: Khóa tài khoản sẽ thu hồi Token, ép người dùng đăng xuất ngay lập tức.
-//            </div>
-//         </div>
-//       </div>
-//     </div>
-//   );
-// }
-
 import React, { useState, useEffect } from 'react';
 import axiosClient from '../../api/axiosClient';
 import { toast } from 'react-toastify';
@@ -203,7 +10,7 @@ export default function AdminUserDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // 🚀 STATE CHO MODAL HỒ SƠ
+  //   STATE CHO MODAL HỒ SƠ
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [recentTransactions, setRecentTransactions] = useState([]);
@@ -249,23 +56,23 @@ export default function AdminUserDashboard() {
     }
   };
 
-  // 🚀 MỞ MODAL VÀ (TẠM THỜI) LOAD DỮ LIỆU GIẢ
-  const openUserProfile = async (user) => {
-    setSelectedUser(user);
-    setIsProfileModalOpen(true);
-    setIsTxLoading(true);
+  //   MỞ MODAL VÀ GỌI API LẤY DỮ LIỆU THẬT
+    const openUserProfile = async (user) => {
+      setSelectedUser(user);
+      setIsProfileModalOpen(true);
+      setIsTxLoading(true);
 
-    // Chỗ này lát nữa sẽ gọi API thật: await axiosClient.get(`/admin/users/${user.id}/recent-transactions`);
-    // Tạm thời dùng setTimeout để giả lập độ trễ mạng 0.5s
-    setTimeout(() => {
-      setRecentTransactions([
-        { id: 'TX9981', amount: 50000000, status: 'BLOCKED', riskScore: 85, date: 'Vừa xong' },
-        { id: 'TX9980', amount: 200000, status: 'SUCCESS', riskScore: 10, date: '2 giờ trước' },
-        { id: 'TX9975', amount: 1500000, status: 'PENDING_FACE', riskScore: 45, date: 'Hôm qua' },
-      ]);
-      setIsTxLoading(false);
-    }, 500);
-  };
+      try {
+        // Gọi xuống Backend lôi 5 giao dịch mới nhất lên
+        const response = await axiosClient.get(`/admin/users/${user.id}/recent-transactions`);
+        setRecentTransactions(response.data);
+      } catch (error) {
+        toast.error("Không thể lấy lịch sử giao dịch của người dùng này!");
+        setRecentTransactions([]);
+      } finally {
+        setIsTxLoading(false);
+      }
+    };
 
   const filteredUsers = users.filter(user => {
     const searchLower = searchTerm.toLowerCase();
@@ -356,7 +163,7 @@ export default function AdminUserDashboard() {
                         )}
                       </td>
                       <td className="px-6 py-5 text-right space-x-2 flex justify-end items-center">
-                        {/* 🚀 NÚT XEM HỒ SƠ MỚI */}
+                        {/*   NÚT XEM HỒ SƠ MỚI */}
                         <button 
                           onClick={() => openUserProfile(user)}
                           className="px-3 py-2 bg-cyan-50 text-cyan-600 hover:bg-cyan-100 rounded-lg font-bold text-xs transition-all mr-2 flex items-center"
@@ -391,7 +198,7 @@ export default function AdminUserDashboard() {
       </div>
 
       {/* ========================================== */}
-      {/* 🚀 MODAL HỒ SƠ RỦI RO CHI TIẾT */}
+      {/*   MODAL HỒ SƠ RỦI RO CHI TIẾT */}
       {/* ========================================== */}
       {isProfileModalOpen && selectedUser && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">

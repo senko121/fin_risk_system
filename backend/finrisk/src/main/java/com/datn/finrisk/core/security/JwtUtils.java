@@ -22,7 +22,7 @@ public class JwtUtils {
     @Value("${jwt.expiration}")
     private int jwtExpirationMs;
 
-    // 🚀 BỔ SUNG 1: Khai báo thời gian sống của Refresh Token (đọc từ application.yml)
+    //   BỔ SUNG 1: Khai báo thời gian sống của Refresh Token (đọc từ application.yml)
     @Value("${jwt.refreshExpiration}")
     private int jwtRefreshExpirationMs;
 
@@ -49,7 +49,7 @@ public class JwtUtils {
     }
 
     // =========================================================
-    // 🚀 BỔ SUNG 2: HÀM MỚI - TẠO REFRESH TOKEN (Vé gia hạn 7 ngày)
+    //   BỔ SUNG 2: HÀM MỚI - TẠO REFRESH TOKEN (Vé gia hạn 7 ngày)
     // =========================================================
     public String generateRefreshToken(User user) {
         return Jwts.builder()

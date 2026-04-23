@@ -1,100 +1,3 @@
-// package com.datn.finrisk.core.services;
-
-// import com.datn.finrisk.core.entities.Rule;
-// import com.datn.finrisk.core.entities.Transaction;
-// import com.datn.finrisk.core.repository.RuleRepository;
-// import com.datn.finrisk.core.repository.TransactionRepository;
-// import com.fasterxml.jackson.databind.JsonNode;
-// import com.fasterxml.jackson.databind.ObjectMapper;
-// import org.springframework.beans.factory.annotation.Autowired;
-// import org.springframework.stereotype.Service;
-
-// import java.time.LocalDateTime;
-// import java.util.List;
-
-// @Service
-// public class RiskEvaluationService {
-
-//     @Autowired
-//     private RuleRepository ruleRepository;
-
-//     @Autowired
-//     private TransactionRepository transactionRepository;
-
-//     private final ObjectMapper objectMapper = new ObjectMapper();
-
-//     public int evaluateRisk(Transaction transaction, boolean isNewRecipient) {
-//         int totalRiskScore = 0;
-//         System.out.println("🤖 BẮT ĐẦU CHẠY RULE ENGINE DYNAMIC LẤY TỪ DATABASE...");
-
-//         // 1. Lấy tất cả các luật đang bật
-//         List<Rule> activeRules = ruleRepository.findByIsActiveTrue();
-
-//         // 🚀 KIỂM TRA 1: CHỐNG SPAM GIAO DỊCH
-//         LocalDateTime oneMinuteAgo = LocalDateTime.now().minusMinutes(1);
-//         int recentTxCount = transactionRepository.countRecentTransactions(
-//                 transaction.getFromAccount().getId(), 
-//                 oneMinuteAgo
-//         );
-
-//         if (recentTxCount >= 3) {
-//             System.out.println("🚨 ANTI-FRAUD: Phát hiện Spam Giao dịch! | Cộng: 40 điểm");
-//             totalRiskScore += 40;
-//         }
-
-//         // 🚀 KIỂM TRA 2: CỜ ĐỎ TỪ HỆ THỐNG TRUY VẾT THIẾT BỊ/IP (FAKE GEO)
-//         if (transaction.getFromAccount().getUser().isSuspiciousSession()) {
-//             System.out.println("🚨 ANTI-FRAUD: Phát hiện đăng nhập từ IP/Thiết bị lạ! | Cộng: 30 điểm");
-//             totalRiskScore += 30;
-//         }
-
-//         // 2. Duyệt qua từng luật lấy từ DB để kiểm tra
-//         for (Rule rule : activeRules) {
-//             try {
-//                 JsonNode conditionNode = objectMapper.readTree(rule.getConditions());
-//                 String field = conditionNode.get("field").asText();
-//                 String operator = conditionNode.get("operator").asText();
-//                 String value = conditionNode.get("value").asText();
-
-//                 boolean isMatched = false;
-
-//                 // 3. Xử lý Logic Rule Engine cốt lõi
-//                 if (field.equals("amount")) {
-//                     double txAmount = transaction.getAmount().doubleValue();
-//                     double ruleValue = Double.parseDouble(value);
-                    
-//                     if (operator.equals(">") && txAmount > ruleValue) isMatched = true;
-//                     if (operator.equals(">=") && txAmount >= ruleValue) isMatched = true;
-//                 } 
-//                 else if (field.equals("emotion")) {
-//                     if (operator.equals("==") && value.equals(transaction.getEmotionSignal())) {
-//                         isMatched = true;
-//                     }
-//                 }
-//                 else if (field.equals("history")) {
-//                     if (operator.equals("==") && value.equals("NEW_RECIPIENT") && isNewRecipient) {
-//                         isMatched = true;
-//                     }
-//                 }
-
-//                 // 4. Nếu vi phạm luật -> Cộng điểm
-//                 if (isMatched) {
-//                     totalRiskScore += rule.getActionScore();
-//                     System.out.println("⚠️ Kích hoạt luật: [" + rule.getRuleName() + "] | Cộng: " + rule.getActionScore() + " điểm");
-//                 }
-
-//             } catch (Exception e) {
-//                 System.err.println("Lỗi parse Rule ID: " + rule.getId());
-//             }
-//         }
-
-//         System.out.println("🎯 TỔNG ĐIỂM RỦI RO (TỪ DB): " + totalRiskScore);
-//         return totalRiskScore;
-//     }
-// }
-
-
-
 package com.datn.finrisk.core.services;
 
 import com.datn.finrisk.core.entities.Rule;
@@ -103,11 +6,24 @@ import com.datn.finrisk.core.repository.RuleRepository;
 import com.datn.finrisk.core.repository.TransactionRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.datn.finrisk.application.dtos.FaceAIResponse;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.expression.ExpressionParser;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.expression.spel.support.StandardEvaluationContext;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+
+import java.util.concurrent.CompletableFuture;
+import java.util.Map;
+import java.util.HashMap;
+
+
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -115,11 +31,13 @@ import java.util.List;
 @Service
 public class RiskEvaluationService {
 
+    @Autowired private RestTemplate restTemplate;
     @Autowired private RuleRepository ruleRepository;
     @Autowired private TransactionRepository transactionRepository;
+
     
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final ExpressionParser parser = new SpelExpressionParser(); // 🚀 Cỗ máy SpEL
+    private final ExpressionParser parser = new SpelExpressionParser(); // Cỗ máy SpEL
 
     public int evaluateRisk(Transaction transaction, boolean isNewRecipient) {
         int totalRiskScore = 0;
@@ -147,19 +65,19 @@ public class RiskEvaluationService {
                 String operator = conditionNode.get("operator").asText();
                 String value = conditionNode.get("value").asText();
 
-                // 🚀 Dịch từ JSON sang ngôn ngữ SpEL
+                // Dịch từ JSON sang ngôn ngữ SpEL
                 String spelExpression = "";
+                
+                // 🚀 ĐÃ DỌN SẠCH KHỐI EMOTION - VÒNG 1 CHỈ TÍNH TIỀN VÀ LỊCH SỬ
                 if ("amount".equals(field)) {
                     spelExpression = "#tx.amount " + operator + " " + value;
-                } else if ("emotion".equals(field)) {
-                    spelExpression = "#tx.emotionSignal " + operator + " '" + value + "'";
                 } else if ("history".equals(field)) {
                     if ("NEW_RECIPIENT".equals(value)) {
                         spelExpression = "#isNewRecipient " + operator + " true";
                     }
                 }
 
-                // 🚀 Bắt SpEL chạy thử biểu thức (Trả về True/False)
+                // Bắt SpEL chạy thử biểu thức (Trả về True/False)
                 if (!spelExpression.isEmpty()) {
                     Boolean isMatched = parser.parseExpression(spelExpression).getValue(context, Boolean.class);
                     if (Boolean.TRUE.equals(isMatched)) {
@@ -174,5 +92,63 @@ public class RiskEvaluationService {
 
         System.out.println("🎯 TỔNG ĐIỂM RỦI RO LÀ: " + totalRiskScore);
         return totalRiskScore;
+    }
+
+// 1. Fix gọi sang FaceID (Port 5000)
+    @Async("aiTaskExecutor")
+    public CompletableFuture<FaceAIResponse> verifyIdentityAsync(String liveBase64, String regBase64) {
+        System.out.println("--- [STEP 1: FACE-ID] Đang gửi ảnh sang Port 5000... ---");
+        try {
+            String url = "http://localhost:5000/api/ai/verify-face";
+            
+            // 🔥 BẮT BUỘC: Tạo Header JSON
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            Map<String, String> requestMap = new HashMap<>();
+            requestMap.put("live_image_base64", liveBase64);
+            requestMap.put("registered_image_base64", regBase64);
+
+            // Gói vào HttpEntity
+            HttpEntity<Map<String, String>> entity = new HttpEntity<>(requestMap, headers);
+
+            FaceAIResponse response = restTemplate.postForObject(url, entity, FaceAIResponse.class);
+            
+            if (response != null) {
+                System.out.println("✅ [STEP 1: FACE-ID] Phản hồi: Matched=" + response.isMatched());
+            }
+            return CompletableFuture.completedFuture(response);
+        } catch (Exception e) {
+            System.err.println("❌ [STEP 1: FACE-ID] LỖI: " + e.getMessage());
+            return CompletableFuture.completedFuture(null);
+        }
+    }
+
+    // 2. Fix gọi sang Emotion (Port 5001)
+    @Async("aiTaskExecutor")
+    public CompletableFuture<String> detectEmotionAsync(String liveBase64) {
+        System.out.println("--- [STEP 2: EMOTION] Đang gửi ảnh sang Port 5001... ---");
+        try {
+            String url = "http://localhost:5001/api/ai/detect-emotion";
+            
+            // 🔥 BẮT BUỘC: Tạo Header JSON
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            Map<String, String> requestMap = new HashMap<>();
+            requestMap.put("image_base64", liveBase64);
+
+            HttpEntity<Map<String, String>> entity = new HttpEntity<>(requestMap, headers);
+
+            // Nhận kết quả trực tiếp bằng JsonNode cho chính xác
+            JsonNode response = restTemplate.postForObject(url, entity, JsonNode.class);
+            String emotion = response.get("emotion").asText();
+            
+            System.out.println("✅ [STEP 2: EMOTION] Cảm xúc: " + emotion);
+            return CompletableFuture.completedFuture(emotion);
+        } catch (Exception e) {
+            System.err.println("❌ [STEP 2: EMOTION] LỖI: " + e.getMessage());
+            return CompletableFuture.completedFuture("UNKNOWN");
+        }
     }
 }
