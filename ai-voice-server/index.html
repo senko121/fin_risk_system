@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Test Vosk Streaming</title>
+    <style>
+        body { font-family: sans-serif; padding: 50px; background: #1e1e2f; color: white; }
+        .box { background: #2a2a40; padding: 20px; border-radius: 10px; max-width: 600px; margin: auto; }
+        #partial { color: #888; font-style: italic; min-height: 20px; margin-top: 10px; }
+        #final { color: #00d2ff; font-weight: bold; font-size: 20px; min-height: 30px;}
+        button { padding: 10px 20px; font-size: 16px; font-weight: bold; cursor: pointer; background: #00d2ff; border: none; border-radius: 5px; }
+        button.stop { background: #ff4757; color: white; display: none; }
+    </style>
+</head>
+<body>
+
+<div class="box">
+    <h2>Trạm thu phát Voice STT</h2>
+    <button id="startBtn">BẮT ĐẦU ĐỌC</button>
+    <button id="stopBtn" class="stop">DỪNG</button>
+    
+    <div style="margin-top: 30px;">
+        <p><strong>Kết quả Chốt (Final):</strong></p>
+        <div id="final">...</div>
+        
+        <p><strong>Đang dịch (Partial):</strong></p>
+        <div id="partial">...</div>
+    </div>
+</div>
+
+<script>
+    let socket;
+    let audioContext;
+    let processor;
+    let mediaStream;
+
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const finalDiv = document.getElementById('final');
+    const partialDiv = document.getElementById('partial');
+
+    startBtn.onclick = async () => {
+        // Mở kết nối tới FastAPI Server
+        socket = new WebSocket("ws://localhost:8000/ws/stt");
+        
+        socket.onopen = async () => {
+            console.log("WebSocket Đã Kết Nối");
+            startBtn.style.display = 'none';
+            stopBtn.style.display = 'inline-block';
+            finalDiv.innerText = '';
+            partialDiv.innerText = 'Đang nghe...';
+
+            // Xin quyền Micro
+            mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            
+            // Thiết lập AudioContext để băm âm thanh thành 16000Hz
+            audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+            const source = audioContext.createMediaStreamSource(mediaStream);
+            
+            // Dùng ScriptProcessor để chặn bắt từng cục Audio (buffer size 4096)
+            processor = audioContext.createScriptProcessor(4096, 1, 1);
+            
+            source.connect(processor);
+            processor.connect(audioContext.destination);
+            
+            processor.onaudioprocess = (e) => {
+                // Lấy data âm thanh thô Float32
+                const inputData = e.inputBuffer.getChannelData(0);
+                // Convert Float32 sang Int16 (Cái mà Vosk hiểu được)
+                const pcmData = new Int16Array(inputData.length);
+                for (let i = 0; i < inputData.length; i++) {
+                    pcmData[i] = Math.max(-1, Math.min(1, inputData[i])) * 0x7FFF;
+                }
+                
+                // Gửi thẳng cục byte lên Server
+                if (socket.readyState === WebSocket.OPEN) {
+                    socket.send(pcmData.buffer);
+                }
+            };
+        };
+
+        // Hứng kết quả Server trả về
+        socket.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.type === 'partial') {
+                partialDiv.innerText = data.text; // Chữ nhảy liên tục ở đây
+            } else if (data.type === 'final') {
+                partialDiv.innerText = '';
+                finalDiv.innerText += data.text + ' '; // Chốt câu ở đây
+            }
+        };
+    };
+
+    stopBtn.onclick = () => {
+        if (processor) { processor.disconnect(); processor = null; }
+        if (audioContext) { audioContext.close(); }
+        if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); }
+        if (socket) { socket.close(); }
+        
+        startBtn.style.display = 'inline-block';
+        stopBtn.style.display = 'none';
+        partialDiv.innerText = 'Đã dừng.';
+    };
+</script>
+</body>
+</html>

@@ -13,3 +13,4 @@ frontend/dist/
 
 finrisk-ai-service/venv
 emotion-ai-services/venv_emotion
+ai-voice-server/venv-voice

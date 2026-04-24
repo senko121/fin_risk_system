@@ -15,6 +15,7 @@ import ExpenseAnalytics from './pages/Analytics/ExpenseAnalytics';
 import ChangePassword from './pages/Auth/ChangePassword';
 import SecuritySettings from './pages/Security/SecuritySettings'; 
 import TransferMethod from './pages/Transaction/TransferMethod';
+import AccountProfile from './pages/User/AccountProfile';
 import UserSettings from './pages/Account/UserSettings';
 import AdminRuleDashboard from './pages/Admin/AdminRuleDashboard';
 import AdminUserDashboard from './pages/Admin/AdminUserDashboard';
@@ -47,6 +48,7 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/account" element={<UserSettings />} />
+            <Route path="/card-details" element={<AccountProfile />} />
             <Route path="/transfer" element={<TransferMethod />} />
             <Route path="/transfer/stk" element={<TransactionStep1 />} />
             <Route path="/verify-otp" element={<OTPVerification />} />
