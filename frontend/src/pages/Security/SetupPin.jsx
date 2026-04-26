@@ -1,0 +1,155 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
+import axiosClient from '../../api/axiosClient';
+
+export default function SetupPin() {
+  const navigate = useNavigate();
+  const [currentUser, setCurrentUser] = useState(null);
+  
+  const [isPinSetup, setIsPinSetup] = useState(false); // Cờ kiểm tra từ Backend
+  const [isLoadingStatus, setIsLoadingStatus] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [formData, setFormData] = useState({
+    oldPin: '',
+    newPin: '',
+    confirmPin: ''
+  });
+
+  // 1. Lấy User từ LocalStorage và Gọi API check status
+  useEffect(() => {
+    const userStr = localStorage.getItem('currentUser');
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      setCurrentUser(user);
+      checkSecurityStatus(user.id || user.userId);
+    } else {
+      navigate('/login');
+    }
+  }, [navigate]);
+
+  const checkSecurityStatus = async (userId) => {
+    try {
+      // 🚀 GỌI API VỪA VIẾT Ở BƯỚC 1
+      const response = await axiosClient.get(`/users/${userId}/security-status`);
+      setIsPinSetup(response.data.isPinSetup);
+    } catch (error) {
+      toast.error("Lỗi lấy thông tin bảo mật!");
+    } finally {
+      setIsLoadingStatus(false);
+    }
+  };
+
+  const handleChange = (e) => {
+    // Chỉ cho nhập số
+    const value = e.target.value.replace(/[^0-9]/g, '');
+    setFormData({ ...formData, [e.target.name]: value });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    // Validate cơ bản
+    if (isPinSetup && formData.oldPin.length !== 6) {
+      toast.warning("Vui lòng nhập đủ 6 số PIN cũ!");
+      return;
+    }
+    if (formData.newPin.length !== 6) {
+      toast.warning("Mã PIN mới phải đủ 6 số!");
+      return;
+    }
+    if (formData.newPin !== formData.confirmPin) {
+      toast.error("Mã PIN xác nhận không khớp!");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const response = await axiosClient.post('/users/security/pin', {
+        userId: currentUser.id || currentUser.userId,
+        oldPin: isPinSetup ? formData.oldPin : null, // Nếu chưa có PIN thì gửi null
+        newPin: formData.newPin
+      });
+
+      toast.success("🎉 " + response.data.message);
+      navigate('/security'); // Đổi xong quay về Trung tâm bảo mật
+
+    } catch (error) {
+      const errorMsg = error.response?.data?.message || "Lỗi cập nhật Mã PIN!";
+      toast.error("❌ " + errorMsg);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (isLoadingStatus) {
+    return <div className="min-h-screen flex items-center justify-center">Đang tải cấu hình...</div>;
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-50 flex justify-center items-center p-4">
+      <div className="w-full max-w-md bg-white p-8 rounded-[2rem] shadow-xl border border-slate-100">
+        
+        {/* Nút Back */}
+        <button onClick={() => navigate(-1)} className="flex items-center text-slate-400 hover:text-blue-600 mb-6 font-bold text-sm transition-colors">
+          <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path></svg>
+          Quay lại
+        </button>
+
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 bg-purple-50 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+          </div>
+          <h2 className="text-2xl font-black text-slate-900">{isPinSetup ? 'Đổi Mã Smart PIN' : 'Tạo Mã Smart PIN'}</h2>
+          <p className="text-sm text-slate-500 mt-2">Mã PIN gồm 6 số dùng để xác thực giao dịch nhanh.</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          
+          {/* NẾU ĐÃ CÓ PIN THÌ HIỆN Ô NÀY */}
+          {isPinSetup && (
+            <div>
+              <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Mã PIN hiện tại</label>
+              <input 
+                type="password" name="oldPin" maxLength="6" placeholder="••••••"
+                value={formData.oldPin} onChange={handleChange} required={isPinSetup}
+                className="w-full text-center text-2xl tracking-[0.5em] font-black py-4 rounded-2xl bg-slate-50 border-2 border-transparent focus:border-purple-500 focus:bg-white outline-none transition-all"
+              />
+            </div>
+          )}
+
+          <div>
+            <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Mã PIN mới</label>
+            <input 
+              type="password" name="newPin" maxLength="6" placeholder="••••••"
+              value={formData.newPin} onChange={handleChange} required
+              className="w-full text-center text-2xl tracking-[0.5em] font-black py-4 rounded-2xl bg-slate-50 border-2 border-transparent focus:border-purple-500 focus:bg-white outline-none transition-all"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Nhập lại PIN mới</label>
+            <input 
+              type="password" name="confirmPin" maxLength="6" placeholder="••••••"
+              value={formData.confirmPin} onChange={handleChange} required
+              className={`w-full text-center text-2xl tracking-[0.5em] font-black py-4 rounded-2xl border-2 outline-none transition-all ${
+                formData.confirmPin.length > 0 && formData.newPin !== formData.confirmPin 
+                ? 'bg-red-50 border-red-300 focus:border-red-500 text-red-600' 
+                : 'bg-slate-50 border-transparent focus:border-purple-500 focus:bg-white'
+              }`}
+            />
+          </div>
+
+          <button 
+            type="submit" disabled={isSubmitting}
+            className={`w-full py-4 rounded-2xl text-white font-black text-lg transition-all shadow-lg ${isSubmitting ? 'bg-slate-300 shadow-none cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700 active:scale-95 shadow-purple-200'}`}
+          >
+            {isSubmitting ? 'ĐANG XỬ LÝ...' : (isPinSetup ? 'CẬP NHẬT MÃ PIN' : 'TẠO MÃ PIN')}
+          </button>
+        </form>
+
+      </div>
+    </div>
+  );
+}

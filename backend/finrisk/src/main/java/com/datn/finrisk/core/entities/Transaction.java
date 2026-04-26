@@ -26,6 +26,8 @@ public class Transaction {
     private String emotionSignal; // Tín hiệu cảm xúc thu được
     private Integer totalRiskScore = 0;
     private String riskLevel; // LOW, MEDIUM, HIGH
+
+    private String locationIp; // Lưu IP lúc thực hiện giao dịch
     
     private String status = "PENDING";
     private LocalDateTime createdAt = LocalDateTime.now();

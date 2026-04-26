@@ -1,0 +1,110 @@
+// package com.datn.finrisk.core.entities;
+
+// import jakarta.persistence.*;
+// import lombok.Data;
+// import lombok.NoArgsConstructor;
+// import java.time.LocalDateTime;
+
+// @Entity
+// @Table(name = "user_securities")
+// @Data
+// @NoArgsConstructor
+// public class UserSecurity {
+
+//     @Id
+//     @GeneratedValue(strategy = GenerationType.IDENTITY)
+//     private Long id;
+
+//     // Quan hệ 1-1 với bảng users. Đánh dấu unique = true để đảm bảo 1 user chỉ có 1 bản ghi bảo mật
+//     @OneToOne(fetch = FetchType.LAZY)
+//     @JoinColumn(name = "user_id", nullable = false, unique = true)
+//     private User user;
+
+//     private String pinHash;
+
+//     @Column(nullable = false)
+//     private String passwordHash;
+
+//     private Boolean isPinSetup = false;
+
+//     private Boolean twoFactorEnabled = false;
+
+//     private Integer failedLoginAttempts = 0;
+
+//     private Integer failedPinAttempts = 0;
+
+//     private LocalDateTime lockUntil;
+
+//     private LocalDateTime lastPasswordChange;
+
+//     private LocalDateTime lastPinChange;
+
+//     @Column(updatable = false)
+//     private LocalDateTime createdAt = LocalDateTime.now();
+
+//     private LocalDateTime updatedAt = LocalDateTime.now();
+
+//     // Tự động cập nhật thời gian mỗi khi có thay đổi (VD: Cập nhật số lần nhập sai PIN)
+//     @PreUpdate
+//     protected void onUpdate() {
+//         updatedAt = LocalDateTime.now();
+//     }
+// }
+
+package com.datn.finrisk.core.entities;
+
+import jakarta.persistence.*;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.ToString; // 🚀 Bổ sung import
+import lombok.EqualsAndHashCode; // 🚀 Bổ sung import
+import java.time.LocalDateTime;
+import com.fasterxml.jackson.annotation.JsonIgnore; // 🚀 Bổ sung import
+
+@Entity
+@Table(name = "user_securities")
+@Data
+@NoArgsConstructor
+public class UserSecurity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    // 🚀 DÁN 3 CÁI BÙA VÀO ĐÂY
+    @JsonIgnore
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false, unique = true)
+    private User user;
+
+    private String pinHash;
+
+    @Column(nullable = false)
+    private String passwordHash;
+
+    private Boolean isPinSetup = false;
+
+    private Boolean twoFactorEnabled = false;
+
+    private Integer failedLoginAttempts = 0;
+
+    private Integer failedPinAttempts = 0;
+
+    private LocalDateTime lockUntil;
+
+    private LocalDateTime lastPasswordChange;
+
+    private LocalDateTime lastPinChange;
+
+    @Column(updatable = false)
+    private LocalDateTime createdAt = LocalDateTime.now();
+
+    private LocalDateTime updatedAt = LocalDateTime.now();
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
+}

@@ -4,8 +4,8 @@ import lombok.Data;
 
 @Data
 public class AuthVerifyRequest {
-    private Long transactionId; // ID của giao dịch đang bị treo
-    private String authType;    // Loại xác thực: "OTP" hoặc "FACE"
-    private String authCode;    // Mã người dùng nhập (VD: "123456")
+    private Long transactionId; 
+    private String authType;    // Có thể truyền lên: "PIN", "OTP", hoặc "FACE"
+    private String authCode;    // Mật mã người dùng nhập (6 số PIN hoặc 6 số OTP)
     private String faceImageBase64;
 }

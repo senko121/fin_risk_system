@@ -14,6 +14,9 @@ import com.datn.finrisk.core.entities.User;
 import com.datn.finrisk.core.repository.UserRepository;
 import com.datn.finrisk.core.services.UserService; 
 import com.datn.finrisk.core.repository.UserContactRepository;
+import com.datn.finrisk.application.dtos.PinSetupRequest;
+import com.datn.finrisk.core.services.PinService;
+import com.datn.finrisk.core.repository.UserSecurityRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -36,6 +39,11 @@ public class UserController {
     @Autowired
     private AccountRepository accountRepository;
 
+    @Autowired
+    private PinService pinService;
+
+    @Autowired
+    private UserSecurityRepository userSecurityRepository;
 
     // API 1: Đăng ký khuôn mặt gốc (Lưu Base64 vào Database)
     @PostMapping("/register-face")
@@ -132,6 +140,47 @@ public class UserController {
             
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", "Lỗi tạo mã QR: " + e.getMessage()));
+        }
+    }
+    // ==========================================
+    // API 5: CÀI ĐẶT / ĐỔI MÃ PIN BẢO MẬT
+    // ==========================================
+    @PostMapping("/security/pin")
+    public ResponseEntity<?> setupOrChangePin(@RequestBody PinSetupRequest request) {
+        try {
+            // Gọi hàm xử lý từ PinService
+            String message = pinService.setupOrChangePin(
+                    request.getUserId(), 
+                    request.getOldPin(), 
+                    request.getNewPin()
+            );
+            
+            // Trả về JSON chuẩn cho Frontend dễ đọc
+            return ResponseEntity.ok(Map.of("status", "SUCCESS", "message", message));
+            
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("status", "FAILED", "message", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/{userId}/security-status")
+    public ResponseEntity<?> getSecurityStatus(@PathVariable Long userId) {
+        try {
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng!"));
+
+            com.datn.finrisk.core.entities.UserSecurity security = userSecurityRepository.findByUserId(userId)
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy hồ sơ bảo mật!"));
+
+            Map<String, Object> status = new java.util.HashMap<>();
+            // Trả về cờ kiểm tra PIN
+            status.put("isPinSetup", security.getIsPinSetup());
+            // Sẵn tiện trả về luôn cờ kiểm tra xem đã cài FaceID chưa
+            status.put("isFaceSetup", user.getBase64FaceImage() != null && !user.getBase64FaceImage().isEmpty());
+
+            return ResponseEntity.ok(status);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 }

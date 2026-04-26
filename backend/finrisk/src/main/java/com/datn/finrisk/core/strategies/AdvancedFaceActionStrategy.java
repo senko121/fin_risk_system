@@ -86,17 +86,17 @@ import org.springframework.stereotype.Service;
 
 import java.util.concurrent.CompletableFuture;
 
-@Service("faceScanActionStrategy")
-public class FaceScanActionStrategy implements RiskActionStrategy {
+@Service("advancedFaceActionStrategy") // SỬA TÊN BEAN Ở ĐÂY
+public class AdvancedFaceActionStrategy implements RiskActionStrategy {
 
     @Autowired private TransactionRepository transactionRepository;
     @Autowired private RiskEvaluationService riskEvaluationService;
 
     @Override
     public Transaction execute(Transaction tx) {
-        System.out.println("⛔ THỰC THI CHIẾN THUẬT: FACE_SCAN_ACTION");
+        System.out.println("🔴 THỰC THI CHIẾN THUẬT: ADVANCED_FACE_ACTION (HIGH)");
         tx.setRiskLevel("HIGH");
-        tx.setStatus("PENDING_FACE_SCAN");
+        tx.setStatus("PENDING_FACE_AI"); // Ép vào luồng AI lập tức
         return transactionRepository.save(tx);
     }
 

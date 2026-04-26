@@ -56,18 +56,24 @@ export default function SecuritySettings() {
             </div>
           </button>
 
-          {/* 3. NÚT ĐỔI MÃ PIN (Coming Soon) */}
-          <button className="w-full flex items-center justify-between p-6 hover:bg-slate-50 transition-colors opacity-60 cursor-not-allowed">
+      {/* 3. NÚT ĐỔI MÃ PIN */}
+          <button 
+            onClick={() => navigate('/setup-pin')}
+            className="w-full flex items-center justify-between p-6 hover:bg-slate-50 transition-colors border-b border-slate-50 group"
+          >
             <div className="flex items-center">
-              <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-full flex items-center justify-center mr-4">
+              {/* Icon ổ khóa màu tím (Giữ nguyên) */}
+              <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-full flex items-center justify-center mr-4 group-hover:bg-purple-600 group-hover:text-white transition-colors">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8V7a4 4 0 00-8 0v4h8z"></path></svg>
               </div>
               <div className="text-left">
                 <h3 className="font-bold text-slate-800">Mã Smart PIN</h3>
-                <p className="text-xs text-slate-400 mt-1">Đổi mã PIN xác thực nhanh</p>
+                <p className="text-xs text-slate-400 mt-1">Thiết lập & Đổi mã PIN xác thực nhanh</p>
               </div>
             </div>
-            <span className="text-[10px] font-bold text-slate-400 uppercase">Sắp ra mắt</span>
+            
+            {/* Mũi tên chỉ sang phải thay cho chữ Sắp ra mắt */}
+            <svg className="w-5 h-5 text-slate-300 group-hover:text-purple-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path></svg>
           </button>
 
         </div>

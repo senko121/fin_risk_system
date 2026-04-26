@@ -17,6 +17,7 @@ import SecuritySettings from './pages/Security/SecuritySettings';
 import TransferMethod from './pages/Transaction/TransferMethod';
 import AccountProfile from './pages/User/AccountProfile';
 import UserSettings from './pages/Account/UserSettings';
+import SetupPin from './pages/Security/SetupPin';
 import AdminRuleDashboard from './pages/Admin/AdminRuleDashboard';
 import AdminUserDashboard from './pages/Admin/AdminUserDashboard';
 import AdminLogDashboard from './pages/Admin/AdminLogDashboard';
@@ -57,7 +58,9 @@ function App() {
             <Route path="/verify-face" element={<FaceVerification />} />
             <Route path="/history" element={<TransactionHistory />} />
             <Route path="/analytics" element={<ExpenseAnalytics />} />
+            
             <Route path="/security" element={<SecuritySettings />} />
+            <Route path="/setup-pin" element={<SetupPin />} />
             <Route path="/change-password" element={<ChangePassword />} />
 
             <Route path="/admin" element={<AdminRoute> <AdminDashboard /> </AdminRoute>} />

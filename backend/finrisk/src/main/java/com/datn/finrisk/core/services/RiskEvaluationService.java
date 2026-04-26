@@ -54,9 +54,17 @@ public class RiskEvaluationService {
         }
 
         // Bơm bối cảnh (Data) vào cho SpEL đọc
+        // Bơm bối cảnh (Data) vào cho SpEL đọc
         StandardEvaluationContext context = new StandardEvaluationContext();
         context.setVariable("tx", transaction);
         context.setVariable("isNewRecipient", isNewRecipient);
+        
+        // 🚀 BƠM THÊM 2 BIẾN MỚI TỪ ENTITY USER
+        boolean isSuspicious = transaction.getFromAccount().getUser().isSuspiciousSession();
+        context.setVariable("suspiciousSession", isSuspicious);
+        
+        // Tạm thời hardcode deviceTrusted = true để test (Sau này bro query từ bảng UserDevice nhé)
+        context.setVariable("deviceTrusted", true); 
 
         for (Rule rule : activeRules) {
             try {
@@ -65,16 +73,19 @@ public class RiskEvaluationService {
                 String operator = conditionNode.get("operator").asText();
                 String value = conditionNode.get("value").asText();
 
-                // Dịch từ JSON sang ngôn ngữ SpEL
                 String spelExpression = "";
                 
-                // 🚀 ĐÃ DỌN SẠCH KHỐI EMOTION - VÒNG 1 CHỈ TÍNH TIỀN VÀ LỊCH SỬ
+                // 🚀 DẠY SpEL CÁCH ĐỌC 4 LOẠI FIELD CHÚNG TA ĐANG CÓ
                 if ("amount".equals(field)) {
                     spelExpression = "#tx.amount " + operator + " " + value;
                 } else if ("history".equals(field)) {
                     if ("NEW_RECIPIENT".equals(value)) {
                         spelExpression = "#isNewRecipient " + operator + " true";
                     }
+                } else if ("suspiciousSession".equals(field)) {
+                    spelExpression = "#suspiciousSession " + operator + " " + value;
+                } else if ("deviceTrusted".equals(field)) {
+                    spelExpression = "#deviceTrusted " + operator + " " + value;
                 }
 
                 // Bắt SpEL chạy thử biểu thức (Trả về True/False)

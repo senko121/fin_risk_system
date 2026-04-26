@@ -1,6 +1,9 @@
 package com.datn.finrisk.web.controllers;
 
 import com.datn.finrisk.application.dtos.ApiErrorResponse;
+import com.datn.finrisk.core.exceptions.BusinessLogicException;
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
@@ -13,8 +16,26 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    // 🚀 THÊM MỚI: BẮT LỖI NGHIỆP VỤ ĐỂ DỌN SẠCH TERMINAL (Sai PIN, Thiếu tiền,...)
+    @ExceptionHandler(BusinessLogicException.class)
+    public ResponseEntity<ApiErrorResponse> handleBusinessLogicException(BusinessLogicException ex) {
+        // 1. In ra Terminal đúng 1 dòng duy nhất, màu vàng, tuyệt đối KHÔNG có Stack Trace rác!
+        log.warn("⚠️ Bị chặn bởi Business Rule [{}]: {}", ex.getErrorCode(), ex.getMessage());
+
+        // 2. Gói lỗi lại vào DTO ApiErrorResponse của bro để trả về React
+        ApiErrorResponse response = ApiErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value()) // Mã 400
+                .errorCode(ex.getErrorCode())           // Bốc mã lỗi từ Exception (VD: ERR_WRONG_PIN)
+                .message(ex.getMessage())               // Bốc câu thông báo từ Exception
+                .build();
+
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+    }
 
     // 🚀 1. BẮT LỖI VALIDATION (@Min, @NotNull,...) TỪ DTO
     @ExceptionHandler(MethodArgumentNotValidException.class)
