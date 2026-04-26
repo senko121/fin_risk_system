@@ -1,6 +1,7 @@
 package com.datn.finrisk.core.services;
 
 import com.datn.finrisk.core.entities.Rule;
+import com.datn.finrisk.core.entities.User;
 import com.datn.finrisk.core.entities.Transaction;
 import com.datn.finrisk.core.repository.RuleRepository;
 import com.datn.finrisk.core.repository.TransactionRepository;
@@ -59,12 +60,13 @@ public class RiskEvaluationService {
         context.setVariable("tx", transaction);
         context.setVariable("isNewRecipient", isNewRecipient);
         
-        // 🚀 BƠM THÊM 2 BIẾN MỚI TỪ ENTITY USER
-        boolean isSuspicious = transaction.getFromAccount().getUser().isSuspiciousSession();
-        context.setVariable("suspiciousSession", isSuspicious);
+        // 🚀 CÚ LỪA RULE ENGINE: Gộp 2 cờ làm 1 trước khi đút cho SpEL
+        User sender = transaction.getFromAccount().getUser();
+        boolean combinedSuspiciousRisk = sender.isSuspiciousSession() || sender.isAdminFlagged();
+        context.setVariable("suspiciousSession", combinedSuspiciousRisk);
         
-        // Tạm thời hardcode deviceTrusted = true để test (Sau này bro query từ bảng UserDevice nhé)
-        context.setVariable("deviceTrusted", true); 
+        // Tạm thời hardcode deviceTrusted = true để test 
+        context.setVariable("deviceTrusted", true);
 
         for (Rule rule : activeRules) {
             try {

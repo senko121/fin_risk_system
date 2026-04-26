@@ -75,7 +75,7 @@ export default function OTPVerification() {
       toast.success("🎉 Xác thực thành công! Giao dịch đã được duyệt.");
       navigate('/transaction-result', {
         state: {
-          result: response.data, 
+          result: response.data.data, 
           formData: formData,
           recipientName: recipientName
         }

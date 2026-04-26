@@ -61,19 +61,36 @@ public class AdminUserService {
     }
 
     // 3. Nút bấm: Cảnh báo IP độc hại
+    // @Transactional(rollbackFor = Exception.class)
+    // public AdminUserDTO toggleSuspicious(Long id, String adminUsername) {
+    //     User user = userRepository.findById(id)
+    //             .orElseThrow(() -> new RuntimeException("Không tìm thấy User!"));
+        
+    //     // Đảo ngược cờ cảnh báo
+    //     user.setSuspiciousSession(!user.isSuspiciousSession());
+    //     user = userRepository.save(user);
+
+    //     //   GHI LOG BẰNG CHỨNG
+    //     String actionMsg = user.isSuspiciousSession() ? "BẬT CẢNH BÁO ĐỎ" : "GỠ CẢNH BÁO";
+    //     auditLogService.logAction(adminUsername, "TOGGLE_SUSPICIOUS_IP", 
+    //         actionMsg + " cho IP/Thiết bị của tài khoản [" + user.getUsername() + "]");
+
+    //     return convertToDTO(user);
+    // }
+
     @Transactional(rollbackFor = Exception.class)
     public AdminUserDTO toggleSuspicious(Long id, String adminUsername) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy User!"));
         
-        // Đảo ngược cờ cảnh báo
-        user.setSuspiciousSession(!user.isSuspiciousSession());
+        // 🚀 THAY ĐỔI: Admin thao tác trên cờ adminFlagged, không đụng vào cờ của máy nữa
+        user.setAdminFlagged(!user.isAdminFlagged());
         user = userRepository.save(user);
 
         //   GHI LOG BẰNG CHỨNG
-        String actionMsg = user.isSuspiciousSession() ? "BẬT CẢNH BÁO ĐỎ" : "GỠ CẢNH BÁO";
-        auditLogService.logAction(adminUsername, "TOGGLE_SUSPICIOUS_IP", 
-            actionMsg + " cho IP/Thiết bị của tài khoản [" + user.getUsername() + "]");
+        String actionMsg = user.isAdminFlagged() ? "BẬT CẢNH BÁO ĐỎ (Thủ công)" : "GỠ CẢNH BÁO (Thủ công)";
+        auditLogService.logAction(adminUsername, "TOGGLE_ADMIN_FLAG", 
+            actionMsg + " cho tài khoản [" + user.getUsername() + "]");
 
         return convertToDTO(user);
     }
@@ -107,7 +124,9 @@ public class AdminUserService {
         dto.setPhoneNumber(user.getPhoneNumber());
         dto.setEmail(user.getEmail());
         dto.setStatus(user.getStatus());
-        dto.setSuspiciousSession(user.isSuspiciousSession());
+        
+        dto.setSuspiciousSession(user.isSuspiciousSession() || user.isAdminFlagged());
+        
         dto.setLastLoginIp(user.getLastLoginIp());
         dto.setLastLoginDevice(user.getLastLoginDevice());
         dto.setCreatedAt(user.getCreatedAt());

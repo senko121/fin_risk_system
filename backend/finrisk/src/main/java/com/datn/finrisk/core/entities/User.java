@@ -105,4 +105,7 @@ public class User {
     private String lastLoginDevice;
 
     private boolean isSuspiciousSession = false;
+
+    @Column(name = "admin_flagged")
+    private boolean adminFlagged = false;
 }

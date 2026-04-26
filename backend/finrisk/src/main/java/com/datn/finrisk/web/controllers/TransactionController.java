@@ -494,41 +494,6 @@ public class TransactionController {
     @Autowired
     private AuditLogService auditLogService;
 
-
-    // @PostMapping("/process")
-    // // 🚀 BƯỚC 1: Thêm HttpServletRequest httpRequest vào đây để lấy thông tin mạng
-    // public ResponseEntity<?> processTransaction(@Valid @RequestBody TransactionRequest request, HttpServletRequest httpRequest) {
-    //     try {
-    //         // 🚀 BƯỚC 2: Chộp IP và Thiết bị (User-Agent) ngay khi có Request bay vào
-    //         String currentIp = httpRequest.getRemoteAddr();
-    //         String currentDevice = httpRequest.getHeader("User-Agent");
-            
-    //         // Cắt ngắn chuỗi Device nếu nó quá dài (tránh văng lỗi vỡ DataBase)
-    //         if (currentDevice != null && currentDevice.length() > 250) {
-    //             currentDevice = currentDevice.substring(0, 250);
-    //         }
-
-    //         // 🚀 BƯỚC 3: Truyền thêm 2 biến currentIp và currentDevice xuống Service
-    //         Transaction result = transactionService.initiateTransaction(
-    //                 request.getFromAccountId(),
-    //                 request.getToAccount(),
-    //                 request.getAmount(),
-    //                 request.getDescription(),
-    //                 currentIp,      // Nhét IP vào đây
-    //                 currentDevice   // Nhét Device vào đây
-    //         );
-
-    //         // GHI LOG TẠO LỆNH THÀNH CÔNG (Nhưng chưa chốt tiền)
-    //         String username = result.getFromAccount().getUser().getUsername();
-    //         auditLogService.logAction(username, "TRANSACTION_INITIATED", "Tạo lệnh chuyển " + request.getAmount() + " VND đến STK " + request.getToAccount() + ". Mức rủi ro: " + result.getRiskLevel());
-
-    //         return ResponseEntity.ok(result);
-    //     } catch (Exception e) {
-    //         return ResponseEntity.badRequest().body(e.getMessage());
-    //     }
-    // }
-
-
     @PostMapping("/process")
     // 🚀 BƯỚC 1: XÓA TRY-CATCH VÀ NHỚ THÊM 'throws Exception'
     public ResponseEntity<?> processTransaction(@Valid @RequestBody TransactionRequest request, HttpServletRequest httpRequest) throws Exception {
@@ -559,8 +524,113 @@ public class TransactionController {
         return ResponseEntity.ok(result);
     }
 
-@PostMapping("/verify")
-    // 🚀 BƯỚC 1: XÓA TRY-CATCH, THÊM 'throws Exception' ĐỂ LỖI BAY THẲNG RA NGOÀI
+// @PostMapping("/verify")
+//     // 🚀 BƯỚC 1: XÓA TRY-CATCH, THÊM 'throws Exception' ĐỂ LỖI BAY THẲNG RA NGOÀI
+//     public ResponseEntity<?> verifyAndExecute(@RequestBody AuthVerifyRequest request) throws Exception {
+        
+//         Transaction tx = transactionRepository.findById(request.getTransactionId())
+//                 .orElseThrow(() -> new RuntimeException("Giao dịch không tồn tại!"));
+
+//         String username = tx.getFromAccount().getUser().getUsername();
+//         String authType = request.getAuthType();
+//         String currentStatus = tx.getStatus();
+
+//         // ==========================================================
+//         // TRẠM 0: XÁC THỰC MÃ PIN
+//         // ==========================================================
+//         if ("PIN".equals(authType)) {
+//             Long userId = tx.getFromAccount().getUser().getId();
+            
+//             // 🚀 LƯU Ý: Nếu sai PIN, hàm này sẽ ném BusinessLogicException thẳng ra ngoài
+//             // KHÔNG CẦN CHỖ NÀY PHẢI HỨNG NỮA!
+//             boolean isPinValid = pinService.verifyPin(userId, request.getAuthCode());
+
+//             // Đoạn if(!isPinValid) bên dưới thực ra dư thừa vì Exception đã chặn đứng luồng chạy ở trên rồi
+//             // Nhưng cứ để cho chắc cú cũng không sao.
+//             if (!isPinValid) {
+//                 auditLogService.logAction(username, "PIN_FAILED", "Nhập sai PIN giao dịch " + tx.getId());
+//                 return ResponseEntity.badRequest().body("Mã PIN không chính xác hoặc tài khoản đang bị khóa!");
+//             }
+
+//             // Điều hướng dựa trên Status hiện tại
+//             if ("PENDING_PIN".equals(currentStatus)) { 
+//                 Transaction completedTx = transactionService.executeTransactionCore(tx);
+//                 auditLogService.logAction(username, "TX_SUCCESS", "Chuyển tiền thành công (1 lớp PIN).");
+//                 return ResponseEntity.ok(Map.of("status", "SUCCESS", "data", completedTx));
+//             } 
+//             else if ("PENDING_PIN_OTP".equals(currentStatus)) { 
+//                 tx.setStatus("PENDING_OTP");
+//                 transactionRepository.save(tx);
+//                 return ResponseEntity.ok(Map.of("status", "NEXT_STEP", "nextAuthType", "OTP", "message", "Mã PIN đúng. Vui lòng nhập OTP."));
+//             }
+//             else if ("PENDING_PIN_OTP_FACE".equals(currentStatus)) { 
+//                 tx.setStatus("PENDING_OTP_FACE");
+//                 transactionRepository.save(tx);
+//                 return ResponseEntity.ok(Map.of("status", "NEXT_STEP", "nextAuthType", "OTP", "message", "Mã PIN đúng. Vui lòng nhập OTP."));
+//             }
+//         }
+
+//         // ==========================================================
+//         // TRẠM 1: XÁC THỰC OTP 
+//         // ==========================================================
+//         else if ("OTP".equals(authType)) {
+//             boolean isValid = otpService.verifyOtp(tx.getId(), request.getAuthCode());
+//             if (!isValid) {
+//                 auditLogService.logAction(username, "OTP_FAILED", "Sai OTP giao dịch " + tx.getId());
+//                 return ResponseEntity.badRequest().body("OTP sai hoặc đã hết hạn!");
+//             }
+
+//             if ("PENDING_OTP".equals(currentStatus)) { 
+//                 Transaction completedTx = transactionService.executeTransactionCore(tx);
+//                 auditLogService.logAction(username, "TX_SUCCESS", "Chuyển tiền thành công (PIN + OTP).");
+//                 return ResponseEntity.ok(Map.of("status", "SUCCESS", "data", completedTx));
+//             }
+//             else if ("PENDING_OTP_FACE".equals(currentStatus)) { 
+//                 tx.setStatus("PENDING_FACE_STATIC");
+//                 transactionRepository.save(tx);
+//                 return ResponseEntity.ok(Map.of("status", "NEXT_STEP", "nextAuthType", "FACE_STATIC", "message", "OTP đúng. Vui lòng quét khuôn mặt để hoàn tất."));
+//             }
+//         }
+
+//         // ==========================================================
+//         // TRẠM 2: QUÉT MẶT TĨNH 
+//         // ==========================================================
+//         else if ("FACE_STATIC".equals(authType)) {
+//             if ("PENDING_FACE_STATIC".equals(currentStatus)) {
+//                 // TODO: Facematch Logic
+//                 Transaction completedTx = transactionService.executeTransactionCore(tx);
+//                 auditLogService.logAction(username, "TX_SUCCESS", "Chuyển tiền thành công (Tuân thủ NHNN).");
+//                 return ResponseEntity.ok(Map.of("status", "SUCCESS", "data", completedTx));
+//             }
+//         }
+
+//         // ==========================================================
+//         // TRẠM 3: QUÉT MẶT AI + CẢM XÚC 
+//         // ==========================================================
+//         else if ("FACE_AI".equals(authType)) {
+//             if ("PENDING_FACE_AI".equals(currentStatus)) {
+//                 boolean isSecure = faceScanActionStrategy.validateFaceAndEmotion(tx, request.getFaceImageBase64());
+//                 if (!isSecure) {
+//                     tx.setStatus("BLOCKED");
+//                     transactionRepository.save(tx);
+//                     auditLogService.logAction(username, "AI_REJECT", "Chặn đứng giao dịch do phát hiện rủi ro sinh trắc.");
+//                     return ResponseEntity.status(403).body("Cảnh báo an ninh: Xác thực AI thất bại!");
+//                 }
+                
+//                 tx.setStatus("PENDING_VOICE_OTP");
+//                 transactionRepository.save(tx);
+//                 return ResponseEntity.ok(Map.of("status", "NEXT_STEP", "nextAuthType", "VOICE_OTP", "message", "Xác thực AI thành công. Vui lòng đọc Voice OTP."));
+//             }
+//         }
+
+//         return ResponseEntity.badRequest().body("Luồng xác thực bị gián đoạn hoặc không hợp lệ!");
+        
+//         // 🚀 BƯỚC 2: Toàn bộ khối CATCH bự chà bá ở cuối đã bị xóa sổ!
+//     }
+
+
+
+    @PostMapping("/verify")
     public ResponseEntity<?> verifyAndExecute(@RequestBody AuthVerifyRequest request) throws Exception {
         
         Transaction tx = transactionRepository.findById(request.getTransactionId())
@@ -571,42 +641,44 @@ public class TransactionController {
         String currentStatus = tx.getStatus();
 
         // ==========================================================
-        // TRẠM 0: XÁC THỰC MÃ PIN
+        // TRẠM 0: XÁC THỰC MÃ PIN (MỌI GIAO DỊCH ĐỀU PHẢI QUA ĐÂY)
         // ==========================================================
         if ("PIN".equals(authType)) {
             Long userId = tx.getFromAccount().getUser().getId();
             
-            // 🚀 LƯU Ý: Nếu sai PIN, hàm này sẽ ném BusinessLogicException thẳng ra ngoài
-            // KHÔNG CẦN CHỖ NÀY PHẢI HỨNG NỮA!
+            // Nếu sai PIN, nó tự ném Lỗi ra ngoài rồi (Fail-fast)
             boolean isPinValid = pinService.verifyPin(userId, request.getAuthCode());
 
-            // Đoạn if(!isPinValid) bên dưới thực ra dư thừa vì Exception đã chặn đứng luồng chạy ở trên rồi
-            // Nhưng cứ để cho chắc cú cũng không sao.
             if (!isPinValid) {
                 auditLogService.logAction(username, "PIN_FAILED", "Nhập sai PIN giao dịch " + tx.getId());
-                return ResponseEntity.badRequest().body("Mã PIN không chính xác hoặc tài khoản đang bị khóa!");
+                return ResponseEntity.badRequest().body("Mã PIN không chính xác!");
             }
 
-            // Điều hướng dựa trên Status hiện tại
+            // ĐIỀU HƯỚNG TẠI ĐÂY (BẺ GHI)
             if ("PENDING_PIN".equals(currentStatus)) { 
+                //  LUỒNG LOW: CHỐT LUÔN!
                 Transaction completedTx = transactionService.executeTransactionCore(tx);
                 auditLogService.logAction(username, "TX_SUCCESS", "Chuyển tiền thành công (1 lớp PIN).");
                 return ResponseEntity.ok(Map.of("status", "SUCCESS", "data", completedTx));
             } 
             else if ("PENDING_PIN_OTP".equals(currentStatus)) { 
+                //  LUỒNG MEDIUM_1: SANG TRẠM OTP
                 tx.setStatus("PENDING_OTP");
                 transactionRepository.save(tx);
-                return ResponseEntity.ok(Map.of("status", "NEXT_STEP", "nextAuthType", "OTP", "message", "Mã PIN đúng. Vui lòng nhập OTP."));
+                // 🚀 BÂY GIỜ MỚI GỌI HÀM SINH OTP ĐỂ GỬI ĐI!
+                otpService.generateAndSendOtp(tx); 
+                return ResponseEntity.ok(Map.of("status", "NEXT_STEP", "nextAuthType", "OTP", "message", "Mã PIN đúng. Vui lòng nhập OTP vừa được gửi."));
             }
-            else if ("PENDING_PIN_OTP_FACE".equals(currentStatus)) { 
-                tx.setStatus("PENDING_OTP_FACE");
+            else if ("PENDING_PIN_FACE".equals(currentStatus)) { 
+                //  LUỒNG MEDIUM_2: BỎ QUA OTP, ĐÁ THẲNG SANG QUÉT MẶT
+                tx.setStatus("PENDING_FACE_STATIC");
                 transactionRepository.save(tx);
-                return ResponseEntity.ok(Map.of("status", "NEXT_STEP", "nextAuthType", "OTP", "message", "Mã PIN đúng. Vui lòng nhập OTP."));
+                return ResponseEntity.ok(Map.of("status", "NEXT_STEP", "nextAuthType", "FACE_STATIC", "message", "Mã PIN đúng. Vui lòng quét khuôn mặt bảo mật."));
             }
         }
 
         // ==========================================================
-        // TRẠM 1: XÁC THỰC OTP 
+        // TRẠM 1: XÁC THỰC OTP (DÀNH RIÊNG CHO MEDIUM_1)
         // ==========================================================
         else if ("OTP".equals(authType)) {
             boolean isValid = otpService.verifyOtp(tx.getId(), request.getAuthCode());
@@ -616,28 +688,26 @@ public class TransactionController {
             }
 
             if ("PENDING_OTP".equals(currentStatus)) { 
+                // 🟡 LUỒNG MEDIUM_1: CHỐT TẠI ĐÂY!
                 Transaction completedTx = transactionService.executeTransactionCore(tx);
                 auditLogService.logAction(username, "TX_SUCCESS", "Chuyển tiền thành công (PIN + OTP).");
                 return ResponseEntity.ok(Map.of("status", "SUCCESS", "data", completedTx));
             }
-            else if ("PENDING_OTP_FACE".equals(currentStatus)) { 
-                tx.setStatus("PENDING_FACE_STATIC");
-                transactionRepository.save(tx);
-                return ResponseEntity.ok(Map.of("status", "NEXT_STEP", "nextAuthType", "FACE_STATIC", "message", "OTP đúng. Vui lòng quét khuôn mặt để hoàn tất."));
-            }
         }
 
         // ==========================================================
-        // TRẠM 2: QUÉT MẶT TĨNH 
+        // TRẠM 2: QUÉT MẶT TĨNH (DÀNH RIÊNG CHO MEDIUM_2)
         // ==========================================================
         else if ("FACE_STATIC".equals(authType)) {
             if ("PENDING_FACE_STATIC".equals(currentStatus)) {
-                // TODO: Facematch Logic
+                // LUỒNG MEDIUM_2: CHỐT TẠI ĐÂY!
+                // TODO: Chỗ này bro gắn cái hàm AI FaceMatch sau nhé
                 Transaction completedTx = transactionService.executeTransactionCore(tx);
-                auditLogService.logAction(username, "TX_SUCCESS", "Chuyển tiền thành công (Tuân thủ NHNN).");
+                auditLogService.logAction(username, "TX_SUCCESS", "Chuyển tiền thành công (PIN + Khuôn Mặt).");
                 return ResponseEntity.ok(Map.of("status", "SUCCESS", "data", completedTx));
             }
         }
+
 
         // ==========================================================
         // TRẠM 3: QUÉT MẶT AI + CẢM XÚC 
@@ -659,8 +729,6 @@ public class TransactionController {
         }
 
         return ResponseEntity.badRequest().body("Luồng xác thực bị gián đoạn hoặc không hợp lệ!");
-        
-        // 🚀 BƯỚC 2: Toàn bộ khối CATCH bự chà bá ở cuối đã bị xóa sổ!
     }
 
 @GetMapping("/history/{accountId}")
@@ -670,7 +738,7 @@ public class TransactionController {
             List<Map<String, Object>> result = ledgers.stream().map(l -> {
                 Map<String, Object> map = new HashMap<>();
                 
-                // 🚀 BƯỚC 1: Kéo Giao dịch gốc ra trước để dùng cho toàn bộ logic bên dưới
+                //  BƯỚC 1: Kéo Giao dịch gốc ra trước để dùng cho toàn bộ logic bên dưới
                 Transaction rootTx = l.getTransaction();
                 
                 // Dữ liệu Sổ cái (Kế toán)
@@ -680,7 +748,7 @@ public class TransactionController {
                 map.put("balanceAfter", l.getBalanceAfter());
                 map.put("date", l.getCreatedAt());
                 
-                // 🚀 BƯỚC 2: ĐÃ FIX LOGIC LỜI NHẮN (Ưu tiên lấy từ rootTx)
+                //  BƯỚC 2: ĐÃ FIX LOGIC LỜI NHẮN (Ưu tiên lấy từ rootTx)
                 String txDescription = (rootTx != null && rootTx.getDescription() != null && !rootTx.getDescription().isEmpty()) 
                         ? rootTx.getDescription() 
                         : (l.getEntryType().equals("DEBIT") ? "Chuyển khoản đi" : "Nhận tiền chuyển khoản");
