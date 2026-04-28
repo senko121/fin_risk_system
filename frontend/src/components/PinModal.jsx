@@ -187,6 +187,9 @@ export default function PinModal({ isOpen, onClose, transactionId, formData, rec
           navigate('/verify-otp', { state: { transactionId, formData, recipientName } });
         } else if (resData.nextAuthType === 'FACE_STATIC') {
           navigate('/verify-face', { state: { transactionId, formData, recipientName } });
+        } else if (resData.nextAuthType === 'FACE_AI') { 
+          // NHÁNH MỚI CHO LUỒNG HIGH RISK
+          navigate('/verify-high-risk', { state: { transactionId, formData, recipientName } });
         }
       }
     } catch (error) {

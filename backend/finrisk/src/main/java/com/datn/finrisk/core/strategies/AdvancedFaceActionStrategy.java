@@ -94,12 +94,13 @@ public class AdvancedFaceActionStrategy implements RiskActionStrategy {
 
     @Override
     public Transaction execute(Transaction tx) {
-        System.out.println("🔴 THỰC THI CHIẾN THUẬT: ADVANCED_FACE_ACTION (HIGH)");
+        System.out.println("THỰC THI CHIẾN THUẬT: ADVANCED_FACE_ACTION (HIGH)");
         tx.setRiskLevel("HIGH");
-        tx.setStatus("PENDING_FACE_AI"); // Ép vào luồng AI lập tức
+        
+        tx.setStatus("PENDING_PIN_HIGH"); 
+        
         return transactionRepository.save(tx);
     }
-
     // 🚀 HÀM PHÁN QUYẾT AI BẤT ĐỒNG BỘ
     public boolean validateFaceAndEmotion(Transaction tx, String liveImageBase64) {
         User user = tx.getFromAccount().getUser();

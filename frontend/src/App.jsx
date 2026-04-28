@@ -15,6 +15,7 @@ import ExpenseAnalytics from './pages/Analytics/ExpenseAnalytics';
 import ChangePassword from './pages/Auth/ChangePassword';
 import SecuritySettings from './pages/Security/SecuritySettings'; 
 import TransferMethod from './pages/Transaction/TransferMethod';
+import HighRiskVerification from './pages/Transaction/HighRiskVerification';
 import AccountProfile from './pages/User/AccountProfile';
 import UserSettings from './pages/Account/UserSettings';
 import SetupPin from './pages/Security/SetupPin';
@@ -56,6 +57,7 @@ function App() {
             <Route path="/transaction-result" element={<TransactionResult />} />
             <Route path="/register-face" element={<FaceRegister />} />
             <Route path="/verify-face" element={<FaceVerification />} />
+            <Route path="/verify-high-risk" element={<HighRiskVerification />} />
             <Route path="/history" element={<TransactionHistory />} />
             <Route path="/analytics" element={<ExpenseAnalytics />} />
             

@@ -19,6 +19,8 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.core.io.ByteArrayResource;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.Map;
@@ -40,27 +42,40 @@ public class RiskEvaluationService {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final ExpressionParser parser = new SpelExpressionParser(); // Cỗ máy SpEL
 
-    public int evaluateRisk(Transaction transaction, boolean isNewRecipient) {
+   public int evaluateRisk(Transaction transaction, boolean isNewRecipient) {
         int totalRiskScore = 0;
         System.out.println("🤖 BẮT ĐẦU CHẠY RULE ENGINE DYNAMIC (SỬ DỤNG SpEL)...");
 
         List<Rule> activeRules = ruleRepository.findByIsActiveTrue();
 
-        // Check Spam & IP (Giữ nguyên logic bảo mật cốt lõi)
+        // ==========================================================
+        // 1. TÍNH TOÁN CÁC CHỈ SỐ BỐI CẢNH (Để bơm vào SpEL)
+        // ==========================================================
+        
+        // A. Tần suất giao dịch (Spam check)
         LocalDateTime oneMinuteAgo = LocalDateTime.now().minusMinutes(1);
         int recentTxCount = transactionRepository.countRecentTransactions(transaction.getFromAccount().getId(), oneMinuteAgo);
-        if (recentTxCount >= 3) {
-            System.out.println("🚨 ANTI-FRAUD: Phát hiện Spam! | Cộng: 40 điểm");
-            totalRiskScore += 40;
+        
+        // B. Tỷ lệ vét ví (Account Drain - Số tiền chuyển / Tổng số dư)
+        double balanceRatio = 0.0;
+        double currentBalance = transaction.getFromAccount().getBalance().doubleValue();
+        if (currentBalance > 0) {
+            balanceRatio = transaction.getAmount().doubleValue() / currentBalance;
         }
 
-        // Bơm bối cảnh (Data) vào cho SpEL đọc
-        // Bơm bối cảnh (Data) vào cho SpEL đọc
+        // C. Khung giờ âm binh (Night-time check: 23h - 5h)
+        int currentHour = LocalDateTime.now().getHour();
+        boolean isNightTime = (currentHour >= 23 || currentHour < 5);
+
+
+        // ==========================================================
+        // 2. BƠM BỐI CẢNH VÀO SpEL CONTEXT
+        // ==========================================================
         StandardEvaluationContext context = new StandardEvaluationContext();
         context.setVariable("tx", transaction);
         context.setVariable("isNewRecipient", isNewRecipient);
         
-        // 🚀 CÚ LỪA RULE ENGINE: Gộp 2 cờ làm 1 trước khi đút cho SpEL
+        // Cú lừa Rule Engine: Gộp cờ IP lạ và cờ Admin
         User sender = transaction.getFromAccount().getUser();
         boolean combinedSuspiciousRisk = sender.isSuspiciousSession() || sender.isAdminFlagged();
         context.setVariable("suspiciousSession", combinedSuspiciousRisk);
@@ -68,6 +83,15 @@ public class RiskEvaluationService {
         // Tạm thời hardcode deviceTrusted = true để test 
         context.setVariable("deviceTrusted", true);
 
+        // Bơm 3 biến rủi ro mới vào Cỗ máy
+        context.setVariable("recentTxCount", recentTxCount);
+        context.setVariable("balanceRatio", balanceRatio);
+        context.setVariable("isNightTime", isNightTime);
+
+
+        // ==========================================================
+        // 3. VÒNG LẶP CHẤM ĐIỂM DỰA TRÊN LUẬT TỪ DATABASE
+        // ==========================================================
         for (Rule rule : activeRules) {
             try {
                 JsonNode conditionNode = objectMapper.readTree(rule.getConditions());
@@ -77,7 +101,7 @@ public class RiskEvaluationService {
 
                 String spelExpression = "";
                 
-                // 🚀 DẠY SpEL CÁCH ĐỌC 4 LOẠI FIELD CHÚNG TA ĐANG CÓ
+                // 🚀 DẠY SpEL CÁCH ĐỌC 7 LOẠI FIELD CHÚNG TA ĐANG CÓ
                 if ("amount".equals(field)) {
                     spelExpression = "#tx.amount " + operator + " " + value;
                 } else if ("history".equals(field)) {
@@ -88,6 +112,14 @@ public class RiskEvaluationService {
                     spelExpression = "#suspiciousSession " + operator + " " + value;
                 } else if ("deviceTrusted".equals(field)) {
                     spelExpression = "#deviceTrusted " + operator + " " + value;
+                } 
+                // 3 Trạm soi luật mới thêm
+                else if ("recentTxCount".equals(field)) {
+                    spelExpression = "#recentTxCount " + operator + " " + value;
+                } else if ("balanceRatio".equals(field)) {
+                    spelExpression = "#balanceRatio " + operator + " " + value;
+                } else if ("isNightTime".equals(field)) {
+                    spelExpression = "#isNightTime " + operator + " " + value;
                 }
 
                 // Bắt SpEL chạy thử biểu thức (Trả về True/False)
@@ -162,6 +194,42 @@ public class RiskEvaluationService {
         } catch (Exception e) {
             System.err.println("❌ [STEP 2: EMOTION] LỖI: " + e.getMessage());
             return CompletableFuture.completedFuture("UNKNOWN");
+        }
+    }
+
+    @Async("aiTaskExecutor")
+    public CompletableFuture<String> verifyVoiceLivenessAsync(MultipartFile audioFile) {
+        System.out.println("--- [STEP VOICE-AI] Đang gửi Audio sang Port 5003... ---");
+        try {
+            String url = "http://localhost:5003/api/ai/verify-voice";
+            
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+
+            // Bọc file Audio vào Resource để gửi qua HTTP Form-data
+            org.springframework.util.MultiValueMap<String, Object> body = new org.springframework.util.LinkedMultiValueMap<>();
+            ByteArrayResource fileResource = new ByteArrayResource(audioFile.getBytes()) {
+                @Override
+                public String getFilename() {
+                    return audioFile.getOriginalFilename() != null ? audioFile.getOriginalFilename() : "audio.wav";
+                }
+            };
+            body.add("audio_file", fileResource);
+
+            HttpEntity<org.springframework.util.MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+
+            // Nhận kết quả từ Python (Cổng 5003)
+            JsonNode response = restTemplate.postForObject(url, requestEntity, JsonNode.class);
+            
+            if (response != null && response.has("authCode")) {
+                String authCode = response.get("authCode").asText();
+                System.out.println("✅ [VOICE-AI] Python nhận diện thành công mã: " + authCode);
+                return CompletableFuture.completedFuture(authCode);
+            }
+            return CompletableFuture.completedFuture("");
+        } catch (Exception e) {
+            System.err.println("❌ [VOICE-AI] LỖI GIAO TIẾP VỚI PYTHON (Port 5003): " + e.getMessage());
+            return CompletableFuture.completedFuture("");
         }
     }
 }

@@ -17,7 +17,11 @@ public class Rule {
     private String description;
 
     @Column(columnDefinition = "JSON")
-    private String conditions; // Lưu logic JSON: {"field": "amount", "operator": ">", "value": 50000000} [cite: 94]
+    private String conditions; // Lưu logic JSON: {"field": "amount", "operator": ">", "value": 50000000}
+
+    // 🚀 BỔ SUNG TRƯỜNG NÀY ĐỂ MAP VỚI CỘT MỚI TRONG DATABASE
+    @Column(name = "spel_expression", columnDefinition = "TEXT")
+    private String spelExpression;
 
     private Integer actionScore;
 

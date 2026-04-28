@@ -201,4 +201,15 @@ public class OtpService {
             return false;
         }
     }
+
+    //  HÀM MỚI: CHỈ TẠO MÃ VOICE OTP, LƯU REDIS VÀ TRẢ VỀ CHUỖI (KHÔNG GỬI SMS)
+    public String generateVoiceOtp(Long transactionId) {
+        String otp = String.format("%06d", new Random().nextInt(999999));
+        
+        // Vẫn dùng hàm lưu Redis cũ của bro
+        this.saveOtp(transactionId, otp);
+        
+        System.out.println("🎤 VOICE OTP TẠO MỚI LÀ: " + otp);
+        return otp;
+    }
 }
