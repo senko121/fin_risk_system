@@ -92,23 +92,33 @@ export default function FaceRegister() {
         base64FaceImage: base64Image
       });
 
+      // 🚀 ĐIỂM NÂNG CẤP TỐI THƯỢNG Ở ĐÂY:
+      // Cập nhật lại cờ nhận thức trong LocalStorage ngay lập tức
+      const updatedUser = { ...currentUser, isFaceSetup: true };
+      localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+
       toast.success("🎉 Đăng ký Sinh trắc học thành công!");
       setTimeout(() => {
-        navigate('/dashboard');
-      }, 1000); // Cho đợi 1 giây để ngắm cái dòng thông báo xanh xanh
+        navigate('/dashboard'); // Hoặc navigate lùi lại trang giao dịch tùy bro
+      }, 1000); 
       
     } catch (error) {
       setStatus("❌ Lỗi lưu DB. Vui lòng thử lại!");
-      toast.error("Lỗi: " + (error.response?.data || error.message)); // Bắt lỗi 500 hoặc 400 ném ra Toast
+      toast.error("Lỗi: " + (error.response?.data || error.message)); 
     } finally {
       setIsProcessing(false);
     }
   }, [webcamRef, currentUser, navigate]);
+  
+  useEffect(() => {
+    if (!currentUser) {
+      toast.error("Vui lòng đăng nhập trước khi sử dụng tính năng này!");
+      navigate('/login');
+    }
+  }, [currentUser, navigate]);
 
+  // Nếu chưa đăng nhập thì trả về null để không vẽ UI, nhường quyền cho useEffect đá văng ra ngoài
   if (!currentUser) {
-    // Nếu chưa đăng nhập mà mưu đồ mò vào đây thì đá ra chuồng gà luôn, không cần render UI
-    toast.error("Vui lòng đăng nhập trước khi sử dụng tính năng này!");
-    navigate('/login');
     return null;
   }
 

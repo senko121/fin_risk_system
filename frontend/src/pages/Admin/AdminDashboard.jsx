@@ -199,6 +199,34 @@ export default function AdminDashboard() {
               </div>
             </Link>
 
+            {/* THẺ SỐ 4: KIỂM SOÁT NGƯỠNG RỦI RO (MÀU CAM) */}
+            <Link to="/admin/policies" className="bg-orange-600 hover:bg-orange-700 group rounded-2xl p-6 flex items-center justify-between transition-all transform hover:-translate-y-1 shadow-lg shadow-orange-600/30">
+              <div>
+                <h3 className="font-black text-white text-lg">Ngưỡng Rủi Ro</h3>
+                <p className="text-orange-200 text-sm mt-1">Điều chỉnh mức điểm bảo mật</p>
+              </div>
+              <div className="w-12 h-12 bg-orange-500 rounded-full flex items-center justify-center group-hover:bg-white transition-all duration-300">
+                {/* Icon dạng thanh trượt (Slider / Control) thể hiện việc điều chỉnh */}
+                <svg className="w-6 h-6 text-white group-hover:text-orange-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path>
+                </svg>
+              </div>
+            </Link>
+
+            {/* 🚀 THẺ SỐ 5: AI AUDIT TRAIL MỚI */}
+            <Link to="/admin/ai-logs" className="bg-fuchsia-600 hover:bg-fuchsia-700 group rounded-2xl p-6 flex items-center justify-between transition-all transform hover:-translate-y-1 shadow-lg shadow-fuchsia-600/30">
+              <div>
+                <h3 className="font-black text-white text-lg">AI Audit Trail</h3>
+                <p className="text-fuchsia-200 text-sm mt-1">Lịch sử Sinh trắc & Cảm xúc</p>
+              </div>
+              <div className="w-12 h-12 bg-fuchsia-500 rounded-full flex items-center justify-center group-hover:scale-110 group-hover:bg-white transition-all duration-300">
+                <svg className="w-6 h-6 text-white group-hover:text-fuchsia-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                </svg>
+              </div>
+            </Link>
+
             <div className="bg-white border-2 border-dashed border-slate-200 rounded-2xl p-6 flex items-center justify-center opacity-60">
               <span className="font-bold text-slate-400 flex items-center">
                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>

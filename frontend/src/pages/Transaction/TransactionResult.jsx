@@ -44,7 +44,7 @@ export default function TransactionResult() {
             <div className="flex justify-between items-center mb-2">
               <span className="text-gray-600 text-sm">Mức độ rủi ro:</span>
               <span className={`text-sm font-black ${result.riskLevel === 'LOW' ? 'text-green-600' : 'text-orange-500'}`}>
-                {result.riskLevel} ({result.totalRiskScore}/100)
+                {result.riskLevel} ({Math.min(result.totalRiskScore, 100)}/100)
               </span>
             </div>
             <div className="w-full bg-gray-200 h-1.5 rounded-full overflow-hidden">

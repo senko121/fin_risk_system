@@ -22,6 +22,8 @@ import SetupPin from './pages/Security/SetupPin';
 import AdminRuleDashboard from './pages/Admin/AdminRuleDashboard';
 import AdminUserDashboard from './pages/Admin/AdminUserDashboard';
 import AdminLogDashboard from './pages/Admin/AdminLogDashboard';
+import AdminPolicyDashboard from './pages/Admin/AdminPolicyDashboard';
+import AdminAiLogDashboard from './pages/Admin/AdminAiLogDashboard'; 
 
 
 function App() {
@@ -29,7 +31,7 @@ function App() {
     <Router>
       <div className="min-h-screen bg-gray-50 flex">
         {/* Nội dung chính */}
-        <main className="flex-1">
+        <main className="flex-1"> 
           
           <ToastContainer 
             position="top-right" 
@@ -69,6 +71,8 @@ function App() {
             <Route path="/admin/rules" element={<AdminRoute> <AdminRuleDashboard /> </AdminRoute>} />
             <Route path="/admin/users" element={<AdminRoute> <AdminUserDashboard /> </AdminRoute>} />
             <Route path="/admin/logs" element={<AdminRoute> <AdminLogDashboard /> </AdminRoute>} />
+            <Route path="/admin/policies" element={<AdminRoute> <AdminPolicyDashboard /> </AdminRoute>} />
+            <Route path="/admin/ai-logs" element={<AdminRoute> <AdminAiLogDashboard /> </AdminRoute>} />
           </Routes>
           
         </main>

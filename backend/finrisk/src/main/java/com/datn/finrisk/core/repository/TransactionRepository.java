@@ -5,6 +5,7 @@ import com.datn.finrisk.core.entities.Transaction;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import org.springframework.data.repository.query.Param;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -27,4 +28,8 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
 
     // Lấy 5 giao dịch gần nhất của 1 User cụ thể
     List<Transaction> findTop5ByFromAccountUserIdOrderByCreatedAtDesc(Long userId);
+
+    // Tính tổng số tiền đã luân chuyển thành công trong ngày của 1 tài khoản
+    @Query("SELECT SUM(t.amount) FROM Transaction t WHERE t.fromAccount.id = :accountId AND t.status = 'SUCCESS' AND t.createdAt >= :startOfDay")
+    BigDecimal sumSuccessfulAmountToday(@Param("accountId") Long accountId, @Param("startOfDay") LocalDateTime startOfDay);
 }

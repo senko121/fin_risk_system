@@ -317,20 +317,26 @@ export default function TransactionStep1() {
       }
 
       } catch (error) {
-      // 1. Bóc lấy cái thông báo lỗi từ Backend (Ví dụ: "Tài khoản đang bị tạm khóa...")
-      const msg = error.response?.data?.message || "Lỗi giao dịch!";
+      // 1. Bóc lấy cái thông báo lỗi từ Backend
+      const msg = error.response?.data?.message || typeof error.response?.data === 'string' ? error.response?.data : "Lỗi giao dịch!";
+      const errorCode = error.response?.data?.code || error.response?.data?.errorCode;
       
-      // 2. Hiển thị thông báo lỗi lên góc màn hình
       toast.error("🚨 " + msg);
 
-      // 🚀 3. CHẶN TỪ VÒNG GỬI XE: Kiểm tra xem lỗi có chữ "khóa" không
+      // 🚀 RADAR BẮT LỖI FACEID: Đá thẳng sang trang cài đặt
+      if (errorCode === 'ERR_NO_FACE_SETUP' || msg.includes('FaceID') || msg.includes('khuôn mặt')) {
+          setTimeout(() => {
+              navigate('/register-face');
+          }, 2000);
+          return; // Dừng luôn, không chạy các lệnh bên dưới
+      }
+
+      // 3. CHẶN TỪ VÒNG GỬI XE: Kiểm tra xem lỗi có chữ "khóa" không
       if (typeof msg === 'string' && msg.toLowerCase().includes('khóa')) {
-          // Nếu đúng là lỗi khóa tài khoản -> Đếm ngược 2.5 giây rồi sút về Dashboard
           setTimeout(() => {
               navigate('/dashboard'); 
           }, 2500); 
       }
-
     } finally {
       setIsLoading(false);
     }

@@ -15,4 +15,5 @@ public class AdminUserDTO {
     private String lastLoginIp;
     private String lastLoginDevice;
     private LocalDateTime createdAt;
+    private boolean hasFaceData; 
 }

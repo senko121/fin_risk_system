@@ -10,4 +10,6 @@ public class LoginResponse {
     private String accountNumber;
     private BigDecimal balance;
     private String message;
+    
+    private boolean isFaceSetup; 
 }

@@ -1,8 +1,10 @@
+
+
 // import React, { useRef, useState, useEffect, useCallback } from 'react';
 // import Webcam from 'react-webcam';
 // import { useLocation, useNavigate } from 'react-router-dom';
 // import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
-// import { toast } from 'react-toastify'; //   IMPORT TOAST VÀO ĐÂY
+// import { toast } from 'react-toastify'; 
 
 // import axiosClient from '../../api/axiosClient';
 
@@ -11,14 +13,17 @@
 //   const navigate = useNavigate();
 //   const { state } = useLocation();
   
-//   // Nhận dữ liệu giao dịch từ trang Step 1 truyền sang
-//   const { transactionId, formData, recipientName, result } = state || {};
+//   const { transactionId, formData, recipientName } = state || {};
 
 //   const [faceLandmarker, setFaceLandmarker] = useState(null);
 //   const [isModelLoaded, setIsModelLoaded] = useState(false);
 //   const [isFaceDetected, setIsFaceDetected] = useState(false);
 //   const [isProcessing, setIsProcessing] = useState(false);
 //   const [status, setStatus] = useState("Đang tải AI Model...");
+
+//   // 🚀 LÔI USER TỪ KÉT SẮT RA ĐỂ KIỂM TRA
+//   const currentUser = JSON.parse(localStorage.getItem('currentUser')) || {};
+//   const hasFaceSetup = currentUser.isFaceSetup === true;
 
 //   // 1. KHỞI TẠO MEDIAPIPE AI
 //   useEffect(() => {
@@ -27,6 +32,9 @@
 //       navigate('/dashboard');
 //       return;
 //     }
+
+//     // 🚀 CHẶN AI: Nếu chưa đăng ký mặt thì nghỉ khỏe, không tải AI tốn RAM
+//     if (!hasFaceSetup) return; 
 
 //     const initAI = async () => {
 //       try {
@@ -50,7 +58,7 @@
 //       }
 //     };
 //     initAI();
-//   }, [transactionId, navigate]);
+//   }, [transactionId, navigate, hasFaceSetup]);
 
 //   // 2. LIÊN TỤC QUÉT XEM CÓ MẶT NGƯỜI KHÔNG
 //   useEffect(() => {
@@ -86,28 +94,17 @@
 //     try {
 //       const response = await axiosClient.post('/transactions/verify', {
 //         transactionId: transactionId,
-//         authType: "FACE",
+//         authType: "FACE_STATIC",
 //         faceImageBase64: base64Image
 //       });
 
-//       const txData = response.data;
+//       const resData = response.data;
 
-//       // NÂNG CẤP ĐA LỚP: Nếu Backend bảo chờ OTP -> Đá sang trang OTP
-//       if (txData.status === "PENDING_OTP") {
-//         toast.success("✅ Sinh trắc học hợp lệ. Chuyển sang bước OTP!");
-//         navigate('/verify-otp', { 
-//           state: { 
-//             transactionId: transactionId,
-//             formData: formData, 
-//             recipientName: recipientName 
-//           } 
-//         });
-//       } else {
-//         // Dự phòng: Nếu giao dịch được thông qua luôn (SUCCESS)
-//         toast.success("🎉 Xác thực thành công! Giao dịch đã được duyệt.");
+//       if (resData.status === "SUCCESS") {
+//         toast.success("🎉 Xác thực khuôn mặt thành công! Giao dịch đã được duyệt.");
 //         navigate('/transaction-result', { 
 //           state: { 
-//             result: txData, 
+//             result: resData.data, 
 //             formData: formData, 
 //             recipientName: recipientName 
 //           } 
@@ -117,14 +114,47 @@
 //     } catch (error) {
 //       const errorMsg = error.response?.data || "Xác thực khuôn mặt thất bại!";
 //       setStatus("❌ TỪ CHỐI GIAO DỊCH: " + errorMsg);
-//       toast.error("🚨 Lỗi: " + errorMsg); //   BẮT LỖI BẰNG TOAST
+//       toast.error("🚨 Lỗi: " + errorMsg); 
 //       setIsProcessing(false);
 //     }
 //   }, [webcamRef, transactionId, formData, recipientName, navigate]);
 
+//   // ========================================================
+//   // 🚀 LUỒNG BỊ CHẶN: Giao diện khi chưa đăng ký sinh trắc học
+//   // ========================================================
+//   if (!hasFaceSetup) {
+//     return (
+//       <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4">
+//         <div className="bg-white rounded-[2.5rem] p-8 shadow-2xl max-w-md w-full text-center border-4 border-orange-500/30 relative overflow-hidden">
+//           <div className="mx-auto bg-orange-100 text-orange-600 w-20 h-20 rounded-full flex items-center justify-center mb-6">
+//             <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+//           </div>
+//           <h2 className="text-2xl font-black text-gray-900 mb-2 tracking-tight">CHƯA CÓ FACEID</h2>
+//           <p className="text-gray-500 font-medium mb-8 leading-relaxed">
+//             Hệ thống AI từ chối giao dịch do tài khoản của bạn chưa được thiết lập dữ liệu sinh trắc học. Vui lòng cài đặt trước khi tiếp tục.
+//           </p>
+//           <button 
+//             onClick={() => navigate('/register-face')} // Hoặc link dẫn đến route cài đặt mặt của bro
+//             className="w-full py-4 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white rounded-2xl font-black shadow-lg shadow-orange-500/30 transition-all active:scale-95 uppercase tracking-wider"
+//           >
+//             ĐI CÀI ĐẶT NGAY
+//           </button>
+//           <button 
+//             onClick={() => navigate('/dashboard')} 
+//             className="w-full py-3 mt-3 text-slate-500 font-bold hover:text-slate-800 transition-colors"
+//           >
+//             Hủy giao dịch
+//           </button>
+//         </div>
+//       </div>
+//     );
+//   }
+
+//   // ========================================================
+//   // 🚀 LUỒNG BÌNH THƯỜNG: Bật Camera cho quét (Code cũ)
+//   // ========================================================
 //   return (
 //     <div className="min-h-screen bg-red-900/95 flex flex-col items-center justify-center p-4 relative overflow-hidden">
-//       {/* Hiệu ứng cảnh báo rủi ro */}
 //       <div className="absolute top-0 left-0 w-full h-2 bg-red-500 animate-pulse"></div>
 
 //       <div className="bg-white rounded-[2.5rem] p-8 shadow-2xl max-w-md w-full text-center relative z-10 border-4 border-red-500/20">
@@ -145,7 +175,7 @@
 //               ref={webcamRef}
 //               screenshotFormat="image/jpeg"
 //               videoConstraints={{ facingMode: "user" }}
-//               className="w-full h-full object-cover transform scale-x-[-1]" //   LẬT NGƯỢC CAMERA (MIRROR)
+//               className="w-full h-full object-cover transform scale-x-[-1]"
 //             />
 //           ) : (
 //             <div className="w-full h-full bg-slate-900 flex items-center justify-center">
@@ -154,7 +184,6 @@
 //           )}
 //           {isProcessing && <div className="absolute inset-0 bg-blue-500/40 animate-scan"></div>}
           
-//           {/* Lưới định vị khuôn mặt (Trang trí cho ngầu) */}
 //           <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
 //             <div className={`w-32 h-40 border-2 rounded-full transition-colors ${isFaceDetected ? 'border-green-400/50' : 'border-red-400/50 border-dashed'}`}></div>
 //           </div>
@@ -180,14 +209,13 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
 import { toast } from 'react-toastify'; 
 
-import axiosClient from '../../api/axiosClient';
+import axiosClient from '../../api/axiosClient'; 
 
 export default function FaceVerification() {
   const webcamRef = useRef(null);
   const navigate = useNavigate();
   const { state } = useLocation();
   
-  // Nhận dữ liệu giao dịch từ trang Step 1 truyền sang
   const { transactionId, formData, recipientName } = state || {};
 
   const [faceLandmarker, setFaceLandmarker] = useState(null);
@@ -196,7 +224,6 @@ export default function FaceVerification() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [status, setStatus] = useState("Đang tải AI Model...");
 
-  // 1. KHỞI TẠO MEDIAPIPE AI (Giữ nguyên)
   useEffect(() => {
     if (!transactionId) {
       toast.error("🚨 Lỗi: Không tìm thấy thông tin giao dịch!");
@@ -226,9 +253,8 @@ export default function FaceVerification() {
       }
     };
     initAI();
-  }, [transactionId, navigate]);
+  }, [transactionId, navigate]); // 🚀 Đã xóa phụ thuộc hasFaceSetup
 
-  // 2. LIÊN TỤC QUÉT XEM CÓ MẶT NGƯỜI KHÔNG (Giữ nguyên)
   useEffect(() => {
     let animationFrameId;
     const detectFace = () => {
@@ -251,7 +277,6 @@ export default function FaceVerification() {
     return () => cancelAnimationFrame(animationFrameId);
   }, [isModelLoaded, faceLandmarker, isProcessing]);
 
-  // 3. HÀM CHỤP ẢNH VÀ GỬI LÊN BACKEND XÁC THỰC
   const captureAndVerify = useCallback(async () => {
     if (!webcamRef.current) return;
     setIsProcessing(true);
@@ -262,19 +287,17 @@ export default function FaceVerification() {
     try {
       const response = await axiosClient.post('/transactions/verify', {
         transactionId: transactionId,
-        authType: "FACE_STATIC", // 🚀 ĐÃ SỬA: Đổi từ FACE thành FACE_STATIC cho khớp với Controller Backend
+        authType: "FACE_STATIC",
         faceImageBase64: base64Image
       });
 
       const resData = response.data;
 
-      // 🚀 ĐÃ DỌN DẸP: Xóa sạch nhánh kiểm tra PENDING_OTP cũ. 
-      // Theo luồng MEDIUM_2 mới, quét mặt xong là trừ tiền SUCCESS luôn!
       if (resData.status === "SUCCESS") {
         toast.success("🎉 Xác thực khuôn mặt thành công! Giao dịch đã được duyệt.");
         navigate('/transaction-result', { 
           state: { 
-            result: resData.data, // Dữ liệu giao dịch nằm trong trường 'data'
+            result: resData.data, 
             formData: formData, 
             recipientName: recipientName 
           } 
@@ -291,7 +314,6 @@ export default function FaceVerification() {
 
   return (
     <div className="min-h-screen bg-red-900/95 flex flex-col items-center justify-center p-4 relative overflow-hidden">
-      {/* Hiệu ứng cảnh báo rủi ro */}
       <div className="absolute top-0 left-0 w-full h-2 bg-red-500 animate-pulse"></div>
 
       <div className="bg-white rounded-[2.5rem] p-8 shadow-2xl max-w-md w-full text-center relative z-10 border-4 border-red-500/20">

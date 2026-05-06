@@ -1,33 +1,35 @@
+
 // package com.datn.finrisk.core.strategies;
 
 // import com.datn.finrisk.application.dtos.FaceAIResponse;
+// import com.datn.finrisk.application.dtos.EmotionAIResponse; // Import DTO mới
 // import com.datn.finrisk.core.entities.Transaction;
 // import com.datn.finrisk.core.entities.User;
 // import com.datn.finrisk.core.repository.TransactionRepository;
 // import com.datn.finrisk.core.services.RiskEvaluationService;
+// import com.datn.finrisk.core.services.AiAuditService; // Import điệp viên ghi log
 // import org.springframework.beans.factory.annotation.Autowired;
 // import org.springframework.stereotype.Service;
 
 // import java.util.concurrent.CompletableFuture;
 
-// @Service("faceScanActionStrategy")
-// public class FaceScanActionStrategy implements RiskActionStrategy {
+// @Service("advancedFaceActionStrategy") 
+// public class AdvancedFaceActionStrategy implements RiskActionStrategy {
 
 //     @Autowired private TransactionRepository transactionRepository;
 //     @Autowired private RiskEvaluationService riskEvaluationService;
+//     @Autowired private AiAuditService aiAuditService; // 🚀 Bơm Service ghi log vào
 
-//     // VÒNG 1: Chuyển trạng thái khi Rule Engine quét thấy rủi ro HIGH
 //     @Override
 //     public Transaction execute(Transaction tx) {
-//         System.out.println("⛔ THỰC THI CHIẾN THUẬT: FACE_SCAN_ACTION");
+//         System.out.println("THỰC THI CHIẾN THUẬT: ADVANCED_FACE_ACTION (HIGH)");
 //         tx.setRiskLevel("HIGH");
-//         tx.setStatus("PENDING_FACE_SCAN");
+//         tx.setStatus("PENDING_PIN_HIGH"); 
 //         return transactionRepository.save(tx);
 //     }
-
-//     // VÒNG 2: Xử lý xác thực AI song song (Bất đồng bộ)
-//     public boolean validateFaceAndEmotion(Transaction tx, User user, String liveImageBase64) {
-//         // Lấy ảnh gốc từ trường chính xác trong Entity User của bro
+    
+//     public boolean validateFaceAndEmotion(Transaction tx, String liveImageBase64) {
+//         User user = tx.getFromAccount().getUser();
 //         String registeredImage = user.getBase64FaceImage(); 
 
 //         if (registeredImage == null || registeredImage.isEmpty()) {
@@ -37,74 +39,93 @@
 
 //         System.out.println("🚀 ĐANG GỌI SONG SONG 2 SERVICE AI (PORT 5000 & 5001)...");
 
-//         // Gửi 2 yêu cầu đi cùng lúc
 //         CompletableFuture<FaceAIResponse> identityTask = 
 //             riskEvaluationService.verifyIdentityAsync(liveImageBase64, registeredImage);
             
-//         CompletableFuture<String> emotionTask = 
+//         // 🚀 ĐÃ SỬA: Hứng bằng EmotionAIResponse
+//         CompletableFuture<EmotionAIResponse> emotionTask = 
 //             riskEvaluationService.detectEmotionAsync(liveImageBase64);
 
 //         try {
-//             // Đợi cả 2 phản hồi
 //             CompletableFuture.allOf(identityTask, emotionTask).join();
 
 //             FaceAIResponse idResult = identityTask.get();
-//             String emotion = emotionTask.get();
+//             EmotionAIResponse emotionResult = emotionTask.get(); // Lấy nguyên cục DTO
 
-//             System.out.println("🔍 KẾT QUẢ PHÂN TÍCH: Identity=" + 
+//             // Trích xuất chữ cái để logic chạy tiếp
+//             String emotion = (emotionResult != null && emotionResult.getEmotion() != null) 
+//                              ? emotionResult.getEmotion().toUpperCase() : "UNKNOWN";
+
+//             System.out.println("🔍 KẾT QUẢ AI: Identity=" + 
 //                 (idResult != null && idResult.isMatched()) + " | Emotion=" + emotion);
 
-//             // Logic chặn: Sai mặt HOẶC Cảm xúc nguy hiểm
+//             tx.setEmotionSignal(emotion);
+
+//             // 🚀 BẮN PHÁT SÚNG GHI LOG VÀO BACKGROUND (Không làm chậm luồng)
+//             if (emotionResult != null) {
+//                 aiAuditService.logEmotionScan(tx, emotionResult);
+//             }
+
 //             if (idResult == null || !idResult.isMatched()) {
 //                 return false;
 //             }
 
-//             // Chặn nếu có dấu hiệu Sợ hãi/Giận dữ (Bị cưỡng ép)
-//             if ("FEAR".equalsIgnoreCase(emotion) || "ANGRY".equalsIgnoreCase(emotion)) {
-//                 System.out.println("🚨 PHÁT HIỆN TÂM LÝ BẤT THƯỜNG - CHẶN GD");
+//             if ("FEAR".equals(emotion) || "STRESS".equals(emotion)) {
+//                 System.out.println("🚨 PHÁT HIỆN TÂM LÝ BẤT THƯỜNG - NGHI VẤN BỊ CƯỠNG ÉP!");
 //                 return false;
 //             }
 
 //             return true;
 
 //         } catch (Exception e) {
-//             System.err.println("Lỗi xử lý bất đồng bộ AI: " + e.getMessage());
+//             System.err.println("Lỗi xử lý AI song song: " + e.getMessage());
 //             return false;
 //         }
 //     }
 // }
 
+
 package com.datn.finrisk.core.strategies;
 
 import com.datn.finrisk.application.dtos.FaceAIResponse;
+import com.datn.finrisk.application.dtos.EmotionAIResponse;
 import com.datn.finrisk.core.entities.Transaction;
 import com.datn.finrisk.core.entities.User;
+import com.datn.finrisk.core.exceptions.BusinessLogicException; // 🚀 THÊM IMPORT NÀY
 import com.datn.finrisk.core.repository.TransactionRepository;
 import com.datn.finrisk.core.services.RiskEvaluationService;
+import com.datn.finrisk.core.services.AiAuditService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.concurrent.CompletableFuture;
 
-@Service("advancedFaceActionStrategy") // SỬA TÊN BEAN Ở ĐÂY
+@Service("advancedFaceActionStrategy") 
 public class AdvancedFaceActionStrategy implements RiskActionStrategy {
 
     @Autowired private TransactionRepository transactionRepository;
     @Autowired private RiskEvaluationService riskEvaluationService;
+    @Autowired private AiAuditService aiAuditService;
 
     @Override
     public Transaction execute(Transaction tx) {
         System.out.println("THỰC THI CHIẾN THUẬT: ADVANCED_FACE_ACTION (HIGH)");
+        
+        // 🚀 LÔ CỐT ĐÃ ĐƯỢC DỰNG LÊN TẠI ĐÂY:
+        User user = tx.getFromAccount().getUser();
+        String registeredImage = user.getBase64FaceImage(); 
+        if (registeredImage == null || registeredImage.trim().isEmpty()) {
+            throw new BusinessLogicException("ERR_NO_FACE_SETUP", "Giao dịch rủi ro cao. Bạn chưa cài đặt FaceID, vui lòng thiết lập trước khi thực hiện!");
+        }
+
         tx.setRiskLevel("HIGH");
-        
         tx.setStatus("PENDING_PIN_HIGH"); 
-        
         return transactionRepository.save(tx);
     }
-    // 🚀 HÀM PHÁN QUYẾT AI BẤT ĐỒNG BỘ
+    
     public boolean validateFaceAndEmotion(Transaction tx, String liveImageBase64) {
         User user = tx.getFromAccount().getUser();
-        String registeredImage = user.getBase64FaceImage(); // Khớp với Entity của bro
+        String registeredImage = user.getBase64FaceImage(); 
 
         if (registeredImage == null || registeredImage.isEmpty()) {
             System.err.println("❌ Lỗi: Người dùng chưa đăng ký khuôn mặt gốc!");
@@ -113,32 +134,34 @@ public class AdvancedFaceActionStrategy implements RiskActionStrategy {
 
         System.out.println("🚀 ĐANG GỌI SONG SONG 2 SERVICE AI (PORT 5000 & 5001)...");
 
-        // Gửi 2 phát súng cùng lúc
         CompletableFuture<FaceAIResponse> identityTask = 
             riskEvaluationService.verifyIdentityAsync(liveImageBase64, registeredImage);
             
-        CompletableFuture<String> emotionTask = 
+        CompletableFuture<EmotionAIResponse> emotionTask = 
             riskEvaluationService.detectEmotionAsync(liveImageBase64);
 
         try {
-            // Đợi cả 2 thằng phản hồi (Máy mạnh tận dụng tối đa tại đây)
             CompletableFuture.allOf(identityTask, emotionTask).join();
 
             FaceAIResponse idResult = identityTask.get();
-            String emotion = emotionTask.get().toUpperCase();
+            EmotionAIResponse emotionResult = emotionTask.get(); 
+
+            String emotion = (emotionResult != null && emotionResult.getEmotion() != null) 
+                             ? emotionResult.getEmotion().toUpperCase() : "UNKNOWN";
 
             System.out.println("🔍 KẾT QUẢ AI: Identity=" + 
                 (idResult != null && idResult.isMatched()) + " | Emotion=" + emotion);
 
-            // Lưu dấu vết cảm xúc vào giao dịch
             tx.setEmotionSignal(emotion);
 
-            // Logic chặn: Sai mặt HOẶC Cảm xúc rủi ro
+            if (emotionResult != null) {
+                aiAuditService.logEmotionScan(tx, emotionResult);
+            }
+
             if (idResult == null || !idResult.isMatched()) {
                 return false;
             }
 
-            // Chặn nếu phát hiện FEAR (Sợ hãi) hoặc STRESS
             if ("FEAR".equals(emotion) || "STRESS".equals(emotion)) {
                 System.out.println("🚨 PHÁT HIỆN TÂM LÝ BẤT THƯỜNG - NGHI VẤN BỊ CƯỠNG ÉP!");
                 return false;

@@ -7,6 +7,7 @@ import com.datn.finrisk.core.repository.RuleRepository;
 import com.datn.finrisk.core.repository.TransactionRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.datn.finrisk.application.dtos.EmotionAIResponse;
 import com.datn.finrisk.application.dtos.FaceAIResponse;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,9 +26,7 @@ import org.springframework.core.io.ByteArrayResource;
 import java.util.concurrent.CompletableFuture;
 import java.util.Map;
 import java.util.HashMap;
-
-
-
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -67,6 +66,16 @@ public class RiskEvaluationService {
         int currentHour = LocalDateTime.now().getHour();
         boolean isNightTime = (currentHour >= 23 || currentHour < 5);
 
+        // 🚀 D. BỔ SUNG: Tính tổng tiền giao dịch trong ngày (Bao gồm cả hiện tại)
+        LocalDateTime startOfDay = java.time.LocalDate.now().atStartOfDay();
+        BigDecimal sumToday = transactionRepository.sumSuccessfulAmountToday(transaction.getFromAccount().getId(), startOfDay);
+        
+        // Chống NullPointerException cực kỳ quan trọng
+        double totalTransferredToday = (sumToday != null) ? sumToday.doubleValue() : 0.0;
+        
+        // Gộp khối tiền đã chuyển thành công + số tiền đang định chuyển
+        double dailyTotalAmount = totalTransferredToday + transaction.getAmount().doubleValue();
+
 
         // ==========================================================
         // 2. BƠM BỐI CẢNH VÀO SpEL CONTEXT
@@ -87,44 +96,21 @@ public class RiskEvaluationService {
         context.setVariable("recentTxCount", recentTxCount);
         context.setVariable("balanceRatio", balanceRatio);
         context.setVariable("isNightTime", isNightTime);
+        context.setVariable("dailyTotalAmount", dailyTotalAmount);
 
 
-        // ==========================================================
-        // 3. VÒNG LẶP CHẤM ĐIỂM DỰA TRÊN LUẬT TỪ DATABASE
+// ==========================================================
+        // 3. VÒNG LẶP CHẤM ĐIỂM (TỐI ƯU HÓA: DÙNG TRỰC TIẾP SpEL NATIVE)
         // ==========================================================
         for (Rule rule : activeRules) {
             try {
-                JsonNode conditionNode = objectMapper.readTree(rule.getConditions());
-                String field = conditionNode.get("field").asText();
-                String operator = conditionNode.get("operator").asText();
-                String value = conditionNode.get("value").asText();
-
-                String spelExpression = "";
+                // Lấy thẳng chuỗi SpEL từ Database (Không cần quan tâm JSON nữa)
+                String spelExpression = rule.getSpelExpression();
                 
-                // 🚀 DẠY SpEL CÁCH ĐỌC 7 LOẠI FIELD CHÚNG TA ĐANG CÓ
-                if ("amount".equals(field)) {
-                    spelExpression = "#tx.amount " + operator + " " + value;
-                } else if ("history".equals(field)) {
-                    if ("NEW_RECIPIENT".equals(value)) {
-                        spelExpression = "#isNewRecipient " + operator + " true";
-                    }
-                } else if ("suspiciousSession".equals(field)) {
-                    spelExpression = "#suspiciousSession " + operator + " " + value;
-                } else if ("deviceTrusted".equals(field)) {
-                    spelExpression = "#deviceTrusted " + operator + " " + value;
-                } 
-                // 3 Trạm soi luật mới thêm
-                else if ("recentTxCount".equals(field)) {
-                    spelExpression = "#recentTxCount " + operator + " " + value;
-                } else if ("balanceRatio".equals(field)) {
-                    spelExpression = "#balanceRatio " + operator + " " + value;
-                } else if ("isNightTime".equals(field)) {
-                    spelExpression = "#isNightTime " + operator + " " + value;
-                }
-
-                // Bắt SpEL chạy thử biểu thức (Trả về True/False)
-                if (!spelExpression.isEmpty()) {
+                if (spelExpression != null && !spelExpression.isEmpty()) {
+                    // Cỗ máy chỉ việc nhai chuỗi SpEL và nhả kết quả True/False
                     Boolean isMatched = parser.parseExpression(spelExpression).getValue(context, Boolean.class);
+                    
                     if (Boolean.TRUE.equals(isMatched)) {
                         totalRiskScore += rule.getActionScore();
                         System.out.println("⚠️ Khớp luật: [" + rule.getRuleName() + "] -> Điểm: +" + rule.getActionScore());
@@ -169,14 +155,13 @@ public class RiskEvaluationService {
         }
     }
 
-    // 2. Fix gọi sang Emotion (Port 5001)
+// 2 ĐÃ SỬA: Trả về DTO thay vì chỉ trả về String
     @Async("aiTaskExecutor")
-    public CompletableFuture<String> detectEmotionAsync(String liveBase64) {
+    public CompletableFuture<EmotionAIResponse> detectEmotionAsync(String liveBase64) {
         System.out.println("--- [STEP 2: EMOTION] Đang gửi ảnh sang Port 5001... ---");
         try {
             String url = "http://localhost:5001/api/ai/detect-emotion";
             
-            // 🔥 BẮT BUỘC: Tạo Header JSON
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
 
@@ -185,15 +170,16 @@ public class RiskEvaluationService {
 
             HttpEntity<Map<String, String>> entity = new HttpEntity<>(requestMap, headers);
 
-            // Nhận kết quả trực tiếp bằng JsonNode cho chính xác
-            JsonNode response = restTemplate.postForObject(url, entity, JsonNode.class);
-            String emotion = response.get("emotion").asText();
+            // Mapping thẳng vào DTO xịn sò
+            EmotionAIResponse response = restTemplate.postForObject(url, entity, EmotionAIResponse.class);
             
-            System.out.println("✅ [STEP 2: EMOTION] Cảm xúc: " + emotion);
-            return CompletableFuture.completedFuture(emotion);
+            if(response != null) {
+                 System.out.println("✅ [STEP 2: EMOTION] Cảm xúc: " + response.getEmotion());
+            }
+            return CompletableFuture.completedFuture(response);
         } catch (Exception e) {
             System.err.println("❌ [STEP 2: EMOTION] LỖI: " + e.getMessage());
-            return CompletableFuture.completedFuture("UNKNOWN");
+            return CompletableFuture.completedFuture(null);
         }
     }
 

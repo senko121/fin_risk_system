@@ -60,6 +60,7 @@ public class RuleService {
                     case "balanceRatio": generatedSpel = "#balanceRatio " + op + " " + val; break;
                     case "isNightTime": generatedSpel = "#isNightTime " + op + " " + val; break;
                     case "emotion": generatedSpel = "#tx.emotionSignal " + op + " '" + val + "'"; break;
+                    case "dailyTotal": generatedSpel = "#dailyTotalAmount " + op + " " + val; break;
                 }
                 existingRule.setSpelExpression(generatedSpel); // Lưu chuỗi SpEL vừa dịch vào DB
             } catch (Exception ex) {
@@ -99,6 +100,53 @@ public class RuleService {
             return savedRule;
         } catch (Exception e) {
             throw new RuntimeException("Lỗi khi bật/tắt luật: " + e.getMessage());
+        }
+    }
+
+    // 4. Tạo luật mới
+    @Transactional(rollbackFor = Exception.class)
+    public Rule createRule(Rule ruleData, String adminUsername) {
+        try {
+            Rule newRule = new Rule();
+            newRule.setRuleName(ruleData.getRuleName());
+            newRule.setConditions(ruleData.getConditions());
+            newRule.setActionScore(ruleData.getActionScore());
+            newRule.setIsActive(true); // Luật mới tạo mặc định bật luôn
+
+            // 🚀 BỘ PHIÊN DỊCH TỰ ĐỘNG (Dịch JSON sang SpEL)
+            try {
+                com.fasterxml.jackson.databind.JsonNode node = objectMapper.readTree(ruleData.getConditions());
+                String field = node.has("field") ? node.get("field").asText() : "";
+                String op = node.has("operator") ? node.get("operator").asText() : "";
+                String val = node.has("value") ? node.get("value").asText() : "";
+
+                String generatedSpel = "";
+                switch (field) {
+                    case "amount": generatedSpel = "#tx.amount " + op + " " + val; break;
+                    case "history": generatedSpel = "NEW_RECIPIENT".equals(val) ? "#isNewRecipient " + op + " true" : ""; break;
+                    case "suspiciousSession": generatedSpel = "#suspiciousSession " + op + " " + val; break;
+                    case "deviceTrusted": generatedSpel = "#deviceTrusted " + op + " " + val; break;
+                    case "recentTxCount": generatedSpel = "#recentTxCount " + op + " " + val; break;
+                    case "balanceRatio": generatedSpel = "#balanceRatio " + op + " " + val; break;
+                    case "isNightTime": generatedSpel = "#isNightTime " + op + " " + val; break;
+                    case "emotion": generatedSpel = "#tx.emotionSignal " + op + " '" + val + "'"; break;
+                    case "dailyTotal": generatedSpel = "#dailyTotalAmount " + op + " " + val; break;
+                }
+                newRule.setSpelExpression(generatedSpel); 
+            } catch (Exception ex) {
+                System.err.println("Lỗi phiên dịch JSON sang SpEL: " + ex.getMessage());
+            }
+
+            Rule savedRule = ruleRepository.save(newRule);
+            
+            String newJson = objectMapper.writeValueAsString(savedRule);
+            // Ghi vết vào hộp đen là CREATE
+            SystemConfigLog log = new SystemConfigLog(adminUsername, "CREATE_RULE", "rules", savedRule.getId(), "{}", newJson);
+            configLogRepository.save(log);
+
+            return savedRule;
+        } catch (Exception e) {
+            throw new RuntimeException("Lỗi khi tạo luật mới: " + e.getMessage());
         }
     }
 }
