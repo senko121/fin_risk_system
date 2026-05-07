@@ -450,6 +450,11 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.web.multipart.MultipartFile;
+ import org.springframework.data.domain.Page;
+ import org.springframework.data.domain.PageRequest;
+ import org.springframework.data.domain.Pageable;
+ import org.springframework.data.domain.Sort;
+ import java.util.Set;
 
 import com.datn.finrisk.core.repository.TransactionLedgerRepository;
 import com.datn.finrisk.core.entities.TransactionLedger;
@@ -650,51 +655,161 @@ public class TransactionController {
         return ResponseEntity.badRequest().body("Luồng xác thực bị gián đoạn hoặc không hợp lệ!");
     }
 
-@GetMapping("/history/{accountId}")
-    public ResponseEntity<?> getTransactionHistory(@PathVariable Long accountId) {
-        try {
-            List<TransactionLedger> ledgers = ledgerRepository.findByAccountIdOrderByCreatedAtDesc(accountId);
-            List<Map<String, Object>> result = ledgers.stream().map(l -> {
-                Map<String, Object> map = new HashMap<>();
+
+
+
+    // @GetMapping("/history/{accountId}")
+    // public ResponseEntity<?> getTransactionHistory(
+    //         @PathVariable Long accountId,
+    //         @RequestParam(defaultValue = "0") int page,
+    //         @RequestParam(defaultValue = "10") int size,
+    //         @RequestParam(defaultValue = "ALL") String filter) {
+        
+    //     try {
+    //         // 1. Dịch thuật ngôn ngữ Filter (ALL -> null, IN -> CREDIT, OUT -> DEBIT)
+    //         String entryType = null;
+    //         if ("IN".equalsIgnoreCase(filter)) {
+    //             entryType = "CREDIT";
+    //         } else if ("OUT".equalsIgnoreCase(filter)) {
+    //             entryType = "DEBIT";
+    //         }
+
+    //         // 2. Cấu hình Phân trang & Sắp xếp (Mới nhất lên đầu)
+    //         Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size, org.springframework.data.domain.Sort.by("createdAt").descending());
+
+    //         // 3. Gọi vũ khí hạng nặng từ Repository (Trả về Page)
+    //         org.springframework.data.domain.Page<TransactionLedger> ledgersPage = ledgerRepository.findByAccountIdAndEntryType(accountId, entryType, pageable);
+
+    //         // 4. Biến hóa dữ liệu: Dùng hàm .map() của Page để giữ nguyên cái Map siêu to khổng lồ của bro
+    //         org.springframework.data.domain.Page<Map<String, Object>> resultPage = ledgersPage.map(l -> {
+    //             Map<String, Object> map = new HashMap<>();
                 
-                //  BƯỚC 1: Kéo Giao dịch gốc ra trước để dùng cho toàn bộ logic bên dưới
+    //             Transaction rootTx = l.getTransaction();
+                
+    //             map.put("id", l.getId());
+    //             map.put("type", l.getEntryType()); 
+    //             map.put("amount", l.getAmount());
+    //             map.put("balanceAfter", l.getBalanceAfter());
+    //             map.put("date", l.getCreatedAt());
+                
+    //             String txDescription = (rootTx != null && rootTx.getDescription() != null && !rootTx.getDescription().isEmpty()) 
+    //                     ? rootTx.getDescription() 
+    //                     : (l.getEntryType().equals("DEBIT") ? "Chuyển khoản đi" : "Nhận tiền chuyển khoản");
+    //             map.put("description", txDescription);
+                
+    //             if (rootTx != null) {
+    //                 map.put("toAccountNumber", rootTx.getToAccountNumber());
+    //                 map.put("riskLevel", rootTx.getRiskLevel());
+    //                 map.put("totalRiskScore", rootTx.getTotalRiskScore());
+    //                 map.put("emotionSignal", rootTx.getEmotionSignal());
+
+    //                 String relatedName = "Người dùng ẩn danh";
+    //                 if ("DEBIT".equals(l.getEntryType())) {
+    //                     relatedName = accountRepository.findByAccountNumber(rootTx.getToAccountNumber())
+    //                             .map(acc -> acc.getUser().getFullName())
+    //                             .orElse("Người nhận ngoài hệ thống");
+    //                 } else {
+    //                     relatedName = rootTx.getFromAccount().getUser().getFullName();
+    //                 }
+    //                 map.put("relatedName", relatedName); 
+
+    //             } else {
+    //                 map.put("toAccountNumber", "N/A");
+    //                 map.put("riskLevel", "LOW");
+    //                 map.put("totalRiskScore", 0);
+    //                 map.put("emotionSignal", "N/A");
+    //                 map.put("relatedName", "Hệ thống FinRisk");
+    //             }
+
+    //             return map;
+    //         });
+            
+    //         // 5. Trả về toàn bộ cục Page (Bao gồm content, totalPages, totalElements, v.v...)
+    //         return ResponseEntity.ok(resultPage);
+            
+    //     } catch (Exception e) {
+    //         return ResponseEntity.badRequest().body("Lỗi lấy lịch sử: " + e.getMessage());
+    //     }
+    // }
+
+
+    @GetMapping("/history/{accountId}")
+    public ResponseEntity<?> getTransactionHistory(
+            @PathVariable Long accountId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "ALL") String filter) {
+        
+        try {
+            // 1. Dịch thuật Filter
+            String entryType = null;
+            if ("IN".equalsIgnoreCase(filter)) {
+                entryType = "CREDIT";
+            } else if ("OUT".equalsIgnoreCase(filter)) {
+                entryType = "DEBIT";
+            }
+
+            // 2. Cấu hình Phân trang
+            Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size, org.springframework.data.domain.Sort.by("createdAt").descending());
+
+            // 3. Lấy dữ liệu Sổ cái (Đã JOIN sẵn Transaction và Account gửi)
+            org.springframework.data.domain.Page<TransactionLedger> ledgersPage = ledgerRepository.findByAccountIdAndEntryType(accountId, entryType, pageable);
+
+            // =========================================================
+            // 🚀 BẮT ĐẦU THUẬT TOÁN GOM MẺ (BATCH FETCHING)
+            // =========================================================
+            
+            // Bước A: Gom tất cả các STK nhận tiền vào 1 cái rổ (Set để lọc trùng)
+            java.util.Set<String> targetAccountNumbers = ledgersPage.getContent().stream()
+                    .filter(l -> "DEBIT".equals(l.getEntryType()) && l.getTransaction() != null && l.getTransaction().getToAccountNumber() != null)
+                    .map(l -> l.getTransaction().getToAccountNumber())
+                    .collect(Collectors.toSet());
+
+            // Bước B: Chọc DB ĐÚNG 1 LẦN để lấy toàn bộ thông tin các Account đó
+            Map<String, String> accountNameDictionary = new HashMap<>();
+            if (!targetAccountNumbers.isEmpty()) {
+                List<Account> targetAccounts = accountRepository.findByAccountNumberIn(targetAccountNumbers);
+                // Tạo cuốn từ điển trên RAM: Key là STK, Value là Tên
+                for (Account acc : targetAccounts) {
+                    accountNameDictionary.put(acc.getAccountNumber(), acc.getUser().getFullName());
+                }
+            }
+            // =========================================================
+
+            // 4. Biến hóa dữ liệu (Nhào nặn JSON)
+            org.springframework.data.domain.Page<Map<String, Object>> resultPage = ledgersPage.map(l -> {
+                Map<String, Object> map = new HashMap<>();
                 Transaction rootTx = l.getTransaction();
                 
-                // Dữ liệu Sổ cái (Kế toán)
                 map.put("id", l.getId());
                 map.put("type", l.getEntryType()); 
                 map.put("amount", l.getAmount());
                 map.put("balanceAfter", l.getBalanceAfter());
                 map.put("date", l.getCreatedAt());
                 
-                //  BƯỚC 2: ĐÃ FIX LOGIC LỜI NHẮN (Ưu tiên lấy từ rootTx)
                 String txDescription = (rootTx != null && rootTx.getDescription() != null && !rootTx.getDescription().isEmpty()) 
                         ? rootTx.getDescription() 
                         : (l.getEntryType().equals("DEBIT") ? "Chuyển khoản đi" : "Nhận tiền chuyển khoản");
                 map.put("description", txDescription);
                 
-                // BƯỚC 3: BỔ SUNG DỮ LIỆU BẢO MẬT VÀ TÊN NGƯỜI LIÊN QUAN
                 if (rootTx != null) {
                     map.put("toAccountNumber", rootTx.getToAccountNumber());
                     map.put("riskLevel", rootTx.getRiskLevel());
                     map.put("totalRiskScore", rootTx.getTotalRiskScore());
                     map.put("emotionSignal", rootTx.getEmotionSignal());
 
-                    // TÌM TÊN NGƯỜI LIÊN QUAN (NGƯỜI GỬI / NGƯỜI NHẬN)
                     String relatedName = "Người dùng ẩn danh";
                     if ("DEBIT".equals(l.getEntryType())) {
-                        // Tiền trừ đi: Tìm tên người nhận
-                        relatedName = accountRepository.findByAccountNumber(rootTx.getToAccountNumber())
-                                .map(acc -> acc.getUser().getFullName())
-                                .orElse("Người nhận ngoài hệ thống");
+                        // 🚀 THAY VÌ GỌI DB NHƯ CŨ, GIỜ CHỈ VIỆC TRA TỪ ĐIỂN TRÊN RAM (Tốc độ ánh sáng)
+                        String toAccNum = rootTx.getToAccountNumber();
+                        relatedName = accountNameDictionary.getOrDefault(toAccNum, "Người nhận ngoài hệ thống");
                     } else {
-                        // Tiền cộng vào: Lấy tên người gửi
+                        // Nếu là tiền vào (CREDIT) thì tên người gửi đã được JOIN FETCH kéo về sẵn rồi
                         relatedName = rootTx.getFromAccount().getUser().getFullName();
                     }
                     map.put("relatedName", relatedName); 
 
                 } else {
-                    // Fallback nếu không có transaction gốc (VD: tiền nạp ban đầu)
                     map.put("toAccountNumber", "N/A");
                     map.put("riskLevel", "LOW");
                     map.put("totalRiskScore", 0);
@@ -703,13 +818,15 @@ public class TransactionController {
                 }
 
                 return map;
-            }).collect(Collectors.toList());
+            });
             
-            return ResponseEntity.ok(result);
+            return ResponseEntity.ok(resultPage);
+            
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Lỗi lấy lịch sử: " + e.getMessage());
         }
     }
+
 
     @GetMapping("/lookup/{accountNumber}")
     public ResponseEntity<?> lookupAccountName(@PathVariable String accountNumber) {
@@ -724,27 +841,68 @@ public class TransactionController {
         }
     }
 
+    // @GetMapping("/recent-recipients/{accountId}")
+    // public ResponseEntity<?> getRecentRecipients(@PathVariable Long accountId) {
+    //     try {
+    //         LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
+    //         List<TransactionLedger> recentLedgers = ledgerRepository.findByAccountIdOrderByCreatedAtDesc(accountId);
+    //         List<Map<String, String>> recipients = recentLedgers.stream()
+    //             .filter(l -> l.getEntryType().equals("DEBIT")) 
+    //             .filter(l -> l.getCreatedAt().isAfter(sevenDaysAgo)) 
+    //             .map(l -> {
+    //                 Map<String, String> map = new HashMap<>();
+    //                 map.put("accountNumber", l.getTransaction().getToAccountNumber());
+    //                 String name = accountRepository.findByAccountNumber(l.getTransaction().getToAccountNumber())
+    //                                 .map(acc -> acc.getUser().getFullName())
+    //                                 .orElse("Người nhận ngoài hệ thống");
+    //                 map.put("fullName", name);
+    //                 return map;
+    //             })
+    //             .distinct() 
+    //             .limit(5)   
+    //             .collect(Collectors.toList());
+    //         return ResponseEntity.ok(recipients);
+    //     } catch (Exception e) {
+    //         return ResponseEntity.badRequest().body("Lỗi lấy danh sách gần đây: " + e.getMessage());
+    //     }
+    // }
     @GetMapping("/recent-recipients/{accountId}")
     public ResponseEntity<?> getRecentRecipients(@PathVariable Long accountId) {
         try {
             LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
-            List<TransactionLedger> recentLedgers = ledgerRepository.findByAccountIdOrderByCreatedAtDesc(accountId);
-            List<Map<String, String>> recipients = recentLedgers.stream()
-                .filter(l -> l.getEntryType().equals("DEBIT")) 
-                .filter(l -> l.getCreatedAt().isAfter(sevenDaysAgo)) 
-                .map(l -> {
-                    Map<String, String> map = new HashMap<>();
-                    map.put("accountNumber", l.getTransaction().getToAccountNumber());
-                    String name = accountRepository.findByAccountNumber(l.getTransaction().getToAccountNumber())
-                                    .map(acc -> acc.getUser().getFullName())
-                                    .orElse("Người nhận ngoài hệ thống");
-                    map.put("fullName", name);
-                    return map;
-                })
-                .distinct() 
-                .limit(5)   
+            
+            // 1. Chọc DB bằng vũ khí mới: Lấy sẵn Sổ cái + Transaction (Lọc sẵn DEBIT và 7 ngày)
+            List<TransactionLedger> recentLedgers = ledgerRepository.findRecentDebitsWithTransaction(accountId, sevenDaysAgo);
+            
+            // 2. Thu thập STK: Rút gọn mảng, gạt bỏ trùng lặp (distinct) và chốt lấy đúng 5 STK mới nhất
+            List<String> targetAccountNumbers = recentLedgers.stream()
+                .map(l -> l.getTransaction().getToAccountNumber())
+                .filter(accNum -> accNum != null)
+                .distinct()
+                .limit(5)
                 .collect(Collectors.toList());
+
+            // 3. Gom mẻ DB (Batch Fetching) & Lập từ điển trên RAM
+            Map<String, String> accountNameDictionary = new HashMap<>();
+            if (!targetAccountNumbers.isEmpty()) {
+                // Nhét list 5 số tài khoản vào DB để tra 1 lần duy nhất
+                List<Account> targetAccounts = accountRepository.findByAccountNumberIn(new java.util.HashSet<>(targetAccountNumbers));
+                for (Account acc : targetAccounts) {
+                    accountNameDictionary.put(acc.getAccountNumber(), acc.getUser().getFullName());
+                }
+            }
+
+            // 4. Lắp ráp: Lôi 5 cái STK ra, tra từ điển lấy tên rồi đóng gói gửi về React
+            List<Map<String, String>> recipients = targetAccountNumbers.stream().map(accNum -> {
+                Map<String, String> map = new HashMap<>();
+                map.put("accountNumber", accNum);
+                // Tìm thấy thì lấy tên, không thì báo "Người nhận ngoài hệ thống" (Tốc độ 0.001ms)
+                map.put("fullName", accountNameDictionary.getOrDefault(accNum, "Người nhận ngoài hệ thống"));
+                return map;
+            }).collect(Collectors.toList());
+
             return ResponseEntity.ok(recipients);
+            
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Lỗi lấy danh sách gần đây: " + e.getMessage());
         }

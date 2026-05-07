@@ -1,5 +1,4 @@
 
-
 // package com.datn.finrisk.core.services;
 
 // import com.datn.finrisk.application.dtos.LoginRequest;
@@ -14,14 +13,13 @@
 // import org.springframework.stereotype.Service;
 
 // import java.util.List;
-// import java.util.Optional;
 
 // @Service
 // public class AuthService {
 
 //     @Autowired private UserRepository userRepository;
 //     @Autowired private AccountRepository accountRepository;
-//     @Autowired private UserSecurityRepository userSecurityRepository; // Bổ sung kho bảo mật
+//     @Autowired private UserSecurityRepository userSecurityRepository; 
 
 //     public LoginResponse login(LoginRequest request) {
 //         LoginResponse response = new LoginResponse();
@@ -51,6 +49,10 @@
 //         response.setAccountNumber(userAccount.getAccountNumber());
 //         response.setBalance(userAccount.getBalance());
 //         response.setMessage("Đăng nhập thành công!");
+        
+//         // 🚀 ĐÃ NÂNG CẤP: Tự động check DB xem có ảnh hay không để báo về cho React
+//         boolean hasFace = user.getBase64FaceImage() != null && !user.getBase64FaceImage().trim().isEmpty();
+//         response.setFaceSetup(hasFace);
 
 //         return response;
 //     }
@@ -108,9 +110,14 @@ public class AuthService {
         response.setBalance(userAccount.getBalance());
         response.setMessage("Đăng nhập thành công!");
         
-        // 🚀 ĐÃ NÂNG CẤP: Tự động check DB xem có ảnh hay không để báo về cho React
+        // 🚀 BÁO CÁO FACE ID
         boolean hasFace = user.getBase64FaceImage() != null && !user.getBase64FaceImage().trim().isEmpty();
         response.setFaceSetup(hasFace);
+        
+        // 🚀 BÁO CÁO MÃ PIN (Thêm mới đoạn này)
+        // Chú ý: Đổi getPinHash() thành tên hàm get tương ứng trong file UserSecurity của bro
+        boolean hasPin = security.getPinHash() != null && !security.getPinHash().trim().isEmpty();
+        response.setPinSetup(hasPin);
 
         return response;
     }

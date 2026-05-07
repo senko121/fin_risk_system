@@ -12,4 +12,6 @@ public class LoginResponse {
     private String message;
     
     private boolean isFaceSetup; 
+    
+    private boolean isPinSetup; 
 }

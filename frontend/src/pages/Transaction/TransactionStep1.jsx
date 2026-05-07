@@ -316,22 +316,30 @@ export default function TransactionStep1() {
         toast.error("🚨 Lỗi luồng xử lý: Trạng thái không xác định.");
       }
 
-      } catch (error) {
-      // 1. Bóc lấy cái thông báo lỗi từ Backend
+    } catch (error) {
+      // Bóc lấy cái thông báo lỗi từ Backend
       const msg = error.response?.data?.message || typeof error.response?.data === 'string' ? error.response?.data : "Lỗi giao dịch!";
       const errorCode = error.response?.data?.code || error.response?.data?.errorCode;
       
       toast.error("🚨 " + msg);
 
-      // 🚀 RADAR BẮT LỖI FACEID: Đá thẳng sang trang cài đặt
+      // 🚀 RADAR 1: BẮT LỖI CHƯA CÓ MÃ PIN (Mới thêm)
+      if (errorCode === 'ERR_NO_PIN_SETUP') {
+          setTimeout(() => {
+              navigate('/setup-pin');
+          }, 2000);
+          return; // Cực kỳ quan trọng: Dừng hàm tại đây!
+      }
+
+      // 🚀 RADAR 2: BẮT LỖI CHƯA CÓ FACEID (Code cũ của bro)
       if (errorCode === 'ERR_NO_FACE_SETUP' || msg.includes('FaceID') || msg.includes('khuôn mặt')) {
           setTimeout(() => {
               navigate('/register-face');
           }, 2000);
-          return; // Dừng luôn, không chạy các lệnh bên dưới
+          return; 
       }
 
-      // 3. CHẶN TỪ VÒNG GỬI XE: Kiểm tra xem lỗi có chữ "khóa" không
+      // 🚀 RADAR 3: BẮT LỖI KHÓA TÀI KHOẢN (Code cũ của bro)
       if (typeof msg === 'string' && msg.toLowerCase().includes('khóa')) {
           setTimeout(() => {
               navigate('/dashboard'); 

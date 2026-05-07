@@ -9,7 +9,40 @@ export default function Login() {
   const [errorMsg, setErrorMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = async (e) => {
+  // const handleLogin = async (e) => {
+  //   e.preventDefault();
+  //   setErrorMsg('');
+  //   setIsLoading(true);
+
+  //   try {
+  //     const response = await axios.post('http://localhost:8081/api/auth/login', {
+  //       username, password
+  //     });
+      
+  //     // Bóc tách và cất 2 cái Token + Thông tin User vào ví (LocalStorage)
+  //     localStorage.setItem('accessToken', response.data.accessToken);
+  //     localStorage.setItem('refreshToken', response.data.refreshToken);
+  //     localStorage.setItem('currentUser', JSON.stringify(response.data.user));
+
+  //     //   SỬA Ở ĐÂY: Lấy chức vụ ra để phân luồng giao thông
+  //     const userRole = response.data.user.role; 
+
+  //     if (userRole === 'ADMIN') {
+  //         // Nếu là Quản trị viên -> Đá thẳng vào màn hình Admin
+  //         navigate('/admin');
+  //     } else {
+  //         // Nếu là Khách hàng bình thường -> Đá vào màn hình Chuyển tiền
+  //         navigate('/dashboard');
+  //     }
+      
+  //   } catch (error) {
+  //     // Backend của mình trả về lỗi dạng chuỗi ở error.response.data
+  //     setErrorMsg(error.response?.data || 'Lỗi kết nối đến Server Backend!');
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // };
+ const handleLogin = async (e) => {
     e.preventDefault();
     setErrorMsg('');
     setIsLoading(true);
@@ -19,24 +52,62 @@ export default function Login() {
         username, password
       });
       
-      // Bóc tách và cất 2 cái Token + Thông tin User vào ví (LocalStorage)
+      // 🚀 LOG 1: In toàn bộ dữ liệu gốc từ Backend ra để kiểm tra
+      console.log("=========================================");
+      console.log("📦 DỮ LIỆU BACKEND TRẢ VỀ:", response.data);
+      console.log("=========================================");
+
+      // Lưu Token
       localStorage.setItem('accessToken', response.data.accessToken);
       localStorage.setItem('refreshToken', response.data.refreshToken);
-      localStorage.setItem('currentUser', JSON.stringify(response.data.user));
 
-      //   SỬA Ở ĐÂY: Lấy chức vụ ra để phân luồng giao thông
-      const userRole = response.data.user.role; 
+      // 🚀 BƯỚC 1: Quét sạch mọi ngóc ngách, có "is" hay không có "is" lụm hết!
+      const pinStatus = 
+          response.data.pinSetup ?? 
+          response.data.isPinSetup ?? 
+          response.data.user?.pinSetup ?? 
+          response.data.user?.isPinSetup ?? 
+          false;
 
+      const faceStatus = 
+          response.data.faceSetup ?? 
+          response.data.isFaceSetup ?? 
+          response.data.user?.faceSetup ?? 
+          response.data.user?.isFaceSetup ?? 
+          false;
+
+      // 🚀 LOG 2: In kết quả sau khi Frontend đã "chốt" để xem nó có bị ngu nữa không
+      console.log("🎯 TRẠNG THÁI CHỐT LẠI -> PIN đã cài:", pinStatus, "| FACE đã cài:", faceStatus);
+
+      // 🚀 BƯỚC 2: Nhét thêm 2 cờ này vào đối tượng user trước khi cất vào ví
+      const userToSave = { 
+          ...response.data.user, 
+          isPinSetup: pinStatus,
+          isFaceSetup: faceStatus
+      };
+      localStorage.setItem('currentUser', JSON.stringify(userToSave));
+
+      const userRole = response.data.user?.role || response.data.role; // Quét thêm role cho chắc chắn
+
+      // 🚀 BƯỚC 3: Phân luồng giao thông với Radar Onboarding
       if (userRole === 'ADMIN') {
-          // Nếu là Quản trị viên -> Đá thẳng vào màn hình Admin
           navigate('/admin');
       } else {
-          // Nếu là Khách hàng bình thường -> Đá vào màn hình Chuyển tiền
-          navigate('/dashboard');
+          // Check PIN trước
+          if (pinStatus === false) {
+              navigate('/setup-pin');
+          } 
+          // Cài PIN xong (hoặc đã có) thì check tiếp FaceID
+          else if (faceStatus === false) {
+              navigate('/register-face');
+          } 
+          // Đủ hết đồ chơi thì cho vào nhà
+          else {
+              navigate('/dashboard');
+          }
       }
       
     } catch (error) {
-      // Backend của mình trả về lỗi dạng chuỗi ở error.response.data
       setErrorMsg(error.response?.data || 'Lỗi kết nối đến Server Backend!');
     } finally {
       setIsLoading(false);
