@@ -43,29 +43,24 @@ public class TransactionService {
     }
 
     private boolean checkIsNewRecipient(Long accountId, String toAccountNumber) {
-        List<TransactionLedger> ledgers = transactionLedgerRepository.findByAccountIdOrderByCreatedAtDesc(accountId);
-        return ledgers.stream()
-                .filter(l -> l.getEntryType().equals("DEBIT"))
-                .noneMatch(l -> l.getTransaction().getToAccountNumber().equals(toAccountNumber));
+        // 🚀 1 query thay vì load toàn bộ lịch sử
+        return !transactionLedgerRepository
+            .existsByAccountIdAndToAccountNumber(accountId, toAccountNumber);
     }
 
-    
+
     @Transactional(rollbackFor = Exception.class)
     public Transaction initiateTransaction(Long fromAccountId, String toAccountNumber, BigDecimal amount, String description, String ip, String device) {
 
-        Account senderAccount = accountRepository.findById(fromAccountId)
+        Account senderAccount = accountRepository.findByIdWithUserAndSecurity(fromAccountId)
                 .orElseThrow(() -> new BusinessLogicException("ERR_NOT_FOUND", "Tài khoản không tồn tại!"));
 
-        UserSecurity security = userSecurityRepository.findByUserId(senderAccount.getUser().getId())
-                .orElseThrow(() -> new BusinessLogicException("ERR_SECURITY_NOT_FOUND", "Lỗi hệ thống: Không tìm thấy hồ sơ bảo mật!"));
+        UserSecurity security = senderAccount.getUser().getUserSecurity();
 
-        // 🚀 CHẶN TỪ VÒNG GỬI XE LỚP 1: Kiểm tra xem đã TẠO mã PIN chưa!
-        // Chú ý: Đổi getPinHash() thành tên hàm get tương ứng trong file UserSecurity của bro
         if (security.getPinHash() == null || security.getPinHash().trim().isEmpty()) {
             throw new BusinessLogicException("ERR_NO_PIN_SETUP", "Tài khoản chưa thiết lập mã Smart PIN. Vui lòng thiết lập để giao dịch!");
         }
 
-        // 🚀 CHẶN TỪ VÒNG GỬI XE LỚP 2: Kiểm tra xem mã PIN có đang bị khóa không!
         if (security.getLockUntil() != null && security.getLockUntil().isAfter(LocalDateTime.now())) {
             throw new BusinessLogicException("ERR_PIN_LOCKED", "Tài khoản đang bị tạm khóa giao dịch do nhập sai PIN nhiều lần. Vui lòng thử lại sau!");
         }

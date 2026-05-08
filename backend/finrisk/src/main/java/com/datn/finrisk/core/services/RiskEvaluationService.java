@@ -120,7 +120,8 @@ public class RiskEvaluationService {
                 System.err.println("Lỗi SpEL tại Rule ID " + rule.getId() + ": " + e.getMessage());
             }
         }
-
+        totalRiskScore = Math.max(0, totalRiskScore);
+        
         System.out.println("🎯 TỔNG ĐIỂM RỦI RO LÀ: " + totalRiskScore);
         return totalRiskScore;
     }

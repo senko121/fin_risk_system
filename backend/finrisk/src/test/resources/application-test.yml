@@ -1,0 +1,59 @@
+server:
+  port: 8081
+
+spring:
+  datasource:
+    # Dùng H2 in-memory thay MySQL thật — chạy nhanh, không cần Docker
+    url: jdbc:h2:mem:finrisk_test;DB_CLOSE_DELAY=-1;MODE=MySQL;NON_KEYWORDS=USER
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop   # tự tạo schema khi test bắt đầu, xóa khi xong
+    show-sql: false            # tắt log SQL để output test sạch hơn
+    properties:
+      hibernate:
+        format_sql: false
+        dialect: org.hibernate.dialect.H2Dialect
+
+  # Mock Redis — không cần Redis thật khi chạy test
+  data:
+    redis:
+      host: localhost
+      port: 6370   # port giả, sẽ bị mock trong test
+
+  # Tắt mail thật — không gửi email khi test
+  mail:
+    host: localhost
+    port: 25
+    username: "test@test.com"
+    password: "fake"
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
+
+# Twilio giả — không gọi SMS thật khi test
+twilio:
+  account:
+    sid: "ACTEST00000000000000000000000000"
+  auth:
+    token: "test_token_fake"
+  phone:
+    number: "+10000000000"
+
+app:
+  test:
+    phone:
+      number: "+84000000000"
+    email: "test@test.com"
+
+# JWT giữ nguyên để test auth flow
+jwt:
+  secret: "FinRiskSuperSecretKeyForJwtTokenGenerationMustBeVeryLongAndSecure2026!!!"
+  expiration: 600000
+  refreshExpiration: 604800000

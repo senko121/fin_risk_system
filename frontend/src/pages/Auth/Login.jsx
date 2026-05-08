@@ -9,39 +9,7 @@ export default function Login() {
   const [errorMsg, setErrorMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // const handleLogin = async (e) => {
-  //   e.preventDefault();
-  //   setErrorMsg('');
-  //   setIsLoading(true);
-
-  //   try {
-  //     const response = await axios.post('http://localhost:8081/api/auth/login', {
-  //       username, password
-  //     });
-      
-  //     // Bóc tách và cất 2 cái Token + Thông tin User vào ví (LocalStorage)
-  //     localStorage.setItem('accessToken', response.data.accessToken);
-  //     localStorage.setItem('refreshToken', response.data.refreshToken);
-  //     localStorage.setItem('currentUser', JSON.stringify(response.data.user));
-
-  //     //   SỬA Ở ĐÂY: Lấy chức vụ ra để phân luồng giao thông
-  //     const userRole = response.data.user.role; 
-
-  //     if (userRole === 'ADMIN') {
-  //         // Nếu là Quản trị viên -> Đá thẳng vào màn hình Admin
-  //         navigate('/admin');
-  //     } else {
-  //         // Nếu là Khách hàng bình thường -> Đá vào màn hình Chuyển tiền
-  //         navigate('/dashboard');
-  //     }
-      
-  //   } catch (error) {
-  //     // Backend của mình trả về lỗi dạng chuỗi ở error.response.data
-  //     setErrorMsg(error.response?.data || 'Lỗi kết nối đến Server Backend!');
-  //   } finally {
-  //     setIsLoading(false);
-  //   }
-  // };
+  
  const handleLogin = async (e) => {
     e.preventDefault();
     setErrorMsg('');

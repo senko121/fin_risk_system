@@ -1,11 +1,18 @@
 package com.datn.finrisk.application.dtos;
 
+import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 @Data
 public class AuthVerifyRequest {
+    
     private Long transactionId; 
-    private String authType;    // Có thể truyền lên: "PIN", "OTP", hoặc "FACE"
-    private String authCode;    // Mật mã người dùng nhập (6 số PIN hoặc 6 số OTP)
+
+    @NotBlank(message = "Lỗi: Loại xác thực không được để trống")
+    private String authType;
+
+    @NotBlank(message = "Lỗi: Mã xác thực không được để trống")
+    private String authCode; 
+
     private String faceImageBase64;
 }

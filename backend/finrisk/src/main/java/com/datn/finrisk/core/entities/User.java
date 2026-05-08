@@ -20,7 +20,6 @@ public class User {
     @Column(unique = true, nullable = false)
     private String username;
 
-    // 🚀 DÁN 3 CÁI BÙA VÀO ĐÂY ĐỂ TRÁNH LẶP VÒNG
     @JsonIgnore
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
@@ -32,6 +31,7 @@ public class User {
     @Column(unique = true, nullable = false)
     private String phoneNumber;
 
+    @Column(unique = true)
     private String email;
 
     private String status = "ACTIVE";

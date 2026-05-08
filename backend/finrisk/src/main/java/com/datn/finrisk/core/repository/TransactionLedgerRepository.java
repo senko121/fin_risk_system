@@ -42,4 +42,15 @@ public interface TransactionLedgerRepository extends JpaRepository<TransactionLe
     List<TransactionLedger> findRecentDebitsWithTransaction(
             @Param("accountId") Long accountId, 
             @Param("startDate") LocalDateTime startDate);
+
+    
+    @Query("SELECT COUNT(tl) > 0 FROM TransactionLedger tl " +
+           "JOIN tl.transaction t " +
+           "WHERE tl.account.id = :accountId " +
+           "AND tl.entryType = 'DEBIT' " +
+           "AND t.toAccountNumber = :toAccountNumber")
+    boolean existsByAccountIdAndToAccountNumber(
+        @Param("accountId") Long accountId,
+        @Param("toAccountNumber") String toAccountNumber
+    );
 }

@@ -21,9 +21,7 @@ public class PinService {
 
     // 🚀 BƯỚC 1: Sửa cờ Transactional để KHÔNG ROLLBACK khi ném lỗi Business
     @Transactional(noRollbackFor = BusinessLogicException.class)
-    public boolean verifyPin(Long userId, String rawPin) {
-        UserSecurity security = userSecurityRepository.findByUserId(userId)
-                .orElseThrow(() -> new BusinessLogicException("ERR_NOT_FOUND", "Lỗi hệ thống: Không tìm thấy hồ sơ bảo mật!"));
+    public boolean verifyPin(UserSecurity security, String rawPin) {
 
         // 1. Kiểm tra xem tài khoản có đang bị khóa PIN không
         if (security.getLockUntil() != null && security.getLockUntil().isAfter(LocalDateTime.now())) {

@@ -4,12 +4,12 @@ import jakarta.persistence.*;
 import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties; // 🚀 Bổ sung import
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties; 
 
 @Entity
 @Table(name = "transactions")
 @Data
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"}) // 🚀 DÁN BÙA TRỊ LỖI PROXY
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Transaction {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -33,4 +33,4 @@ public class Transaction {
     
     private String status = "PENDING";
     private LocalDateTime createdAt = LocalDateTime.now();
-} // 🚀 Đã thêm ngoặc nhọn đóng class bị thiếu
+} // 🚀 Đã thêm ngoặc nhọn đóng class bị thiếua

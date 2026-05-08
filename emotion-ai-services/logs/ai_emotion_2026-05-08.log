@@ -1,0 +1,16 @@
+2026-05-08 02:02:12,762 | INFO     | ⏳ Đang nạp AI Model vào bộ nhớ...
+2026-05-08 02:02:15,807 | INFO     | ✅ Nạp Model thành công! Server AI đã sẵn sàng.
+2026-05-08 10:56:11,142 | INFO     | ⏳ Đang nạp AI Model vào bộ nhớ...
+2026-05-08 10:56:14,530 | INFO     | ✅ Nạp Model thành công! Server AI đã sẵn sàng.
+2026-05-08 11:26:38,874 | INFO     | [398873] ------------------------------------------
+2026-05-08 11:26:38,884 | INFO     | [398873] 📥 NHẬN YÊU CẦU QUÉT KHUÔN MẶT MỚI
+2026-05-08 11:26:38,960 | INFO     | [398873] Đã xử lý ảnh thành công. Kích thước tensor: (1, 48, 48, 1)
+2026-05-08 11:26:58,008 | INFO     | [398873] 📊 Chi tiết dự đoán: {'ANGRY': 3.67, 'DISGUST': 0.08, 'FEAR': 9.2, 'HAPPY': 1.42, 'NEUTRAL': 14.97, 'SAD': 70.1, 'SURPRISE': 0.56}
+2026-05-08 11:26:58,014 | INFO     | [398873] 🎯 KẾT QUẢ CHỐT: SAD (70.10%)
+2026-05-08 11:26:58,014 | INFO     | [398873] ⏱️ Thời gian phản hồi: 19131.09 ms
+2026-05-08 11:42:48,059 | INFO     | [368058] ------------------------------------------
+2026-05-08 11:42:48,062 | INFO     | [368058] 📥 NHẬN YÊU CẦU QUÉT KHUÔN MẶT MỚI
+2026-05-08 11:42:48,115 | INFO     | [368058] Đã xử lý ảnh thành công. Kích thước tensor: (1, 48, 48, 1)
+2026-05-08 11:42:48,807 | INFO     | [368058] 📊 Chi tiết dự đoán: {'ANGRY': 5.92, 'DISGUST': 0.19, 'FEAR': 10.54, 'HAPPY': 0.92, 'NEUTRAL': 14.49, 'SAD': 66.69, 'SURPRISE': 1.27}
+2026-05-08 11:42:48,808 | INFO     | [368058] 🎯 KẾT QUẢ CHỐT: SAD (66.69%)
+2026-05-08 11:42:48,808 | INFO     | [368058] ⏱️ Thời gian phản hồi: 749.12 ms

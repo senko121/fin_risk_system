@@ -10,8 +10,9 @@ public class LoginResponse {
     private String accountNumber;
     private BigDecimal balance;
     private String message;
-    
     private boolean isFaceSetup; 
-    
-    private boolean isPinSetup; 
+    private boolean isPinSetup;
+
+    @com.fasterxml.jackson.annotation.JsonIgnore // 🚀 Chặn không cho trả về client
+    private com.datn.finrisk.core.entities.User userEntity; 
 }
