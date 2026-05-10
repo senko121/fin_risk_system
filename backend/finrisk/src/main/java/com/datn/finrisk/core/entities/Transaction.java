@@ -33,4 +33,6 @@ public class Transaction {
     
     private String status = "PENDING";
     private LocalDateTime createdAt = LocalDateTime.now();
-} // 🚀 Đã thêm ngoặc nhọn đóng class bị thiếua
+
+    private Integer failedAiAttempts = 0;
+} 

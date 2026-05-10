@@ -20,7 +20,9 @@ public class RiskPolicyService {
     @Autowired
     private SystemConfigLogRepository configLogRepository;
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    // SỬA DÒNG NÀY: Thay vì new, hãy để Spring Inject vào
+    @Autowired
+    private ObjectMapper objectMapper;
 
     // 1. Lấy danh sách toàn bộ các ngưỡng rủi ro
     public List<RiskPolicy> getAllPolicies() {

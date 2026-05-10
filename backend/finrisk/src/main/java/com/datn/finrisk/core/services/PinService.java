@@ -1,7 +1,7 @@
 package com.datn.finrisk.core.services;
 
 import com.datn.finrisk.core.entities.UserSecurity;
-import com.datn.finrisk.core.exceptions.BusinessLogicException; // 🚀 IMPORT LỖI BUSINESS VÀO ĐÂY
+import com.datn.finrisk.core.exceptions.BusinessLogicException;   
 import com.datn.finrisk.core.repository.UserSecurityRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
+//Transaction B11: kiểm tra PIN người dùn vừa nhập có khớp vơi mã PIN hash trông db ko bằng verifyPin -> Transaction B2 Phase 2: Accountrepository
 @Service
 public class PinService {
 
@@ -19,13 +20,13 @@ public class PinService {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    // 🚀 BƯỚC 1: Sửa cờ Transactional để KHÔNG ROLLBACK khi ném lỗi Business
+ 
     @Transactional(noRollbackFor = BusinessLogicException.class)
     public boolean verifyPin(UserSecurity security, String rawPin) {
 
         // 1. Kiểm tra xem tài khoản có đang bị khóa PIN không
         if (security.getLockUntil() != null && security.getLockUntil().isAfter(LocalDateTime.now())) {
-            // 🚀 BƯỚC 2: Ném BusinessLogicException (Chỗ dòng 28 cũ của bro)
+ 
             throw new BusinessLogicException("ERR_PIN_LOCKED", "Tài khoản đang bị tạm khóa do nhập sai PIN quá nhiều lần. Vui lòng thử lại sau!");
         }
 
@@ -37,7 +38,7 @@ public class PinService {
 
         // 2. Chặn nếu User chưa cài PIN
         if (security.getPinHash() == null || !security.getIsPinSetup()) {
-             // 🚀 BƯỚC 3: Ném BusinessLogicException
+ 
              throw new BusinessLogicException("ERR_PIN_NOT_SETUP", "Người dùng chưa cài đặt Mã PIN!");
         }
 
@@ -62,11 +63,11 @@ public class PinService {
                 // Nếu sai 5 lần -> Phạt thẻ đỏ, khóa 15 phút
                 security.setLockUntil(LocalDateTime.now().plusMinutes(15));
                 userSecurityRepository.save(security);
-                // 🚀 BƯỚC 4: Ném BusinessLogicException
+ 
                 throw new BusinessLogicException("ERR_PIN_LOCKED_NOW", "Tài khoản đã bị khóa 15 phút do nhập sai PIN " + maxAttempts + " lần!");
             } else {
                 userSecurityRepository.save(security);
-                // 🚀 BƯỚC 5: Ném BusinessLogicException báo số lần còn lại thay vì return false
+ 
                 throw new BusinessLogicException("ERR_WRONG_PIN", "Mã PIN không chính xác! Bạn còn " + remainingAttempts + " lần thử.");
             }
         }

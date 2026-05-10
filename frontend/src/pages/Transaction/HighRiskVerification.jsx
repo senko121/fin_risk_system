@@ -447,13 +447,33 @@ export default function HighRiskVerification() {
         setStep(2); 
         setStatus("Vui lòng đọc to dãy số bên dưới");
       }
-    } catch (error) {
-      const errorMsg = error.response?.data || "Phát hiện rủi ro sinh trắc!";
-      setStatus("❌ TỪ CHỐI GIAO DỊCH: " + errorMsg);
-      toast.error("🚨 Cảnh báo: " + errorMsg); 
-      setIsLivenessPassed(false); // Reset lại Liveness nếu API báo lỗi
-      framesBuffer.current = [];
-      globalBlinkFlag.current = false;
+      } catch (error) {
+      // Bắt mã lỗi HTTP từ Backend
+      const statusCode = error.response?.status;
+      
+      // Xử lý lấy message an toàn (đề phòng backend trả về Object hoặc String)
+      let errorMsg = "Phát hiện rủi ro sinh trắc!";
+      if (typeof error.response?.data === 'string') {
+          errorMsg = error.response.data;
+      } else if (error.response?.data?.message) {
+          errorMsg = error.response.data.message;
+      }
+
+      if (statusCode === 403) {
+        // 🚨 NHẬN LỖI 403: ĐÁ VĂNG RA DASHBOARD
+        setStatus("❌ TỪ CHỐI GIAO DỊCH: " + errorMsg);
+        toast.error("🚨 Cảnh báo an ninh: " + errorMsg); 
+        navigate('/dashboard'); 
+      } else {
+        // ⚠️ NHẬN LỖI 400 (HOẶC LỖI KHÁC): CHO PHÉP THỬ LẠI
+        setStatus("⚠️ " + errorMsg);
+        toast.warn("⚠️ " + errorMsg); 
+        
+        // Reset lại Liveness để bắt user chớp mắt lắc đầu lại từ đầu
+        setIsLivenessPassed(false); 
+        framesBuffer.current = [];
+        globalBlinkFlag.current = false;
+      }
     } finally {
       setIsProcessing(false);
     }

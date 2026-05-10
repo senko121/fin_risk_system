@@ -12,6 +12,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+//Transaction B5 cung cấp dữ liệu thốn kê cho rule engine tín điểm bao gồm đếm sgd gần đây countRecentTransactions và tính tổng sumSuccessfulAmountToday
+//  -> Transaction B6: RickEvaluationService
+
+//Transaction B5 Phase 2: lôi lại cái giao dịch ở trạng thái pendingg lên findByIdWithUserSecurity  -> Transaction B11: Pinservice
 @Repository
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {
 

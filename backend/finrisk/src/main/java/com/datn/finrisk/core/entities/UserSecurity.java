@@ -4,10 +4,10 @@ package com.datn.finrisk.core.entities;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.ToString; // 🚀 Bổ sung import
-import lombok.EqualsAndHashCode; // 🚀 Bổ sung import
+import lombok.ToString; 
+import lombok.EqualsAndHashCode;  
 import java.time.LocalDateTime;
-import com.fasterxml.jackson.annotation.JsonIgnore; // 🚀 Bổ sung import
+import com.fasterxml.jackson.annotation.JsonIgnore;  
 
 @Entity
 @Table(name = "user_securities")
@@ -19,7 +19,7 @@ public class UserSecurity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // 🚀 DÁN 3 CÁI BÙA VÀO ĐÂY
+ 
     @JsonIgnore
     @ToString.Exclude
     @EqualsAndHashCode.Exclude

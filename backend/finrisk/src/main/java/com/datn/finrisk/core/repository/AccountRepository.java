@@ -11,6 +11,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+//Transaction B2: được gọi để kiểm tra tài khoản nguồn có tồn tại không findByIdWithUserAndSecurity -> Transaction B3: TransactionLedgerRepository
+//Transaction B2 Phase 2: tim thông tin tà khoản của người nhans tiên findByAccountNumber -> Transaction B9 Phase 2: Transactionservice
 @Repository
 public interface AccountRepository extends JpaRepository<Account, Long> {
     

@@ -22,6 +22,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
+//Transaction B9: đóng vai trò tonggor chỉ huy gói toan bọ quá trinh trên initiateTransaction -> Transaction B10: Auditllogserrvice
+//Transaction B9 Phase 2: bắt đau gọi hafm xử lý tiền bạcs executeTransactionCore qua trính thực hiện UPDATE  cacs ảng account va INSERT  vao transactiion ledgers
 @Service
 public class TransactionService {
 

@@ -8,13 +8,13 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDateTime; // 🚀 Bổ sung import này để xài ngày tháng
+import java.time.LocalDateTime;  
 import java.util.List;
 
+//Transaction B3: được gọi để em người dùng nafy đa từng  cuyển tiền cho stk dích này bao giờ chưa existsByAccountIdAndToAccountNumber -> Transaction B4: RuleRepository
 @Repository
 public interface TransactionLedgerRepository extends JpaRepository<TransactionLedger, Long> {
     
-    // Hàm CŨ: Giữ nguyên để không làm vỡ code ở các Service khác
     List<TransactionLedger> findByAccountIdOrderByCreatedAtDesc(Long accountId);
 
     @Query(
@@ -32,7 +32,7 @@ public interface TransactionLedgerRepository extends JpaRepository<TransactionLe
             @Param("entryType") String entryType, 
             Pageable pageable);
 
-    // 🚀 VŨ KHÍ MỚI CHO TÍNH NĂNG "NGƯỜI NHẬN GẦN ĐÂY" (Lọc luôn thời gian và loại DEBIT từ DB)
+
     @Query("SELECT tl FROM TransactionLedger tl " +
            "JOIN FETCH tl.transaction t " +
            "WHERE tl.account.id = :accountId " +

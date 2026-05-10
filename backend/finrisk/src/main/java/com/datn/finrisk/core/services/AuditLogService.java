@@ -5,6 +5,8 @@ import com.datn.finrisk.core.repository.AuditLogRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+//Transaction B10: ghi nhật ký bắt đâu giao dịch
+//Transaction B10 Phase 2: ghi nhật ký  chốt sổ giao dịch hoan tất success
 @Service
 public class AuditLogService {
 

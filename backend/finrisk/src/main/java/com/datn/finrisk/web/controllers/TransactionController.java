@@ -78,50 +78,71 @@ public class TransactionController {
     @Autowired
     private RiskEvaluationService riskEvaluationService;
 
+    //Transaction B1: Nhan yêu cầu khởi tạo giao dịch -> Transaction B2: Gọi AccountRepository 
     @PostMapping("/process")
-    // 🚀 BƯỚC 1: XÓA TRY-CATCH VÀ NHỚ THÊM 'throws Exception'
+
     public ResponseEntity<?> processTransaction(@Valid @RequestBody TransactionRequest request, HttpServletRequest httpRequest) throws Exception {
         
-        // Chộp IP và Thiết bị (User-Agent) ngay khi có Request bay vào
         String currentIp = httpRequest.getRemoteAddr();
         String currentDevice = httpRequest.getHeader("User-Agent");
         
-        // Cắt ngắn chuỗi Device nếu nó quá dài (tránh văng lỗi vỡ DataBase)
         if (currentDevice != null && currentDevice.length() > 250) {
             currentDevice = currentDevice.substring(0, 250);
         }
-
-        // 🚀 BƯỚC 2: Gọi Service. Nếu tài khoản bị khóa, nó sẽ NÉM LỖI TẠI ĐÂY và DỪNG LUÔN, không chạy tiếp xuống dưới!
+ 
         Transaction result = transactionService.initiateTransaction(
                 request.getFromAccountId(),
                 request.getToAccount(),
                 request.getAmount(),
                 request.getDescription(),
-                currentIp,      // Nhét IP vào đây
-                currentDevice   // Nhét Device vào đây
+                currentIp,      
+                currentDevice   
         );
 
-        // GHI LOG TẠO LỆNH THÀNH CÔNG (Nhưng chưa chốt tiền)
         String username = result.getFromAccount().getUser().getUsername();
         auditLogService.logAction(username, "TRANSACTION_INITIATED", "Tạo lệnh chuyển " + request.getAmount() + " VND đến STK " + request.getToAccount() + ". Mức rủi ro: " + result.getRiskLevel());
 
         return ResponseEntity.ok(result);
     }
 
-
+//Transaction B1 Phase2: Thực hiện xác thực mã pin -> Transaction B5: TransactionRepository
     @PostMapping("/verify")
     public ResponseEntity<?> verifyAndExecute(@Valid @RequestBody AuthVerifyRequest request) throws Exception {
-        
+        String authType = request.getAuthType();
+
+        boolean requiresAuthCode = "PIN".equals(authType)
+                                || "OTP".equals(authType)
+                                || "VOICE_OTP".equals(authType);
+
+        if (requiresAuthCode) {
+            if (request.getAuthCode() == null || request.getAuthCode().trim().isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of(
+                    "errorCode", "ERR_VALIDATION_FAILED",
+                    "message", "Dữ liệu đầu vào không hợp lệ!",
+                    "details", Map.of("authCode", "Mã xác thực không được để trống")
+                ));
+            }
+        }
+
+        boolean requiresFaceImage = "FACE_STATIC".equals(authType)
+                                || "FACE_AI".equals(authType);
+
+        if (requiresFaceImage) {
+            if (request.getFaceImageBase64() == null || request.getFaceImageBase64().trim().isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of(
+                    "errorCode", "ERR_VALIDATION_FAILED",
+                    "message", "Dữ liệu đầu vào không hợp lệ!",
+                    "details", Map.of("faceImageBase64", "Ảnh khuôn mặt không được để trống")
+                ));
+            }
+        }
+
         Transaction tx = transactionRepository.findByIdWithUserSecurity(request.getTransactionId())
                     .orElseThrow(() -> new RuntimeException("Giao dịch không tồn tại!"));
 
-
         String username = tx.getFromAccount().getUser().getUsername();
-        String authType = request.getAuthType();
         String currentStatus = tx.getStatus();
 
-         
- 
         if ("PIN".equals(authType)) {
             User txUser = tx.getFromAccount().getUser();
             UserSecurity security = txUser.getUserSecurity();
@@ -216,23 +237,39 @@ public class TransactionController {
         else if ("FACE_AI".equals(authType)) {
             if ("PENDING_FACE_AI".equals(currentStatus)) {
                 boolean isSecure = faceScanActionStrategy.validateFaceAndEmotion(tx, request.getFaceImageBase64());
+                
                 if (!isSecure) {
-                    tx.setStatus("BLOCKED");
-                    transactionRepository.save(tx);
-                    auditLogService.logAction(username, "AI_REJECT", "Chặn đứng giao dịch do phát hiện rủi ro sinh trắc.");
-                    return ResponseEntity.status(403).body("Cảnh báo an ninh: Xác thực AI thất bại!");
+                    // Lôi biến đếm ra (đề phòng null thì gán = 0)
+                    int currentAttempts = tx.getFailedAiAttempts() != null ? tx.getFailedAiAttempts() : 0;
+                    currentAttempts++; // Tăng lên 1
+                    tx.setFailedAiAttempts(currentAttempts);
+
+                    if (currentAttempts >= 3) {
+                        //  SAI QUÁ 3 LẦN: CHỐT BLOCKED
+                        tx.setStatus("BLOCKED");
+                        transactionRepository.save(tx);
+                        auditLogService.logAction(username, "AI_REJECT_MAX_RETRIES", "Khóa giao dịch: Xác thực khuôn mặt/cảm xúc sai 3 lần.");
+                        return ResponseEntity.status(403).body("Giao dịch bị hủy do xác thực sinh trắc học sai quá 3 lần!");
+                    } else {
+                        //  VẪN CÒN CƠ HỘI: LƯU BIẾN ĐẾM VÀ TRẢ VỀ LỖI 400
+                        transactionRepository.save(tx);
+                        int remaining = 3 - currentAttempts;
+                        auditLogService.logAction(username, "AI_REJECT_RETRY", "Quét AI sai lần " + currentAttempts);
+                        return ResponseEntity.badRequest().body("Khuôn mặt hoặc cảm xúc không khớp. Bạn còn " + remaining + " lần thử.");
+                    }
                 }
                 
+                //  NẾU QUÉT THÀNH CÔNG: Chuyển sang trạm Voice OTP
+                tx.setFailedAiAttempts(0); // Reset bộ đếm cho sạch sẽ
                 tx.setStatus("PENDING_VOICE_OTP");
                 transactionRepository.save(tx);
                 
-                // 🚀 FIX LỖI: PHẢI TẠO MÃ VOICE OTP Ở ĐÂY ĐỂ TRẢ VỀ CHO REACT IN RA MÀN HÌNH
                 String voiceCode = otpService.generateVoiceOtp(tx.getId()); 
                 
                 return ResponseEntity.ok(Map.of(
                         "status", "NEXT_STEP", 
                         "nextAuthType", "VOICE_OTP", 
-                        "voiceCode", voiceCode, // Nhét 6 số vào đây
+                        "voiceCode", voiceCode,
                         "message", "Xác thực AI thành công. Vui lòng đọc Voice OTP."
                 ));
             }

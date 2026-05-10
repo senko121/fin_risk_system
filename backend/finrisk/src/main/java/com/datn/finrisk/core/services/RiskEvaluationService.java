@@ -30,6 +30,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
+//Transaction B6: đây là nao tính điếm chốt lại điểm rui ro -> Transaction B7: RiskPolicyRepository
 @Service
 public class RiskEvaluationService {
 
