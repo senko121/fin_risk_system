@@ -19,9 +19,9 @@ public class UserContact {
     @JsonIgnore
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
-    private User owner; // Chủ danh bạ
+    private User owner;
 
     private String contactAccountNumber;
     private String contactName;

@@ -8,10 +8,11 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
+//Transaction B7: dò bản policy xem điểm tương ứng với rủi ro nào va cần làm gì trong trả về kết quả  -> Transaction B8: PinActnStrategy
 @Repository
 public interface RiskPolicyRepository extends JpaRepository<RiskPolicy, Long> {
     
-    // TRÁI TIM CỦA VIỆC TÌM KIẾM ĐỘNG: Tìm policy dựa vào tổng điểm
+ 
     @Query("SELECT p FROM RiskPolicy p WHERE :score >= p.minScore AND :score <= p.maxScore")
     Optional<RiskPolicy> findByScore(@Param("score") int score);
 }

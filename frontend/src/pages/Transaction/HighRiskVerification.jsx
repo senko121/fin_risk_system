@@ -1,5 +1,4 @@
 
-
 // import React, { useRef, useState, useEffect, useCallback } from 'react';
 // import Webcam from 'react-webcam';
 // import { useLocation, useNavigate } from 'react-router-dom';
@@ -13,36 +12,23 @@
 //   const { state } = useLocation();
 //   const { transactionId, formData, recipientName } = state || {};
 
-//   // Điều hướng nội bộ trong Gateway
-//   const [step, setStep] = useState(1); // 1 = Face AI, 2 = Voice OTP
+//   const [step, setStep] = useState(1); 
 //   const [voiceCode, setVoiceCode] = useState('');
 
-//   // State chung
 //   const [isProcessing, setIsProcessing] = useState(false);
 //   const [status, setStatus] = useState("Đang tải AI Model...");
 
-//   // State Face AI
 //   const [faceLandmarker, setFaceLandmarker] = useState(null);
 //   const [isModelLoaded, setIsModelLoaded] = useState(false);
 //   const [isFaceDetected, setIsFaceDetected] = useState(false);
 //   const [isRecording, setIsRecording] = useState(false);
 
-//   // 🚀 BƯỚC 1: LÔI USER TỪ KÉT SẮT RA KIỂM TRA
-//   const currentUser = JSON.parse(localStorage.getItem('currentUser')) || {};
-//   const hasFaceSetup = currentUser.isFaceSetup === true;
-
-//   // ==========================================
-//   // KHỞI TẠO CAMERA & MEDIAPIPE (Chạy 1 lần)
-//   // ==========================================
 //   useEffect(() => {
 //     if (!transactionId) {
 //       toast.error("🚨 Lỗi: Không tìm thấy thông tin giao dịch!");
 //       navigate('/dashboard');
 //       return;
 //     }
-
-//     // 🚀 CHẶN AI NGAY LẬP TỨC NẾU CHƯA CÓ KHUÔN MẶT ĐỂ TIẾT KIỆM RAM
-//     if (!hasFaceSetup) return;
 
 //     const initAI = async () => {
 //       try {
@@ -66,9 +52,8 @@
 //       }
 //     };
 //     initAI();
-//   }, [transactionId, navigate, hasFaceSetup]);
+//   }, [transactionId, navigate]); // 🚀 Đã xóa phụ thuộc hasFaceSetup
 
-//   // Liên tục check Face (Chỉ dùng ở Step 1)
 //   useEffect(() => {
 //     let animationFrameId;
 //     const detectFace = () => {
@@ -91,9 +76,6 @@
 //     return () => cancelAnimationFrame(animationFrameId);
 //   }, [isModelLoaded, faceLandmarker, isProcessing, step]);
 
-//   // ==========================================
-//   // STEP 1: XÁC THỰC FACE AI + CẢM XÚC
-//   // ==========================================
 //   const verifyFaceAI = useCallback(async () => {
 //     if (!webcamRef.current) return;
 //     setIsProcessing(true);
@@ -112,7 +94,7 @@
 //       if (resData.status === "NEXT_STEP" && resData.nextAuthType === "VOICE_OTP") {
 //         toast.success("✅ " + resData.message);
 //         setVoiceCode(resData.voiceCode);
-//         setStep(2); // CHUYỂN SANG MÀN 2
+//         setStep(2); 
 //         setStatus("Vui lòng đọc to dãy số bên dưới");
 //       }
 //     } catch (error) {
@@ -124,9 +106,6 @@
 //     }
 //   }, [transactionId, webcamRef]);
 
-//   // ==========================================
-//   // STEP 2: THU ÂM & XÁC THỰC VOICE OTP
-//   // ==========================================
 //   const recordWavAudio = () => {
 //     return new Promise((resolve, reject) => {
 //       navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
@@ -142,7 +121,6 @@
 //         source.connect(processor);
 //         processor.connect(audioContext.destination);
 
-//         // Thu âm chính xác trong 4 giây rồi tự ngắt
 //         setTimeout(() => {
 //           processor.disconnect();
 //           source.disconnect();
@@ -221,43 +199,8 @@
 //     }
 //   };
 
-//   // ========================================================
-//   // 🚀 LUỒNG BỊ CHẶN: Khi chưa có FaceID
-//   // ========================================================
-//   if (!hasFaceSetup) {
-//     return (
-//       <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4">
-//         <div className="bg-white rounded-[2.5rem] p-8 shadow-2xl max-w-md w-full text-center border-4 border-orange-500/30 relative overflow-hidden">
-//           <div className="mx-auto bg-orange-100 text-orange-600 w-20 h-20 rounded-full flex items-center justify-center mb-6">
-//             <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-//           </div>
-//           <h2 className="text-2xl font-black text-gray-900 mb-2 tracking-tight">CHƯA CÓ FACEID</h2>
-//           <p className="text-gray-500 font-medium mb-8 leading-relaxed">
-//             Hệ thống an ninh từ chối giao dịch do tài khoản của bạn chưa được thiết lập dữ liệu sinh trắc học. Vui lòng cài đặt trước khi tiếp tục.
-//           </p>
-//           <button 
-//             onClick={() => navigate('/register-face')} 
-//             className="w-full py-4 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white rounded-2xl font-black shadow-lg shadow-orange-500/30 transition-all active:scale-95 uppercase tracking-wider"
-//           >
-//             ĐI CÀI ĐẶT NGAY
-//           </button>
-//           <button 
-//             onClick={() => navigate('/dashboard')} 
-//             className="w-full py-3 mt-3 text-slate-500 font-bold hover:text-slate-800 transition-colors"
-//           >
-//             Hủy giao dịch
-//           </button>
-//         </div>
-//       </div>
-//     );
-//   }
-
-//   // ========================================================
-//   // 🚀 LUỒNG BÌNH THƯỜNG: Xác Thực High Risk
-//   // ========================================================
 //   return (
 //     <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4 relative overflow-hidden">
-//       {/* Vòng sáng cảnh báo */}
 //       <div className={`absolute top-0 left-0 w-full h-2 animate-pulse ${step === 1 ? 'bg-orange-500' : 'bg-red-500'}`}></div>
 
 //       <div className="bg-white rounded-[2.5rem] p-8 shadow-2xl max-w-md w-full text-center relative z-10 border-4 border-slate-800">
@@ -270,7 +213,6 @@
 //           {status}
 //         </p>
 
-//         {/* ================= KHUNG CAMERA DÙNG CHUNG ================= */}
 //         <div className={`relative w-64 h-64 mx-auto rounded-xl overflow-hidden border-4 mb-8 shadow-2xl transition-all duration-300 ${step === 1 && isFaceDetected ? 'border-green-500 scale-105' : step === 2 ? 'border-blue-500' : 'border-slate-300'}`}>
 //           {isModelLoaded ? (
 //             <Webcam
@@ -286,14 +228,12 @@
 //             </div>
 //           )}
           
-//           {/* Lớp phủ UI cho Step 1 (Mặt) */}
 //           {step === 1 && (
 //             <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
 //               <div className={`w-32 h-40 border-2 rounded-full transition-colors ${isFaceDetected ? 'border-green-400/50' : 'border-slate-400/50 border-dashed'}`}></div>
 //             </div>
 //           )}
 
-//           {/* Lớp phủ UI cho Step 2 (Voice) */}
 //           {step === 2 && (
 //             <div className="absolute inset-0 flex flex-col items-center justify-center z-20">
 //                <span className="text-white text-xs uppercase font-bold tracking-widest mb-2 shadow-black drop-shadow-md">Mã cần đọc:</span>
@@ -308,7 +248,6 @@
 //           )}
 //         </div>
 
-//         {/* NÚT BẤM (Đổi theo Step) */}
 //         {step === 1 ? (
 //           <button 
 //             onClick={verifyFaceAI} 
@@ -337,7 +276,9 @@ import Webcam from 'react-webcam';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
 import { toast } from 'react-toastify'; 
+ 
 import axiosClient from '../../api/axiosClient';
+import useFrameCapture from '../../hooks/useFrameCapture';
 
 export default function HighRiskVerification() {
   const webcamRef = useRef(null);
@@ -353,9 +294,19 @@ export default function HighRiskVerification() {
 
   const [faceLandmarker, setFaceLandmarker] = useState(null);
   const [isModelLoaded, setIsModelLoaded] = useState(false);
-  const [isFaceDetected, setIsFaceDetected] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const { captureFrames, isCapturing } = useFrameCapture(webcamRef, 5, 1000);
 
+  const wsRef = useRef(null);
+  const [liveEmotion, setLiveEmotion] = useState("NEUTRAL"); // Cảm xúc thời gian thực
+
+  // 🚀 LIVENESS STATES
+  const [isLivenessPassed, setIsLivenessPassed] = useState(false);
+  const globalBlinkFlag = useRef(false);
+  const framesBuffer = useRef([]);
+  const MAX_FRAMES = 30; // 0.5 giây
+
+  // 1. KHỞI TẠO MEDIAPIPE (Đã bật nhận diện Cảm biến sâu & Chớp mắt)
   useEffect(() => {
     if (!transactionId) {
       toast.error("🚨 Lỗi: Không tìm thấy thông tin giao dịch!");
@@ -374,53 +325,207 @@ export default function HighRiskVerification() {
             delegate: "GPU"
           },
           runningMode: "VIDEO",
-          numFaces: 1
+          numFaces: 1,
+          outputFacialTransformationMatrixes: true, 
+          outputFaceBlendshapes: true 
         });
         setFaceLandmarker(landmarker);
         setIsModelLoaded(true);
-        setStatus("Hãy nhìn thẳng vào camera để xác thực!");
+        setStatus("👀 Hãy nhìn thẳng camera, chớp mắt VÀ lắc nhẹ đầu...");
       } catch (err) {
         setStatus("Lỗi khởi tạo AI.");
         toast.error("❌ Không thể tải AI Model.");
       }
     };
     initAI();
-  }, [transactionId, navigate]); // 🚀 Đã xóa phụ thuộc hasFaceSetup
+  }, [transactionId, navigate]);
 
+  // 2. VÒNG LẶP LIVENESS (Thay thế hàm detectFace cũ)
   useEffect(() => {
     let animationFrameId;
-    const detectFace = () => {
-      if (step === 1 && webcamRef.current && webcamRef.current.video && faceLandmarker) {
+
+    const analyzeLiveness = () => {
+      // Chỉ phân tích ở Bước 1 và khi chưa qua ải Liveness
+      if (step === 1 && !isLivenessPassed && webcamRef.current && webcamRef.current.video && faceLandmarker) {
         const video = webcamRef.current.video;
         if (video.currentTime > 0) {
           const results = faceLandmarker.detectForVideo(video, performance.now());
+
           if (results.faceLandmarks && results.faceLandmarks.length === 1) {
-            setIsFaceDetected(true);
-            if (!isProcessing) setStatus("Đã nhận diện khuôn mặt. Sẵn sàng quét!");
+            const landmarks = results.faceLandmarks[0];
+            const nose = landmarks[1];
+            const leftCheek = landmarks[234];
+            const rightCheek = landmarks[454];
+            const top = landmarks[10];
+            const bottom = landmarks[152];
+
+            const yaw = Math.atan2(rightCheek.z - leftCheek.z, rightCheek.x - leftCheek.x);
+            const pitch = Math.atan2(bottom.z - top.z, bottom.y - top.y);
+
+            const distLeft = Math.sqrt(Math.pow(leftCheek.x - nose.x, 2) + Math.pow(leftCheek.y - nose.y, 2));
+            const distRight = Math.sqrt(Math.pow(rightCheek.x - nose.x, 2) + Math.pow(rightCheek.y - nose.y, 2));
+            const totalDist = distLeft + distRight;
+            const ratio = totalDist > 0 ? Math.abs(distLeft - distRight) / totalDist : 0;
+
+            let currentBlinkScore = 0;
+            if (results.faceBlendshapes && results.faceBlendshapes.length > 0) {
+              const blendshapes = results.faceBlendshapes[0].categories;
+              const eyeBlinkLeft = blendshapes.find(shape => shape.categoryName === "eyeBlinkLeft")?.score || 0;
+              const eyeBlinkRight = blendshapes.find(shape => shape.categoryName === "eyeBlinkRight")?.score || 0;
+              currentBlinkScore = Math.max(eyeBlinkLeft, eyeBlinkRight);
+              
+              if (currentBlinkScore > 0.45) { 
+                globalBlinkFlag.current = true;
+              }
+            }
+
+            framesBuffer.current.push({ yaw, pitch, ratio, blinkScore: currentBlinkScore });
+            
+            if (framesBuffer.current.length > MAX_FRAMES) {
+              framesBuffer.current.shift(); 
+            }
+
+            if (framesBuffer.current.length === MAX_FRAMES && !isProcessing) {
+              const yaws = framesBuffer.current.map(f => f.yaw);
+              const pitches = framesBuffer.current.map(f => f.pitch);
+              const ratios = framesBuffer.current.map(f => f.ratio);
+
+              const yawDelta = Math.abs(Math.max(...yaws) - Math.min(...yaws));
+              const pitchDelta = Math.abs(Math.max(...pitches) - Math.min(...pitches));
+              const ratioDelta = Math.abs(Math.max(...ratios) - Math.min(...ratios));
+
+              // ⚖️ LUẬT THÉP V2 (ĐÃ CHỐT HỆ SỐ)
+              const THRESHOLD_RATIO = 0.065; 
+              const THRESHOLD_SHAKE = 0.05; 
+
+              const hasBlinked = globalBlinkFlag.current;
+              const is3D = ratioDelta >= THRESHOLD_RATIO; 
+              const isShaking = yawDelta > THRESHOLD_SHAKE || pitchDelta > THRESHOLD_SHAKE;
+
+              if (hasBlinked && is3D) {
+                setIsLivenessPassed(true);
+                setStatus("✅ XÁC THỰC THÀNH CÔNG: Sẵn sàng quét danh tính!");
+              } else if (isShaking && !is3D) {
+                setStatus("🚨 PHÁT HIỆN ẢNH GIẢ! Vui lòng dùng khuôn mặt thật.");
+              } else if (hasBlinked && !is3D && !isShaking) {
+                setStatus("⏳ Đã nhận diện chớp mắt. Vui lòng lắc nhẹ đầu...");
+              } else if (!hasBlinked && is3D) {
+                setStatus("⏳ Đang lắc đầu 3D... Vui lòng chớp mắt 1 cái!");
+              } else {
+                setStatus("👀 Hãy nhìn thẳng camera, chớp mắt VÀ lắc nhẹ đầu...");
+              }
+            }
           } else {
-            setIsFaceDetected(false);
-            if (!isProcessing) setStatus("Vui lòng giữ khuôn mặt trong khung hình.");
+            // Mất mặt ra khỏi khung hình
+            framesBuffer.current = [];
+            globalBlinkFlag.current = false;
+            setIsLivenessPassed(false);
+            if (!isProcessing) setStatus("Vui lòng đưa khuôn mặt vào giữa khung hình.");
           }
         }
       }
-      animationFrameId = requestAnimationFrame(detectFace);
+      animationFrameId = requestAnimationFrame(analyzeLiveness);
     };
-    if (isModelLoaded) detectFace();
+
+    if (isModelLoaded) analyzeLiveness();
     return () => cancelAnimationFrame(animationFrameId);
-  }, [isModelLoaded, faceLandmarker, isProcessing, step]);
+  }, [isModelLoaded, faceLandmarker, isProcessing, step, isLivenessPassed]);
 
-  const verifyFaceAI = useCallback(async () => {
+  // 🚀 KHỞI TẠO WEBSOCKET
+  useEffect(() => {
+    // Kết nối tới Spring Boot
+    const socket = new WebSocket('ws://localhost:8081/ws/emotion-stream');
+    
+    socket.onopen = () => {
+      console.log('✅ Đã kết nối WebSocket Stream Cảm Xúc!');
+    };
+
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      console.log("📥 [WS NHẬN TỪ BACKEND]:", data);
+      if (data.status === "SUCCESS") {
+        setLiveEmotion(data.emotion); // Cập nhật ngay lên màn hình!
+      }
+    };
+
+    socket.onerror = (error) => console.error('❌ Lỗi WebSocket:', error);
+    
+    wsRef.current = socket;
+
+    return () => {
+      if (wsRef.current) wsRef.current.close();
+    };
+  }, []);
+
+// useEffect(() => {
+//     // Dùng SockJS thay vì new WebSocket()
+//     const socket = new SockJS('http://localhost:8081/ws/emotion-stream');
+    
+//     socket.onopen = () => {
+//         console.log('✅ Đã kết nối WebSocket Stream Cảm Xúc!');
+//     };
+
+//     socket.onmessage = (event) => {
+//         const data = JSON.parse(event.data);
+//         console.log("📥 [WS NHẬN TỪ BACKEND]:", data);
+//         if (data.status === "SUCCESS") {
+//             setLiveEmotion(data.emotion);
+//         }
+//     };
+
+//     socket.onerror = (error) => console.error('❌ Lỗi WebSocket:', error);
+    
+//     wsRef.current = socket;
+
+//     return () => {
+//         if (wsRef.current) wsRef.current.close();
+//     };
+// }, []);
+
+  // 3. API KIỂM TRA DANH TÍNH (Giữ nguyên)
+const verifyFaceAI = useCallback(async () => {
     if (!webcamRef.current) return;
+    
     setIsProcessing(true);
-    setStatus("AI đang phân tích danh tính và cảm xúc...");
+    setStatus("📸 Đang ghi hình (5 giây). Hãy giữ khuôn mặt tự nhiên...");
+    
+    const framesArray = [];
+    let frameCount = 0;
+    
+    // 🚀 BẮT ĐẦU VÒNG LẶP STREAMING (5 LẦN, CÁCH NHAU 1 GIÂY)
+    const streamInterval = setInterval(() => {
+      if (webcamRef.current) {
+        const frame = webcamRef.current.getScreenshot();
+        if (frame) {
+          const base64Data = frame.split(',')[1];
+          framesArray.push(base64Data);
+          
+          // Bơm Frame qua WebSocket để nhận Live Feedback
+          if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+            console.log("📤 [WS GỬI ĐI]: Đã bơm 1 Frame lên Server!"); // 🚀 IN RA GỬI
+            wsRef.current.send(JSON.stringify({ frame: base64Data }));
+          }
+        }
+      }
+      frameCount++;
 
-    const base64Image = webcamRef.current.getScreenshot();
+      // KHI ĐỦ 5 GIÂY -> CHỐT SỔ HTTP
+      if (frameCount >= 5) {
+        clearInterval(streamInterval);
+        finalizeTransaction(framesArray); // Gọi hàm gửi HTTP
+      }
+    }, 1000);
+    
+  }, [transactionId, webcamRef]);
 
+  // HÀM CHỐT SỔ (Tách riêng cho sạch code)
+  const finalizeTransaction = async (framesArray) => {
+    setStatus("AI đang tổng hợp và phân tích hành vi...");
     try {
       const response = await axiosClient.post('/transactions/verify', {
         transactionId: transactionId,
         authType: "FACE_AI",
-        faceImageBase64: base64Image
+        faceFrameSequence: framesArray 
       });
 
       const resData = response.data;
@@ -437,8 +542,9 @@ export default function HighRiskVerification() {
     } finally {
       setIsProcessing(false);
     }
-  }, [transactionId, webcamRef]);
+  };
 
+  // 4. API GHI ÂM & VOICE OTP (Giữ nguyên)
   const recordWavAudio = () => {
     return new Promise((resolve, reject) => {
       navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
@@ -542,11 +648,17 @@ export default function HighRiskVerification() {
           {step === 1 ? "Bước 1: Quét Khuôn Mặt" : "Bước 2: Xác Thực Giọng Nói"}
         </p>
         
-        <p className={`text-sm font-bold mb-6 transition-colors ${isProcessing ? 'text-blue-500 animate-pulse' : isRecording ? 'text-red-500 animate-pulse' : 'text-slate-600'}`}>
+        <p className={`text-sm font-bold mb-6 transition-colors ${isProcessing ? 'text-blue-500 animate-pulse' : isRecording ? 'text-red-500 animate-pulse' : status.includes('🚨') || status.includes('❌') ? 'text-red-600 animate-bounce' : status.includes('✅') ? 'text-green-600' : 'text-slate-600'}`}>
           {status}
         </p>
 
-        <div className={`relative w-64 h-64 mx-auto rounded-xl overflow-hidden border-4 mb-8 shadow-2xl transition-all duration-300 ${step === 1 && isFaceDetected ? 'border-green-500 scale-105' : step === 2 ? 'border-blue-500' : 'border-slate-300'}`}>
+        <div className={`relative w-64 h-64 mx-auto rounded-xl overflow-hidden border-4 mb-8 shadow-2xl transition-all duration-300 ${step === 1 && isLivenessPassed ? 'border-green-500 scale-105' : step === 2 ? 'border-blue-500' : 'border-slate-300'}`}>
+          {/* 🚀 HIỂN THỊ CẢM XÚC LIVE */}
+          {step === 1 && isProcessing && (
+             <div className="absolute top-2 right-2 z-50 bg-black/60 text-white px-3 py-1 rounded-full text-xs font-bold uppercase backdrop-blur-sm animate-pulse">
+                Tâm lý: <span className={liveEmotion === 'FEAR' || liveEmotion === 'ANGRY' ? 'text-red-400' : 'text-green-400'}>{liveEmotion}</span>
+             </div>
+          )}
           {isModelLoaded ? (
             <Webcam
               audio={false}
@@ -563,7 +675,7 @@ export default function HighRiskVerification() {
           
           {step === 1 && (
             <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-              <div className={`w-32 h-40 border-2 rounded-full transition-colors ${isFaceDetected ? 'border-green-400/50' : 'border-slate-400/50 border-dashed'}`}></div>
+              <div className={`w-32 h-40 border-2 rounded-full transition-colors ${isLivenessPassed ? 'border-green-400/50' : 'border-slate-400/50 border-dashed'}`}></div>
             </div>
           )}
 
@@ -581,13 +693,19 @@ export default function HighRiskVerification() {
           )}
         </div>
 
-        {step === 1 ? (
+          {step === 1 ? (
           <button 
             onClick={verifyFaceAI} 
-            disabled={!isModelLoaded || !isFaceDetected || isProcessing}
-            className={`w-full py-5 rounded-2xl font-black text-white text-lg transition-all shadow-xl ${(!isModelLoaded || !isFaceDetected || isProcessing) ? 'bg-gray-300 cursor-not-allowed shadow-none text-gray-500' : 'bg-orange-600 hover:bg-orange-700 active:scale-95'}`}
+          // ✅ SAU KHI SỬA
+          disabled={!isModelLoaded || !isLivenessPassed || isProcessing || isCapturing}
+          className={`w-full py-5 rounded-2xl font-black text-white text-lg transition-all shadow-xl ${
+            (!isModelLoaded || !isLivenessPassed || isProcessing || isCapturing) 
+              ? 'bg-gray-300 cursor-not-allowed shadow-none text-gray-500' 
+              : 'bg-orange-600 hover:bg-orange-700 active:scale-95'
+          }`}
           >
-            {isProcessing ? 'ĐANG QUÉT AI...' : 'XÁC THỰC DANH TÍNH'}
+            {/* Đổi chữ hiển thị theo trạng thái */}
+            {isCapturing ? '📸 ĐANG GHI HÌNH (5s)...' : isProcessing ? '🤖 ĐANG PHÂN TÍCH AI...' : 'XÁC THỰC DANH TÍNH'}
           </button>
         ) : (
           <button 

@@ -118,26 +118,17 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             // 2. Nếu có JWT và nó hợp lệ
             if (jwt != null && jwtUtils.validateJwtToken(jwt)) {
                 
-                // Lấy username từ token
                 String username = jwtUtils.getUserNameFromJwtToken(jwt);
 
-                // Móc User từ Database lên
-                User user = userRepository.findByUsername(username).orElse(null);
+                String role = jwtUtils.getRoleFromJwtToken(jwt); // thêm hàm này bên dưới
+                List<GrantedAuthority> authorities = Collections.singletonList(
+                        new SimpleGrantedAuthority("ROLE_" + role)
+                );
 
-                if (user != null) {
-                    // 3. Cấp quyền cho User (Spring Security bắt buộc phải có chữ ROLE_ đứng trước)
-                    List<GrantedAuthority> authorities = Collections.singletonList(
-                            new SimpleGrantedAuthority("ROLE_" + user.getRole().name())
-                    );
-
-                    // 4. Báo cáo với Spring Security là "Thằng này đã được xác thực an toàn"
-                    // 🚀 ĐÃ SỬA: Dùng 'username' (String) thay vì 'user' (Object)
-                    UsernamePasswordAuthenticationToken authentication =
-                            new UsernamePasswordAuthenticationToken(username, null, authorities);
-                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
-                }
+                UsernamePasswordAuthenticationToken authentication =
+                        new UsernamePasswordAuthenticationToken(username, null, authorities);
+                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(authentication);
             }
         } catch (Exception e) {
             System.err.println("Không thể xác thực người dùng: " + e.getMessage());

@@ -25,6 +25,8 @@ import AdminLogDashboard from './pages/Admin/AdminLogDashboard';
 import AdminPolicyDashboard from './pages/Admin/AdminPolicyDashboard';
 import AdminAiLogDashboard from './pages/Admin/AdminAiLogDashboard'; 
 
+import LivenessSandbox from './pages/Security/LivenessSandbox';
+
 
 function App() {
   return (
@@ -66,6 +68,8 @@ function App() {
             <Route path="/security" element={<SecuritySettings />} />
             <Route path="/setup-pin" element={<SetupPin />} />
             <Route path="/change-password" element={<ChangePassword />} />
+
+            <Route path="/test-3d" element={<LivenessSandbox />} />
 
             <Route path="/admin" element={<AdminRoute> <AdminDashboard /> </AdminRoute>} />
             <Route path="/admin/rules" element={<AdminRoute> <AdminRuleDashboard /> </AdminRoute>} />

@@ -4,16 +4,18 @@ import jakarta.persistence.*;
 import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties; 
 
 @Entity
 @Table(name = "transactions")
 @Data
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Transaction {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "from_account_id")
     private Account fromAccount;
 
@@ -32,4 +34,5 @@ public class Transaction {
     private String status = "PENDING";
     private LocalDateTime createdAt = LocalDateTime.now();
 
-}
+    private Integer failedAiAttempts = 0;
+} 

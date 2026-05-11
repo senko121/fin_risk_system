@@ -22,6 +22,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
+//Transaction B9: đóng vai trò tonggor chỉ huy gói toan bọ quá trinh trên initiateTransaction -> Transaction B10: Auditllogserrvice
+//Transaction B9 Phase 2: bắt đau gọi hafm xử lý tiền bạcs executeTransactionCore qua trính thực hiện UPDATE  cacs ảng account va INSERT  vao transactiion ledgers
 @Service
 public class TransactionService {
 
@@ -43,80 +45,25 @@ public class TransactionService {
     }
 
     private boolean checkIsNewRecipient(Long accountId, String toAccountNumber) {
-        List<TransactionLedger> ledgers = transactionLedgerRepository.findByAccountIdOrderByCreatedAtDesc(accountId);
-        return ledgers.stream()
-                .filter(l -> l.getEntryType().equals("DEBIT"))
-                .noneMatch(l -> l.getTransaction().getToAccountNumber().equals(toAccountNumber));
+        // 🚀 1 query thay vì load toàn bộ lịch sử
+        return !transactionLedgerRepository
+            .existsByAccountIdAndToAccountNumber(accountId, toAccountNumber);
     }
-
-
-
-// @Transactional(rollbackFor = Exception.class)
-//     // 🚀 BƯỚC 4: Thêm 'String ip, String device' vào tham số
-//     public Transaction initiateTransaction(Long fromAccountId, String toAccountNumber, BigDecimal amount, String description, String ip, String device) {
-
-//         Account senderAccount = accountRepository.findById(fromAccountId)
-//                 .orElseThrow(() -> new RuntimeException("Tài khoản không tồn tại!"));
-
-//         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-//             throw new IllegalArgumentException("Số tiền giao dịch phải lớn hơn 0 hợp lệ!");
-//         }
-
-//         if (senderAccount.getAccountNumber().equals(toAccountNumber)) {
-//             throw new IllegalArgumentException("Phát hiện gian lận: Không thể tự chuyển tiền cho chính mình!");
-//         }
-
-//         if (senderAccount.getBalance().compareTo(amount) < 0) {
-//             throw new RuntimeException("Số dư không đủ!");
-//         }
-
-//         Transaction tx = new Transaction();
-//         tx.setFromAccount(senderAccount);
-//         tx.setToAccountNumber(toAccountNumber);
-//         tx.setAmount(amount);
-//         tx.setCreatedAt(LocalDateTime.now());
-//         tx.setDescription(description); 
-        
-//         // 🚀 BƯỚC 5: Đổ dữ liệu IP và Device vào Transaction trước khi lưu
-//         tx.setLocationIp(ip);
-//         tx.setDeviceFingerprint(device);
-
-//         boolean isNewRecipient = checkIsNewRecipient(senderAccount.getId(), toAccountNumber);
-        
-//         // 1. Tính tổng điểm rủi ro
-//         int riskScore = riskEvaluationService.evaluateRisk(tx, isNewRecipient);
-//         tx.setTotalRiskScore(riskScore);
-
-//         // 2. Tra cứu Policy từ Database
-//         RiskPolicy policy = riskPolicyRepo.findByScore(riskScore)
-//                 .orElseThrow(() -> new RuntimeException("LỖI HỆ THỐNG: Không tìm thấy Policy xử lý cho mức điểm " + riskScore));
-
-//         System.out.println("🔎 Tra cứu Database: Điểm " + riskScore + " rơi vào Policy [" + policy.getDescription() + "]");
-
-//         // 3. Lấy tên Chiến thuật ra và gọi lệnh chạy!
-//         RiskActionStrategy strategy = actionStrategies.get(policy.getActionBeanName());
-        
-//         if (strategy == null) {
-//             throw new RuntimeException("LỖI CODE: Không tìm thấy class xử lý cho hành động " + policy.getActionBeanName());
-//         }
-
-//         return strategy.execute(tx);
-//     }
 
 
     @Transactional(rollbackFor = Exception.class)
     public Transaction initiateTransaction(Long fromAccountId, String toAccountNumber, BigDecimal amount, String description, String ip, String device) {
 
-        Account senderAccount = accountRepository.findById(fromAccountId)
-                // 🚀 DỌN RÁC: Đổi sang BusinessLogicException
+        Account senderAccount = accountRepository.findByIdWithUserAndSecurity(fromAccountId)
                 .orElseThrow(() -> new BusinessLogicException("ERR_NOT_FOUND", "Tài khoản không tồn tại!"));
 
-        // 🚀 CHẶN TỪ VÒNG GỬI XE: Kiểm tra xem tài khoản có đang bị khóa PIN không
-        UserSecurity security = userSecurityRepository.findByUserId(senderAccount.getUser().getId())
-                .orElseThrow(() -> new BusinessLogicException("ERR_SECURITY_NOT_FOUND", "Lỗi hệ thống: Không tìm thấy hồ sơ bảo mật!"));
+        UserSecurity security = senderAccount.getUser().getUserSecurity();
+
+        if (security.getPinHash() == null || security.getPinHash().trim().isEmpty()) {
+            throw new BusinessLogicException("ERR_NO_PIN_SETUP", "Tài khoản chưa thiết lập mã Smart PIN. Vui lòng thiết lập để giao dịch!");
+        }
 
         if (security.getLockUntil() != null && security.getLockUntil().isAfter(LocalDateTime.now())) {
-            // Ném lỗi này ra, Frontend sẽ bắt được chữ "khóa" và sút user về Dashboard
             throw new BusinessLogicException("ERR_PIN_LOCKED", "Tài khoản đang bị tạm khóa giao dịch do nhập sai PIN nhiều lần. Vui lòng thử lại sau!");
         }
 
@@ -130,7 +77,6 @@ public class TransactionService {
         }
 
         if (senderAccount.getBalance().compareTo(amount) < 0) {
-            // 🚀 DỌN RÁC: Đổi sang BusinessLogicException
             throw new BusinessLogicException("ERR_INSUFFICIENT_BALANCE", "Số dư không đủ để thực hiện giao dịch!");
         }
 

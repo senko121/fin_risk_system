@@ -65,7 +65,7 @@ export default function SetupPin() {
     }
 
     setIsSubmitting(true);
-    try {
+  try {
       const response = await axiosClient.post('/users/security/pin', {
         userId: currentUser.id || currentUser.userId,
         oldPin: isPinSetup ? formData.oldPin : null, // Nếu chưa có PIN thì gửi null
@@ -73,7 +73,25 @@ export default function SetupPin() {
       });
 
       toast.success("🎉 " + response.data.message);
-      navigate('/security'); // Đổi xong quay về Trung tâm bảo mật
+
+      // 🚀 BƯỚC 1: CẬP NHẬT LẠI "VÍ" LOCALSTORAGE NGAY LẬP TỨC
+      // Ép cờ isPinSetup thành true để app biết là mình đã có PIN rồi
+      const updatedUser = { ...currentUser, isPinSetup: true };
+      localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+      setCurrentUser(updatedUser); 
+
+      // 🚀 BƯỚC 2: TRẠM KIỂM SOÁT NGÃ BA ĐƯỜNG (ONBOARDING CHUỖI)
+      // Check xem user có FaceID chưa (quét cả 2 tên biến cho chắc ăn)
+      const hasFace = updatedUser.isFaceSetup ?? updatedUser.faceSetup ?? false;
+
+      if (hasFace === false) {
+          // Nếu chưa có FaceID -> Chở thẳng khách sang trạm FaceID
+          toast.info("📸 Tuyệt vời! Vui lòng tiếp tục đăng ký FaceID để hoàn tất bảo mật.");
+          navigate('/register-face');
+      } else {
+          // Nếu đổi PIN định kỳ (đã có đủ đồ chơi) -> Trả khách về Trung tâm bảo mật
+          navigate('/security'); 
+      }
 
     } catch (error) {
       const errorMsg = error.response?.data?.message || "Lỗi cập nhật Mã PIN!";

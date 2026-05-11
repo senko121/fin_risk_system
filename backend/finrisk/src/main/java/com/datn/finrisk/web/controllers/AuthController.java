@@ -1,11 +1,13 @@
+
 package com.datn.finrisk.web.controllers;
 
 import com.datn.finrisk.application.dtos.LoginRequest;
+import com.datn.finrisk.application.dtos.LoginResponse; // 🚀 Bổ sung import này
 import com.datn.finrisk.application.dtos.UserDTO; 
 import com.datn.finrisk.core.entities.User;
-import com.datn.finrisk.core.entities.Account; //   1. IMPORT ACCOUNT
+import com.datn.finrisk.core.entities.Account; 
 import com.datn.finrisk.core.repository.UserRepository;
-import com.datn.finrisk.core.repository.AccountRepository; //   2. IMPORT ACCOUNT REPO
+import com.datn.finrisk.core.repository.AccountRepository; 
 import com.datn.finrisk.core.security.JwtUtils;
 import com.datn.finrisk.core.services.AuthService;
 import com.datn.finrisk.core.services.RateLimitService;
@@ -32,7 +34,6 @@ public class AuthController {
     @Autowired
     private UserRepository userRepository;
 
-    //   3. GỌI THẰNG QUẢN LÝ KHO TÀI KHOẢN VÀO ĐÂY
     @Autowired
     private AccountRepository accountRepository;
 
@@ -54,15 +55,11 @@ public class AuthController {
         }
 
         try {
-            authService.login(loginRequest);
+
+            LoginResponse loginResult = authService.login(loginRequest);
+            User user = loginResult.getUserEntity();
             rateLimitService.clearLoginAttempts(username);
 
-            User user = userRepository.findByUsername(username)
-                    .orElseThrow(() -> new RuntimeException("Lỗi hệ thống: Không tìm thấy user sau khi login!"));
-
-            // =========================================================
-            // HỆ THỐNG TRUY VẾT IP VÀ THIẾT BỊ (FINGERPRINTING)
-            // =========================================================
             String currentIp = request.getRemoteAddr();
             String currentDevice = request.getHeader("User-Agent");
             
@@ -112,6 +109,11 @@ public class AuthController {
             response.put("accessToken", accessToken);
             response.put("refreshToken", refreshToken);
             response.put("user", userSafeData); 
+            
+            // 🚀 BƯỚC 2: NHÉT 2 CỜ BẢO MẬT VÀO GÓI HÀNG JSON TRẢ VỀ FRONTEND
+            // (Nếu IDE báo lỗi chữ isPinSetup(), bro đổi thành getPinSetup() hoặc isPinSetup tùy theo cách Lombok generate nhé)
+            response.put("isPinSetup", loginResult.isPinSetup());
+            response.put("isFaceSetup", loginResult.isFaceSetup());
 
             return ResponseEntity.ok(response);
 
@@ -154,4 +156,7 @@ public class AuthController {
 
         return ResponseEntity.status(403).body("Refresh Token không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại!");
     }
+
+
+    
 }

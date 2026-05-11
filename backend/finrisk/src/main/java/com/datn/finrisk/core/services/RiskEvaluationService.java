@@ -30,6 +30,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
+//Transaction B6: đây là nao tính điếm chốt lại điểm rui ro -> Transaction B7: RiskPolicyRepository
 @Service
 public class RiskEvaluationService {
 
@@ -120,7 +121,8 @@ public class RiskEvaluationService {
                 System.err.println("Lỗi SpEL tại Rule ID " + rule.getId() + ": " + e.getMessage());
             }
         }
-
+        totalRiskScore = Math.max(0, totalRiskScore);
+        
         System.out.println("🎯 TỔNG ĐIỂM RỦI RO LÀ: " + totalRiskScore);
         return totalRiskScore;
     }

@@ -2,14 +2,16 @@ package com.datn.finrisk.core.entities;
 
 import jakarta.persistence.*;
 import lombok.Data;
-import lombok.ToString; // 🚀 Bổ sung import
-import lombok.EqualsAndHashCode; // 🚀 Bổ sung import
+import lombok.ToString; 
+import lombok.EqualsAndHashCode; 
 import java.math.BigDecimal;
-import com.fasterxml.jackson.annotation.JsonIgnore; // 🚀 Bổ sung import
+import com.fasterxml.jackson.annotation.JsonIgnore; 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties; // 🚀 Bổ sung import
 
 @Entity
 @Table(name = "accounts")
 @Data
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"}) // 🚀 DÁN BÙA TRỊ LỖI PROXY
 public class Account {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -19,7 +21,7 @@ public class Account {
     @JsonIgnore
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private User user;
 

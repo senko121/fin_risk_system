@@ -91,4 +91,13 @@ public class JwtUtils {
         }
         return false;
     }
+
+    public String getRoleFromJwtToken(String token) {
+        Claims claims = Jwts.parser()
+                .verifyWith((javax.crypto.SecretKey) getSigningKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+        return (String) claims.get("role");
+    }
 }

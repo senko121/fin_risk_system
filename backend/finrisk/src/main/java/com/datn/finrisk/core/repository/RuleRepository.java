@@ -6,8 +6,9 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
+//Transaction B4: lấy tất cả các luật đang acctive trong database lleen để chuẩn bị chạy qua máy chấm điểm SpEl -> Transaction B5: TransactionRepository
 @Repository
 public interface RuleRepository extends JpaRepository<Rule, Long> {
-    // Tự động sinh ra câu SQL: SELECT * FROM rules WHERE is_active = true
+ 
     List<Rule> findByIsActiveTrue();
 }
