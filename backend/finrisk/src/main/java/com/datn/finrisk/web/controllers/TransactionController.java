@@ -192,13 +192,18 @@ public class TransactionController {
                 // 🚀 DỜI HÀM CHECK PIN VÀO TRONG NÀY
                 pinService.verifyPin(security, request.getAuthCode());
 
-                //  LUỒNG HIGH: SANG TRẠM QUÉT MẶT TRƯỚC!
-                tx.setStatus("PENDING_FACE_AI");
+                // 🚀 LUỒNG HIGH MỚI: ATOMIC VERIFICATION (3 TRONG 1)
+                tx.setStatus("PENDING_ALL_IN_ONE"); // Đổi trạng thái để đón luồng gộp
                 transactionRepository.save(tx);
+                
+                // 🚀 BƯỚC NGOẶT: SINH MÃ VOICE OTP NGAY TẠI TRẠM NÀY!
+                String voiceCode = otpService.generateVoiceOtp(tx.getId()); 
+                
                 return ResponseEntity.ok(Map.of(
                         "status", "NEXT_STEP", 
-                        "nextAuthType", "FACE_AI", 
-                        "message", "Mã PIN đúng. Vui lòng quét khuôn mặt bảo mật."
+                        "nextAuthType", "ALL_IN_ONE_BIOMETRIC", // Báo cho React bật giao diện mới
+                        "voiceCode", voiceCode,                 // Gửi mã OTP đạn dược lên thẳng React
+                        "message", "Mã PIN đúng. Vui lòng chuẩn bị xác thực sinh trắc học kép."
                 ));
             }
             
@@ -438,46 +443,46 @@ public class TransactionController {
         }
     }
 
-    // API MỚI: CHỐT SỔ CHO LUỒNG HIGH RISK (TRỪ TIỀN)
-    @PostMapping(value = "/verify-voice", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<?> verifyVoiceLiveness(
-            @RequestParam("transactionId") Long transactionId,
-            @RequestParam("audioFile") org.springframework.web.multipart.MultipartFile audioFile) {
-        try {
-            // 🚀 BƯỚC NGOẶT: Dùng hàm JOIN FETCH siêu to khổng lồ thay cho findById mặc định
-            Transaction tx = transactionRepository.findByIdWithUserSecurity(transactionId)
-                    .orElseThrow(() -> new RuntimeException("Giao dịch không tồn tại!"));
+    // // API MỚI: CHỐT SỔ CHO LUỒNG HIGH RISK (TRỪ TIỀN)
+    // @PostMapping(value = "/verify-voice", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    // public ResponseEntity<?> verifyVoiceLiveness(
+    //         @RequestParam("transactionId") Long transactionId,
+    //         @RequestParam("audioFile") org.springframework.web.multipart.MultipartFile audioFile) {
+    //     try {
+    //         // 🚀 BƯỚC NGOẶT: Dùng hàm JOIN FETCH siêu to khổng lồ thay cho findById mặc định
+    //         Transaction tx = transactionRepository.findByIdWithUserSecurity(transactionId)
+    //                 .orElseThrow(() -> new RuntimeException("Giao dịch không tồn tại!"));
 
-            // 🚀 Nhờ hàm trên, dòng này bây giờ tốn 0 query (Lấy thẳng từ RAM)
-            String username = tx.getFromAccount().getUser().getUsername();
+    //         // 🚀 Nhờ hàm trên, dòng này bây giờ tốn 0 query (Lấy thẳng từ RAM)
+    //         String username = tx.getFromAccount().getUser().getUsername();
 
-            if (!"PENDING_VOICE_OTP".equals(tx.getStatus())) {
-                return ResponseEntity.badRequest().body("Trạng thái giao dịch không hợp lệ!");
-            }
+    //         if (!"PENDING_VOICE_OTP".equals(tx.getStatus())) {
+    //             return ResponseEntity.badRequest().body("Trạng thái giao dịch không hợp lệ!");
+    //         }
 
-            // Gửi Audio sang Python để bóc băng lấy chữ số
-            String recognizedCode = riskEvaluationService.verifyVoiceLivenessAsync(audioFile).get();
+    //         // Gửi Audio sang Python để bóc băng lấy chữ số
+    //         String recognizedCode = riskEvaluationService.verifyVoiceLivenessAsync(audioFile).get();
 
-            if (recognizedCode == null || recognizedCode.trim().isEmpty()) {
-                return ResponseEntity.badRequest().body("Không thể nhận diện giọng nói, vui lòng thử lại ở nơi yên tĩnh!");
-            }
+    //         if (recognizedCode == null || recognizedCode.trim().isEmpty()) {
+    //             return ResponseEntity.badRequest().body("Không thể nhận diện giọng nói, vui lòng thử lại ở nơi yên tĩnh!");
+    //         }
 
-            // Đem kết quả Python so với OTP trong Redis
-            boolean isValid = otpService.verifyOtp(tx.getId(), recognizedCode);
+    //         // Đem kết quả Python so với OTP trong Redis
+    //         boolean isValid = otpService.verifyOtp(tx.getId(), recognizedCode);
 
-            if (!isValid) {
-                auditLogService.logAction(username, "VOICE_FAILED", "Đọc sai Voice OTP giao dịch " + tx.getId());
-                return ResponseEntity.badRequest().body("Mã giọng nói không khớp ("+ recognizedCode +"). Yêu cầu đọc to, rõ ràng!");
-            }
+    //         if (!isValid) {
+    //             auditLogService.logAction(username, "VOICE_FAILED", "Đọc sai Voice OTP giao dịch " + tx.getId());
+    //             return ResponseEntity.badRequest().body("Mã giọng nói không khớp ("+ recognizedCode +"). Yêu cầu đọc to, rõ ràng!");
+    //         }
 
-            // 🚀 FIX LỖI: VƯỢT QUA VOICE LÀ CHỐT SỔ TRỪ TIỀN LUÔN! KHÔNG ĐÁ ĐI ĐÂU NỮA
-            Transaction completedTx = transactionService.executeTransactionCore(tx);
-            auditLogService.logAction(username, "TX_SUCCESS", "Chuyển tiền thành công (PIN + Face AI + Voice Liveness).");
+    //         // 🚀 FIX LỖI: VƯỢT QUA VOICE LÀ CHỐT SỔ TRỪ TIỀN LUÔN! KHÔNG ĐÁ ĐI ĐÂU NỮA
+    //         Transaction completedTx = transactionService.executeTransactionCore(tx);
+    //         auditLogService.logAction(username, "TX_SUCCESS", "Chuyển tiền thành công (PIN + Face AI + Voice Liveness).");
             
-            return ResponseEntity.ok(Map.of("status", "SUCCESS", "data", completedTx));
+    //         return ResponseEntity.ok(Map.of("status", "SUCCESS", "data", completedTx));
 
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Lỗi xử lý âm thanh: " + e.getMessage());
-        }
-    }
+    //     } catch (Exception e) {
+    //         return ResponseEntity.badRequest().body("Lỗi xử lý âm thanh: " + e.getMessage());
+    //     }
+    // }
 }

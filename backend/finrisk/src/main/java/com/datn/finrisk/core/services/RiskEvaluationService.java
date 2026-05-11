@@ -185,28 +185,32 @@ public class RiskEvaluationService {
         }
     }
 
+ // 🚀 BẢN NÂNG CẤP: Nhận chuỗi Base64 từ WebSocket, giả lập thành File ném cho Python
     @Async("aiTaskExecutor")
-    public CompletableFuture<String> verifyVoiceLivenessAsync(MultipartFile audioFile) {
-        System.out.println("--- [STEP VOICE-AI] Đang gửi Audio sang Port 5003... ---");
+    public CompletableFuture<String> verifyVoiceLivenessBase64Async(String audioBase64) {
+        System.out.println("--- [STEP VOICE-AI] Đang giải mã Base64 và gửi Audio sang Port 5003... ---");
         try {
             String url = "http://localhost:5003/api/ai/verify-voice";
             
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.MULTIPART_FORM_DATA);
 
-            // Bọc file Audio vào Resource để gửi qua HTTP Form-data
+            // 1. Giải mã chuỗi Base64 thành mảng byte thô
+            byte[] decodedAudio = java.util.Base64.getDecoder().decode(audioBase64);
+
+            // 2. Bọc mảng byte vào Resource để "đánh lừa" Python rắng đây là 1 file đính kèm
             org.springframework.util.MultiValueMap<String, Object> body = new org.springframework.util.LinkedMultiValueMap<>();
-            ByteArrayResource fileResource = new ByteArrayResource(audioFile.getBytes()) {
+            ByteArrayResource fileResource = new ByteArrayResource(decodedAudio) {
                 @Override
                 public String getFilename() {
-                    return audioFile.getOriginalFilename() != null ? audioFile.getOriginalFilename() : "audio.wav";
+                    return "websocket_voice.wav"; // Tên giả lập
                 }
             };
             body.add("audio_file", fileResource);
 
             HttpEntity<org.springframework.util.MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
 
-            // Nhận kết quả từ Python (Cổng 5003)
+            // 3. Nhận kết quả chữ số từ Vosk AI
             JsonNode response = restTemplate.postForObject(url, requestEntity, JsonNode.class);
             
             if (response != null && response.has("authCode")) {

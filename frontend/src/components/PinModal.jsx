@@ -1,3 +1,6 @@
+ 
+
+
 // import React, { useState, useRef, useEffect } from 'react';
 // import { useNavigate } from 'react-router-dom';
 // import { toast } from 'react-toastify';
@@ -8,11 +11,13 @@
 //   const inputRef = useRef(null);
 //   const [pin, setPin] = useState('');
 //   const [isLoading, setIsLoading] = useState(false);
+//   // 🚀 BƯỚC 1: THÊM STATE ĐỂ LƯU CÂU BÁO LỖI (VÍ DỤ: "Bạn còn 3 lần thử")
+//   const [errorText, setErrorText] = useState('');
 
-//   // Auto-focus mỗi khi Modal được mở
 //   useEffect(() => {
 //     if (isOpen && inputRef.current) {
 //       setTimeout(() => inputRef.current.focus(), 100);
+//       setErrorText(''); // 🚀 BƯỚC 2: Xóa lỗi cũ mỗi khi mở lại Modal
 //     }
 //   }, [isOpen]);
 
@@ -22,7 +27,7 @@
 //     e.preventDefault();
 //     e.stopPropagation();
 //     if (pin.length !== 6) {
-//       toast.warning("⚠️ Vui lòng nhập đủ 6 số Mã PIN");
+//       setErrorText("Vui lòng nhập đủ 6 số Mã PIN"); // 🚀 BƯỚC 3: Thay Toast bằng thông báo lỗi tại chỗ
 //       return;
 //     }
 
@@ -36,7 +41,7 @@
 
 //       const resData = response.data;
 
-//       // KỊCH BẢN 1: Mức LOW -> Chốt luôn thành công
+//       // ... (Các KỊCH BẢN 1 và 2 giữ nguyên) ...
 //       if (resData.status === 'SUCCESS') {
 //         toast.success("🎉 " + (resData.message || "Giao dịch thành công!"));
 //         onClose();
@@ -44,35 +49,35 @@
 //           state: { result: resData.data, formData, recipientName } 
 //         });
 //       } 
-//       // KỊCH BẢN 2: Mức MEDIUM -> Yêu cầu chuyển trạm
 //       else if (resData.status === 'NEXT_STEP') {
 //         toast.info("✅ " + resData.message);
-//         onClose(); // Tắt popup PIN
+//         onClose(); 
         
-//         // Điều phối theo lệnh của Backend
 //         if (resData.nextAuthType === 'OTP') {
 //           navigate('/verify-otp', { state: { transactionId, formData, recipientName } });
 //         } else if (resData.nextAuthType === 'FACE_STATIC') {
 //           navigate('/verify-face', { state: { transactionId, formData, recipientName } });
+//         } else if (resData.nextAuthType === 'FACE_AI') { 
+//           // NHÁNH MỚI CHO LUỒNG HIGH RISK
+//           navigate('/verify-high-risk', { state: { transactionId, formData, recipientName } });
 //         }
 //       }
 //     } catch (error) {
-//       // Lấy đúng câu chửi từ Backend (VD: "Mã PIN không chính xác! Bạn còn 2 lần thử.")
+//       // 🚀 BƯỚC 4: Bắt chính xác câu chửi đếm lùi từ Backend (nhớ có ?.message vì Backend đã trả về JSON ApiErrorResponse)
 //       const errorMsg = error.response?.data?.message || "Sai Mã PIN, vui lòng thử lại!";
       
-//       // Bắn pháo sáng báo lỗi
-//       toast.error("❌ " + errorMsg);
-      
-//       // 🚀 NÂNG CẤP UX: Kiểm tra xem tài khoản có bị khóa không
+//       // Bắn Toast cho những lỗi nghiêm trọng (như Khóa tài khoản)
 //       if (typeof errorMsg === 'string' && errorMsg.toLowerCase().includes('khóa')) {
-//         // Nếu bị khóa -> Đợi 2 giây cho khách đọc thông báo rồi tự động đóng Popup PIN lại
-//         setTimeout(() => {
-//           onClose();
-//         }, 2000);
+//           toast.error("❌ " + errorMsg);
+//           setTimeout(() => {
+//             onClose();
+//             navigate('/dashboard');
+//           }, 2000);
 //       } else {
-//         // Nếu chỉ là sai (chưa khóa) -> Xóa trắng 6 ô và auto-focus cho nhập lại
-//         setPin(''); 
-//         if (inputRef.current) inputRef.current.focus();
+//           // 🚀 BƯỚC 5: Nếu chỉ là đếm lùi (còn 4, 3, 2 lần), thì in chữ đỏ dưới ô nhập, không cần bắn Toast rác màn hình
+//           setErrorText(errorMsg);
+//           setPin(''); // Xóa trắng ô PIN cho khách nhập lại
+//           if (inputRef.current) inputRef.current.focus();
 //       }
 //     } finally {
 //       setIsLoading(false);
@@ -83,7 +88,7 @@
 //     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
 //       <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden relative animate-fade-in-up">
         
-//         {/* Nút X tắt Modal */}
+//         {/* Nút X tắt Modal (Giữ nguyên) */}
 //         <button 
 //           onClick={() => {
 //             if(window.confirm("Bạn có chắc chắn muốn hủy phiên nhập mã PIN này không?")) {
@@ -106,14 +111,28 @@
 //           <form onSubmit={handleVerifyPin}>
 //             <input 
 //               ref={inputRef}
-//               type="password" // Che số PIN
+//               type="password" 
 //               maxLength="6"
 //               value={pin}
-//               onChange={(e) => setPin(e.target.value.replace(/[^0-9]/g, ''))}
+//               // 🚀 BƯỚC 6: Xóa dòng báo lỗi màu đỏ khi khách hàng bắt đầu gõ lại
+//               onChange={(e) => {
+//                   setPin(e.target.value.replace(/[^0-9]/g, ''));
+//                   if (errorText) setErrorText('');
+//               }}
 //               disabled={isLoading}
-//               className="w-full text-center text-4xl tracking-[0.5em] font-black py-4 border-b-4 border-slate-200 focus:border-emerald-500 focus:outline-none text-slate-800 mb-8 transition-colors bg-transparent"
+//               // 🚀 BƯỚC 7: Đổi màu viền input thành ĐỎ nếu có lỗi
+//               className={`w-full text-center text-4xl tracking-[0.5em] font-black py-4 border-b-4 focus:outline-none mb-2 transition-colors bg-transparent ${errorText ? 'border-red-500 text-red-600' : 'border-slate-200 focus:border-emerald-500 text-slate-800'}`}
 //               placeholder="••••••"
 //             />
+            
+//             {/* 🚀 BƯỚC 8: Vùng hiển thị câu thông báo "Bạn còn 3 lần thử" */}
+//             <div className="h-6 mb-6">
+//                 {errorText && (
+//                     <p className="text-sm font-bold text-red-500 animate-pulse">
+//                         {errorText}
+//                     </p>
+//                 )}
+//             </div>
 
 //             <button 
 //               type="button" 
@@ -141,13 +160,12 @@ export default function PinModal({ isOpen, onClose, transactionId, formData, rec
   const inputRef = useRef(null);
   const [pin, setPin] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  // 🚀 BƯỚC 1: THÊM STATE ĐỂ LƯU CÂU BÁO LỖI (VÍ DỤ: "Bạn còn 3 lần thử")
   const [errorText, setErrorText] = useState('');
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
       setTimeout(() => inputRef.current.focus(), 100);
-      setErrorText(''); // 🚀 BƯỚC 2: Xóa lỗi cũ mỗi khi mở lại Modal
+      setErrorText(''); 
     }
   }, [isOpen]);
 
@@ -157,7 +175,7 @@ export default function PinModal({ isOpen, onClose, transactionId, formData, rec
     e.preventDefault();
     e.stopPropagation();
     if (pin.length !== 6) {
-      setErrorText("Vui lòng nhập đủ 6 số Mã PIN"); // 🚀 BƯỚC 3: Thay Toast bằng thông báo lỗi tại chỗ
+      setErrorText("Vui lòng nhập đủ 6 số Mã PIN"); 
       return;
     }
 
@@ -171,7 +189,6 @@ export default function PinModal({ isOpen, onClose, transactionId, formData, rec
 
       const resData = response.data;
 
-      // ... (Các KỊCH BẢN 1 và 2 giữ nguyên) ...
       if (resData.status === 'SUCCESS') {
         toast.success("🎉 " + (resData.message || "Giao dịch thành công!"));
         onClose();
@@ -187,16 +204,22 @@ export default function PinModal({ isOpen, onClose, transactionId, formData, rec
           navigate('/verify-otp', { state: { transactionId, formData, recipientName } });
         } else if (resData.nextAuthType === 'FACE_STATIC') {
           navigate('/verify-face', { state: { transactionId, formData, recipientName } });
-        } else if (resData.nextAuthType === 'FACE_AI') { 
-          // NHÁNH MỚI CHO LUỒNG HIGH RISK
-          navigate('/verify-high-risk', { state: { transactionId, formData, recipientName } });
+        } 
+        // 🚀 ĐÓN LUỒNG ATOMIC VERIFICATION TỪ BACKEND
+        else if (resData.nextAuthType === 'ALL_IN_ONE_BIOMETRIC' || resData.nextAuthType === 'FACE_AI') { 
+          navigate('/verify-high-risk', { 
+            state: { 
+              transactionId, 
+              formData, 
+              recipientName,
+              voiceCode: resData.voiceCode // 🚀 CHỞ ĐẠN QUA MÀN HÌNH HIGHRISK
+            } 
+          });
         }
       }
     } catch (error) {
-      // 🚀 BƯỚC 4: Bắt chính xác câu chửi đếm lùi từ Backend (nhớ có ?.message vì Backend đã trả về JSON ApiErrorResponse)
       const errorMsg = error.response?.data?.message || "Sai Mã PIN, vui lòng thử lại!";
       
-      // Bắn Toast cho những lỗi nghiêm trọng (như Khóa tài khoản)
       if (typeof errorMsg === 'string' && errorMsg.toLowerCase().includes('khóa')) {
           toast.error("❌ " + errorMsg);
           setTimeout(() => {
@@ -204,9 +227,8 @@ export default function PinModal({ isOpen, onClose, transactionId, formData, rec
             navigate('/dashboard');
           }, 2000);
       } else {
-          // 🚀 BƯỚC 5: Nếu chỉ là đếm lùi (còn 4, 3, 2 lần), thì in chữ đỏ dưới ô nhập, không cần bắn Toast rác màn hình
           setErrorText(errorMsg);
-          setPin(''); // Xóa trắng ô PIN cho khách nhập lại
+          setPin(''); 
           if (inputRef.current) inputRef.current.focus();
       }
     } finally {
@@ -218,7 +240,6 @@ export default function PinModal({ isOpen, onClose, transactionId, formData, rec
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
       <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden relative animate-fade-in-up">
         
-        {/* Nút X tắt Modal (Giữ nguyên) */}
         <button 
           onClick={() => {
             if(window.confirm("Bạn có chắc chắn muốn hủy phiên nhập mã PIN này không?")) {
@@ -244,18 +265,15 @@ export default function PinModal({ isOpen, onClose, transactionId, formData, rec
               type="password" 
               maxLength="6"
               value={pin}
-              // 🚀 BƯỚC 6: Xóa dòng báo lỗi màu đỏ khi khách hàng bắt đầu gõ lại
               onChange={(e) => {
                   setPin(e.target.value.replace(/[^0-9]/g, ''));
                   if (errorText) setErrorText('');
               }}
               disabled={isLoading}
-              // 🚀 BƯỚC 7: Đổi màu viền input thành ĐỎ nếu có lỗi
               className={`w-full text-center text-4xl tracking-[0.5em] font-black py-4 border-b-4 focus:outline-none mb-2 transition-colors bg-transparent ${errorText ? 'border-red-500 text-red-600' : 'border-slate-200 focus:border-emerald-500 text-slate-800'}`}
               placeholder="••••••"
             />
             
-            {/* 🚀 BƯỚC 8: Vùng hiển thị câu thông báo "Bạn còn 3 lần thử" */}
             <div className="h-6 mb-6">
                 {errorText && (
                     <p className="text-sm font-bold text-red-500 animate-pulse">

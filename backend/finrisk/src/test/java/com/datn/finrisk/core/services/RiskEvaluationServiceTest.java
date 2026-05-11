@@ -430,118 +430,118 @@ class RiskEvaluationServiceTest {
         }
     }
 
-    // ====================================================================
-    // NHÓM 4 (BỔ SUNG): VOICE AI — EDGE CASES & CONTRACT TESTS
-    // ====================================================================
-    @Nested
-    @DisplayName("Nhóm 4 (Bổ sung) — Voice AI Edge Cases & Contract")
-    class VoiceAiEdgeCases {
+    // // ====================================================================
+    // // NHÓM 4 (BỔ SUNG): VOICE AI — EDGE CASES & CONTRACT TESTS
+    // // ====================================================================
+    // @Nested
+    // @DisplayName("Nhóm 4 (Bổ sung) — Voice AI Edge Cases & Contract")
+    // class VoiceAiEdgeCases {
 
-        // ==========================================================
-        // TEST 16: API trả về null JsonNode
-        // Gap: File gốc kiểm tra node không có field, nhưng chưa test null node.
-        // ==========================================================
-        @Test
-        @DisplayName("⚠️ API Voice trả về null JsonNode → Trả về chuỗi rỗng, không NullPointerException")
-        void verifyVoiceLivenessAsync_nullJsonNode_returnsEmptyString() throws Exception {
-            MockMultipartFile audioFile = new MockMultipartFile("audio", "test.wav", "audio/wav", "data".getBytes());
+    //     // ==========================================================
+    //     // TEST 16: API trả về null JsonNode
+    //     // Gap: File gốc kiểm tra node không có field, nhưng chưa test null node.
+    //     // ==========================================================
+    //     @Test
+    //     @DisplayName("⚠️ API Voice trả về null JsonNode → Trả về chuỗi rỗng, không NullPointerException")
+    //     void verifyVoiceLivenessAsync_nullJsonNode_returnsEmptyString() throws Exception {
+    //         MockMultipartFile audioFile = new MockMultipartFile("audio", "test.wav", "audio/wav", "data".getBytes());
 
-            when(restTemplate.postForObject(anyString(), any(HttpEntity.class), eq(JsonNode.class)))
-                    .thenReturn(null); // Python trả về 200 nhưng body null
+    //         when(restTemplate.postForObject(anyString(), any(HttpEntity.class), eq(JsonNode.class)))
+    //                 .thenReturn(null); // Python trả về 200 nhưng body null
 
-            String result = riskEvaluationService.verifyVoiceLivenessAsync(audioFile).get();
+    //         String result = riskEvaluationService.verifyVoiceLivenessAsync(audioFile).get();
 
-            assertEquals("", result, "Null JsonNode phải dẫn đến chuỗi rỗng, không phải NPE");
-        }
+    //         assertEquals("", result, "Null JsonNode phải dẫn đến chuỗi rỗng, không phải NPE");
+    //     }
 
-        // ==========================================================
-        // TEST 17: authCode là chuỗi rỗng trong JSON → Trả về chuỗi rỗng
-        // Gap: Python nhận diện được nhưng mã OTP rỗng (tiếng ồn, giọng không rõ).
-        // ==========================================================
-        @Test
-        @DisplayName("⚠️ JSON có field 'authCode' nhưng giá trị là chuỗi rỗng → Trả về chuỗi rỗng")
-        void verifyVoiceLivenessAsync_emptyAuthCodeValue_returnsEmptyString() throws Exception {
-            MockMultipartFile audioFile = new MockMultipartFile("audio", "test.wav", "audio/wav", "data".getBytes());
+    //     // ==========================================================
+    //     // TEST 17: authCode là chuỗi rỗng trong JSON → Trả về chuỗi rỗng
+    //     // Gap: Python nhận diện được nhưng mã OTP rỗng (tiếng ồn, giọng không rõ).
+    //     // ==========================================================
+    //     @Test
+    //     @DisplayName("⚠️ JSON có field 'authCode' nhưng giá trị là chuỗi rỗng → Trả về chuỗi rỗng")
+    //     void verifyVoiceLivenessAsync_emptyAuthCodeValue_returnsEmptyString() throws Exception {
+    //         MockMultipartFile audioFile = new MockMultipartFile("audio", "test.wav", "audio/wav", "data".getBytes());
 
-            String jsonResponse = "{\"authCode\": \"\"}";
-            JsonNode mockNode = objectMapper.readTree(jsonResponse);
-            when(restTemplate.postForObject(anyString(), any(HttpEntity.class), eq(JsonNode.class)))
-                    .thenReturn(mockNode);
+    //         String jsonResponse = "{\"authCode\": \"\"}";
+    //         JsonNode mockNode = objectMapper.readTree(jsonResponse);
+    //         when(restTemplate.postForObject(anyString(), any(HttpEntity.class), eq(JsonNode.class)))
+    //                 .thenReturn(mockNode);
 
-            String result = riskEvaluationService.verifyVoiceLivenessAsync(audioFile).get();
+    //         String result = riskEvaluationService.verifyVoiceLivenessAsync(audioFile).get();
 
-            assertEquals("", result, "authCode rỗng trong JSON nên trả về chuỗi rỗng");
-        }
+    //         assertEquals("", result, "authCode rỗng trong JSON nên trả về chuỗi rỗng");
+    //     }
 
-        // ==========================================================
-        // TEST 18: originalFilename = null → Fallback thành "audio.wav"
-        // Gap: Code có logic `audioFile.getOriginalFilename() != null ? ... : "audio.wav"`
-        //      nhưng chưa được test trường hợp null.
-        // ==========================================================
-        @Test
-        @DisplayName("✅ originalFilename = null → ByteArrayResource fallback tên file = 'audio.wav'")
-        void verifyVoiceLivenessAsync_nullOriginalFilename_fallsBackToDefaultName() throws Exception {
-            // MockMultipartFile với originalFilename = null
-            MockMultipartFile audioFileWithNullName = new MockMultipartFile(
-                    "audio", null, "audio/wav", "data".getBytes()
-            );
+    //     // ==========================================================
+    //     // TEST 18: originalFilename = null → Fallback thành "audio.wav"
+    //     // Gap: Code có logic `audioFile.getOriginalFilename() != null ? ... : "audio.wav"`
+    //     //      nhưng chưa được test trường hợp null.
+    //     // ==========================================================
+    //     @Test
+    //     @DisplayName("✅ originalFilename = null → ByteArrayResource fallback tên file = 'audio.wav'")
+    //     void verifyVoiceLivenessAsync_nullOriginalFilename_fallsBackToDefaultName() throws Exception {
+    //         // MockMultipartFile với originalFilename = null
+    //         MockMultipartFile audioFileWithNullName = new MockMultipartFile(
+    //                 "audio", null, "audio/wav", "data".getBytes()
+    //         );
 
-            ArgumentCaptor<HttpEntity> entityCaptor = ArgumentCaptor.forClass(HttpEntity.class);
-            String jsonResponse = "{\"authCode\": \"123456\"}";
-            when(restTemplate.postForObject(anyString(), entityCaptor.capture(), eq(JsonNode.class)))
-                    .thenReturn(objectMapper.readTree(jsonResponse));
+    //         ArgumentCaptor<HttpEntity> entityCaptor = ArgumentCaptor.forClass(HttpEntity.class);
+    //         String jsonResponse = "{\"authCode\": \"123456\"}";
+    //         when(restTemplate.postForObject(anyString(), entityCaptor.capture(), eq(JsonNode.class)))
+    //                 .thenReturn(objectMapper.readTree(jsonResponse));
 
-            String result = riskEvaluationService.verifyVoiceLivenessAsync(audioFileWithNullName).get();
+    //         String result = riskEvaluationService.verifyVoiceLivenessAsync(audioFileWithNullName).get();
 
-            // Kết quả vẫn trả về đúng authCode
-            assertEquals("123456", result);
-            // Và body multipart chứa resource (file được gửi thành công, không crash vì null filename)
-            assertNotNull(entityCaptor.getValue().getBody());
-        }
+    //         // Kết quả vẫn trả về đúng authCode
+    //         assertEquals("123456", result);
+    //         // Và body multipart chứa resource (file được gửi thành công, không crash vì null filename)
+    //         assertNotNull(entityCaptor.getValue().getBody());
+    //     }
 
-        // ==========================================================
-        // TEST 19: Content-Type của request phải là MULTIPART_FORM_DATA
-        // Gap: Nếu sai Content-Type, Python server không thể parse multipart.
-        // ==========================================================
-        @Test
-        @DisplayName("✅ Request gửi đến Voice AI phải có Content-Type: multipart/form-data")
-        void verifyVoiceLivenessAsync_sendsCorrectContentTypeHeader() throws Exception {
-            MockMultipartFile audioFile = new MockMultipartFile("audio", "test.wav", "audio/wav", "data".getBytes());
-            ArgumentCaptor<HttpEntity> entityCaptor = ArgumentCaptor.forClass(HttpEntity.class);
+    //     // ==========================================================
+    //     // TEST 19: Content-Type của request phải là MULTIPART_FORM_DATA
+    //     // Gap: Nếu sai Content-Type, Python server không thể parse multipart.
+    //     // ==========================================================
+    //     @Test
+    //     @DisplayName("✅ Request gửi đến Voice AI phải có Content-Type: multipart/form-data")
+    //     void verifyVoiceLivenessAsync_sendsCorrectContentTypeHeader() throws Exception {
+    //         MockMultipartFile audioFile = new MockMultipartFile("audio", "test.wav", "audio/wav", "data".getBytes());
+    //         ArgumentCaptor<HttpEntity> entityCaptor = ArgumentCaptor.forClass(HttpEntity.class);
 
-            when(restTemplate.postForObject(anyString(), entityCaptor.capture(), eq(JsonNode.class)))
-                    .thenReturn(objectMapper.readTree("{\"authCode\": \"000000\"}"));
+    //         when(restTemplate.postForObject(anyString(), entityCaptor.capture(), eq(JsonNode.class)))
+    //                 .thenReturn(objectMapper.readTree("{\"authCode\": \"000000\"}"));
 
-            riskEvaluationService.verifyVoiceLivenessAsync(audioFile).get();
+    //         riskEvaluationService.verifyVoiceLivenessAsync(audioFile).get();
 
-            MediaType contentType = entityCaptor.getValue().getHeaders().getContentType();
-            assertNotNull(contentType, "Content-Type header không được null");
-            assertTrue(contentType.isCompatibleWith(MediaType.MULTIPART_FORM_DATA),
-                    "Content-Type phải là multipart/form-data để Python server parse được");
-        }
+    //         MediaType contentType = entityCaptor.getValue().getHeaders().getContentType();
+    //         assertNotNull(contentType, "Content-Type header không được null");
+    //         assertTrue(contentType.isCompatibleWith(MediaType.MULTIPART_FORM_DATA),
+    //                 "Content-Type phải là multipart/form-data để Python server parse được");
+    //     }
 
-        // ==========================================================
-        // TEST 20: audioFile.getBytes() ném IOException → Catch exception, trả về chuỗi rỗng
-        // Gap: Đây là I/O exception không phải RestClientException, cần test riêng.
-        //      Code gốc có catch(Exception e) bao hết nhưng chưa được test.
-        // ==========================================================
-        @Test
-        @DisplayName("❌ audioFile.getBytes() ném IOException (file bị lỗi) → Trả về chuỗi rỗng")
-        void verifyVoiceLivenessAsync_getBytesFails_returnsEmptyString() throws Exception {
-            // Tạo MockMultipartFile giả lập getBytes() ném IOException
-            MockMultipartFile brokenFile = new MockMultipartFile("audio", "broken.wav", "audio/wav", (byte[]) null) {
-                @Override
-                public byte[] getBytes() throws java.io.IOException {
-                    throw new java.io.IOException("Disk read error");
-                }
-            };
+    //     // ==========================================================
+    //     // TEST 20: audioFile.getBytes() ném IOException → Catch exception, trả về chuỗi rỗng
+    //     // Gap: Đây là I/O exception không phải RestClientException, cần test riêng.
+    //     //      Code gốc có catch(Exception e) bao hết nhưng chưa được test.
+    //     // ==========================================================
+    //     @Test
+    //     @DisplayName("❌ audioFile.getBytes() ném IOException (file bị lỗi) → Trả về chuỗi rỗng")
+    //     void verifyVoiceLivenessAsync_getBytesFails_returnsEmptyString() throws Exception {
+    //         // Tạo MockMultipartFile giả lập getBytes() ném IOException
+    //         MockMultipartFile brokenFile = new MockMultipartFile("audio", "broken.wav", "audio/wav", (byte[]) null) {
+    //             @Override
+    //             public byte[] getBytes() throws java.io.IOException {
+    //                 throw new java.io.IOException("Disk read error");
+    //             }
+    //         };
 
-            CompletableFuture<String> future = riskEvaluationService.verifyVoiceLivenessAsync(brokenFile);
-            String result = future.get();
+    //         CompletableFuture<String> future = riskEvaluationService.verifyVoiceLivenessAsync(brokenFile);
+    //         String result = future.get();
 
-            assertEquals("", result, "IOException khi đọc file phải được bắt và trả về chuỗi rỗng");
-            // Không nên gọi đến restTemplate khi file bị lỗi
-            verify(restTemplate, never()).postForObject(anyString(), any(), eq(JsonNode.class));
-        }
-    }
+    //         assertEquals("", result, "IOException khi đọc file phải được bắt và trả về chuỗi rỗng");
+    //         // Không nên gọi đến restTemplate khi file bị lỗi
+    //         verify(restTemplate, never()).postForObject(anyString(), any(), eq(JsonNode.class));
+    //     }
+    // }
 }
