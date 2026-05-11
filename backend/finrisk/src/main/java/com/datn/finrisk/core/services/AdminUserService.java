@@ -9,8 +9,14 @@ import com.datn.finrisk.core.repository.UserRepository;
 import com.datn.finrisk.core.repository.SystemConfigLogRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 import java.util.List;
 import java.util.Map;
@@ -31,14 +37,18 @@ public class AdminUserService {
     @Autowired
     private TransactionRepository transactionRepository;
 
-    private final ObjectMapper objectMapper = new ObjectMapper(); // Công cụ băm JSON
-
-    // 1. Lấy danh sách toàn bộ User (Đã lọc sạch data nhạy cảm)
-    public List<AdminUserDTO> getAllUsers() {
-        return userRepository.findAll().stream()
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
-    }
+    private final ObjectMapper objectMapper = new ObjectMapper(); 
+    
+    public Page<AdminUserDTO> getUsers(String search, int page, int size) {
+            // Tạo cấu hình phân trang, xếp user mới đăng ký lên đầu
+            Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+            
+            // Gọi hàm SQL mình vừa viết bên Repository
+            Page<User> userPage = userRepository.searchUsers(search, pageable);
+            
+            // Dùng luôn hàm .map() của Page để ép kiểu sang DTO cực gọn
+            return userPage.map(this::convertToDTO);
+        }
 
     // 2. Nút bấm: Khóa / Mở khóa tài khoản (KÈM FORCE LOGOUT)
     @Transactional(rollbackFor = Exception.class)

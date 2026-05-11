@@ -1,7 +1,9 @@
+ 
 // import React, { useState, useEffect } from 'react';
 // import { useNavigate, useLocation } from 'react-router-dom';
 // import { toast } from 'react-toastify'; 
 // import axiosClient from '../../api/axiosClient';
+// import PinModal from '../../components/PinModal'; // 🚀 IMPORT MODAL PIN VÀO ĐÂY
 
 // export default function TransactionStep1() {
 //   const navigate = useNavigate();
@@ -13,6 +15,10 @@
 //   const [recipientName, setRecipientName] = useState('');
 //   const [lookupError, setLookupError] = useState('');
 //   const [isLookingUp, setIsLookingUp] = useState(false);
+
+//   // 🚀 STATE ĐỂ QUẢN LÝ POPUP PIN
+//   const [showPinModal, setShowPinModal] = useState(false);
+//   const [currentTxId, setCurrentTxId] = useState(null);
 
 //   const formatMoney = (amount) => {
 //     if (amount == null || isNaN(amount)) return "0 ₫"; 
@@ -27,10 +33,7 @@
 
 //   useEffect(() => {
 //     if (location.state?.targetAccount) {
-//       setFormData(prev => ({ 
-//         ...prev, 
-//         toAccount: location.state.targetAccount 
-//       }));
+//       setFormData(prev => ({ ...prev, toAccount: location.state.targetAccount }));
 //     }
 //   }, [location]);
 
@@ -56,10 +59,22 @@
 //     return () => clearTimeout(timer);
 //   }, [formData.toAccount]);
 
-//   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+//   const handleChange = (e) =>{
+//     setFormData({ ...formData, [e.target.name]: e.target.value });
+//     if (currentTxId) {
+//       setCurrentTxId(null);
+//     }
+//   };
 
 //   const handleSubmit = async (e) => {
 //     e.preventDefault();
+
+//     if (currentTxId) {
+//       setShowPinModal(true);
+//       toast.info("Vui lòng hoàn tất giao dịch đang thực hiện!");
+//       return; 
+//     }
+
 //     if (!formData.toAccount || !formData.amount) {
 //         toast.warning("⚠️ Vui lòng nhập đầy đủ thông tin!");
 //         return;
@@ -76,21 +91,53 @@
 //         amount: formData.amount,
 //         description: formData.description
 //       });
-//       const result = response.data;
       
-//       if (result.riskLevel === 'LOW') {
-//         toast.success("✅ Giao dịch an toàn!");
-//         navigate('/transaction-result', { state: { result, formData, recipientName } });
-//       } else if (result.riskLevel === 'MEDIUM') {
-//         toast.warning("⚠️ Cần xác minh OTP.");
-//         navigate('/verify-otp', { state: { transactionId: result.id, formData, recipientName } });
-//       } else {
-//         toast.error("🚨 Yêu cầu quét mặt!");
+//       const result = response.data; // Đây là đối tượng Transaction
+      
+//       // 🚀 LOGIC MỚI: ĐỌC TRẠNG THÁI (STATUS) ĐỂ ĐIỀU HƯỚNG
+//       if (result.status.startsWith('PENDING_PIN')) {
+//         // Áp dụng cho LOW, MEDIUM_1, MEDIUM_2 -> Bật Modal PIN
+//         setCurrentTxId(result.id);
+//         setShowPinModal(true);
+//       } 
+//       else if (result.status === 'PENDING_FACE_AI') {
+//         // Áp dụng cho HIGH -> Chuyển thẳng tới Quét mặt
+//         toast.error("🚨 Phát hiện rủi ro cao! Yêu cầu quét mặt an ninh!");
 //         navigate('/verify-face', { state: { transactionId: result.id, formData, recipientName, result } });
 //       }
+//       else {
+//         toast.error("🚨 Lỗi luồng xử lý: Trạng thái không xác định.");
+//       }
+
 //     } catch (error) {
-//       const msg = error.response?.data?.message || "Lỗi giao dịch!";
+//       // Bóc lấy cái thông báo lỗi từ Backend
+//       const msg = error.response?.data?.message || typeof error.response?.data === 'string' ? error.response?.data : "Lỗi giao dịch!";
+//       const errorCode = error.response?.data?.code || error.response?.data?.errorCode;
+      
 //       toast.error("🚨 " + msg);
+
+//       // 🚀 RADAR 1: BẮT LỖI CHƯA CÓ MÃ PIN (Mới thêm)
+//       if (errorCode === 'ERR_NO_PIN_SETUP') {
+//           setTimeout(() => {
+//               navigate('/setup-pin');
+//           }, 2000);
+//           return; // Cực kỳ quan trọng: Dừng hàm tại đây!
+//       }
+
+//       // 🚀 RADAR 2: BẮT LỖI CHƯA CÓ FACEID (Code cũ của bro)
+//       if (errorCode === 'ERR_NO_FACE_SETUP' || msg.includes('FaceID') || msg.includes('khuôn mặt')) {
+//           setTimeout(() => {
+//               navigate('/register-face');
+//           }, 2000);
+//           return; 
+//       }
+
+//       // 🚀 RADAR 3: BẮT LỖI KHÓA TÀI KHOẢN (Code cũ của bro)
+//       if (typeof msg === 'string' && msg.toLowerCase().includes('khóa')) {
+//           setTimeout(() => {
+//               navigate('/dashboard'); 
+//           }, 2500); 
+//       }
 //     } finally {
 //       setIsLoading(false);
 //     }
@@ -99,8 +146,10 @@
 //   if (!currentUser) return null;
 
 //   return (
-//     <div className="min-h-screen bg-slate-50 py-12 px-4">
+//     <div className="min-h-screen bg-slate-50 py-12 px-4 relative">
 //       <div className="max-w-2xl mx-auto bg-white rounded-[2.5rem] shadow-xl border border-slate-100 p-8 sm:p-12 relative overflow-hidden">
+        
+//         {/* ... (Toàn bộ code giao diện phần form chuyển khoản của bro giữ nguyên 100% không đổi một chữ nào) ... */}
         
 //         <button onClick={() => navigate('/transfer')} className="flex items-center text-slate-400 hover:text-blue-600 mb-8 transition-colors font-bold text-sm group">
 //           <div className="p-2 bg-slate-100 rounded-xl mr-3 group-hover:bg-blue-50 transition-colors">
@@ -115,7 +164,7 @@
 
 //         <form onSubmit={handleSubmit} className="space-y-8">
 
-//           {/* 🔥 KHỐI NGUỒN TIỀN - TỐI GIẢN THEO Ý BRO */}
+//           {/* Khối nguồn tiền */}
 //           <div className="flex items-center justify-between px-2 py-4 border-b border-slate-100 mb-6">
 //             <div className="flex items-center space-x-3">
 //               <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center">
@@ -152,7 +201,7 @@
 //                 </div>
 //             </div>
 
-//             {/* 🔥 TÊN NGƯỜI NHẬN - GIỮ NGUYÊN CODE GỐC CỦA BRO KHÔNG THAY ĐỔI */}
+//             {/* TÊN NGƯỜI NHẬN */}
 //             <div className={`transition-all duration-300 ${recipientName ? 'opacity-100 block' : 'opacity-0 hidden'}`}>
 //               <label className="block text-[11px] uppercase tracking-widest font-black text-slate-400 mb-2">Tên người nhận</label>
 //               <div className="relative">
@@ -192,19 +241,29 @@
 //             </div>
 //           </div>
 
-//           <button 
-//             type="submit" disabled={isLoading || !recipientName}
-//             className={`w-full py-5 rounded-2xl text-white font-black text-lg transition-all shadow-lg ${isLoading || !recipientName ? 'bg-slate-200 cursor-not-allowed text-slate-400 shadow-none' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200 hover:-translate-y-1 active:scale-95'}`}
+//             <button 
+//             type="submit" 
+//             disabled={isLoading || !recipientName || showPinModal}
+//             className={`w-full py-5 rounded-2xl text-white font-black text-lg transition-all shadow-lg ${(isLoading || !recipientName || showPinModal) ? 'bg-slate-200 cursor-not-allowed text-slate-400 shadow-none' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200 hover:-translate-y-1 active:scale-95'}`}
 //           >
 //             {isLoading ? 'ĐANG THẨM ĐỊNH RỦI RO...' : 'XÁC NHẬN GIAO DỊCH'}
 //           </button>
 //         </form>
+
 //       </div>
+
+//       {/* 🚀 ĐẶT MODAL Ở ĐÂY ĐỂ NÓ NỔI LÊN TRÊN CÙNG */}
+//       <PinModal 
+//         isOpen={showPinModal} 
+//         onClose={() => setShowPinModal(false)} 
+//         transactionId={currentTxId} 
+//         formData={formData} 
+//         recipientName={recipientName} 
+//       />
+
 //     </div>
 //   );
 // }
-
-
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -353,113 +412,160 @@ export default function TransactionStep1() {
   if (!currentUser) return null;
 
   return (
-    <div className="min-h-screen bg-slate-50 py-12 px-4 relative">
-      <div className="max-w-2xl mx-auto bg-white rounded-[2.5rem] shadow-xl border border-slate-100 p-8 sm:p-12 relative overflow-hidden">
+    <div className="min-h-screen bg-[#f4f6f9] flex flex-col font-sans">
+      <div className="max-w-2xl mx-auto w-full flex-1 flex flex-col">
         
-        {/* ... (Toàn bộ code giao diện phần form chuyển khoản của bro giữ nguyên 100% không đổi một chữ nào) ... */}
-        
-        <button onClick={() => navigate('/transfer')} className="flex items-center text-slate-400 hover:text-blue-600 mb-8 transition-colors font-bold text-sm group">
-          <div className="p-2 bg-slate-100 rounded-xl mr-3 group-hover:bg-blue-50 transition-colors">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M15 19l-7-7 7-7"></path></svg>
+        {/* ── Topbar: navy shell ── */}
+        <nav className="bg-[#1e2d40] px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate('/transfer')}
+              className="p-2 text-white/40 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <div>
+              <p className="text-white font-semibold text-sm">Thiết lập giao dịch</p>
+              <p className="text-white/40 text-[10px] uppercase tracking-widest">Chuyển khoản</p>
+            </div>
           </div>
-          Quay lại
-        </button>
+          <div className="w-8 h-8 bg-white/10 border border-white/15 rounded-lg flex items-center justify-center text-white font-bold text-sm">
+            F
+          </div>
+        </nav>
 
-        <div className="text-center mb-10">
-            <h2 className="text-3xl font-black text-slate-900 tracking-tight">Chi tiết chuyển tiền</h2>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-8">
-
-          {/* Khối nguồn tiền */}
-          <div className="flex items-center justify-between px-2 py-4 border-b border-slate-100 mb-6">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
-                </svg>
+        <div className="p-6">
+          <div className="bg-white rounded-2xl border border-gray-100 p-6 sm:p-8 shadow-sm">
+            
+            {/* Khối nguồn tiền */}
+            <div className="flex items-center justify-between py-4 border-b border-gray-100 mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-[#f4f6f9] text-gray-500 rounded-xl flex items-center justify-center">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-0.5">Từ tài khoản chính</p>
+                  <p className="text-sm font-semibold text-gray-800">Thanh toán mặc định</p>
+                </div>
               </div>
+              <div className="text-right">
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-0.5">Số dư khả dụng</p>
+                <p className="text-lg font-bold text-[#1e2d40] tracking-tight">{formatMoney(currentUser.balance)}</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-5">
+              
+              {/* SỐ TÀI KHOẢN NHẬN */}
               <div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Từ tài khoản chính</p>
-                <p className="text-sm font-bold text-slate-500 italic">Thanh toán mặc định</p>
-              </div>
-            </div>
-            <div className="text-right">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Số dư khả dụng</p>
-              <p className="text-xl font-black text-blue-600">{formatMoney(currentUser.balance)}</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-6">
-            {/* SỐ TÀI KHOẢN NHẬN */}
-            <div className="space-y-2">
-                <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">SỐ TÀI KHOẢN</label>
+                <label className="block text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2">Số tài khoản nhận</label>
                 <div className="relative">
-                    <input 
-                        type="text" name="toAccount" value={formData.toAccount} onChange={handleChange} required
-                        className={`w-full px-6 py-5 rounded-2xl bg-slate-50 border-2 outline-none font-mono text-xl transition-all ${recipientName ? 'border-emerald-200 focus:border-emerald-500 bg-emerald-50/30' : lookupError ? 'border-red-200 focus:border-red-500' : 'border-transparent focus:border-blue-500'}`}
-                        placeholder="Nhập số tài khoản"
-                    />
-                    {isLookingUp && (
-                        <div className="absolute right-5 top-1/2 -translate-y-1/2">
-                            <div className="animate-spin h-5 w-5 border-2 border-blue-600 border-t-transparent rounded-full"></div>
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            {/* TÊN NGƯỜI NHẬN */}
-            <div className={`transition-all duration-300 ${recipientName ? 'opacity-100 block' : 'opacity-0 hidden'}`}>
-              <label className="block text-[11px] uppercase tracking-widest font-black text-slate-400 mb-2">Tên người nhận</label>
-              <div className="relative">
                   <input 
-                      type="text" value={recipientName} readOnly disabled
-                      className="w-full px-5 py-4 rounded-xl bg-green-50/50 border-2 border-green-100 text-green-700 font-black text-lg cursor-not-allowed"
+                    type="text" 
+                    name="toAccount" 
+                    value={formData.toAccount} 
+                    onChange={handleChange} 
+                    required
+                    placeholder="Nhập số tài khoản"
+                    className={`w-full px-4 py-3.5 rounded-xl text-sm font-medium transition-all focus:outline-none focus:bg-white
+                      ${lookupError ? 'bg-red-50 border border-red-200 text-red-800 focus:border-[#b91c1c]' : 'bg-[#f4f6f9] border border-transparent focus:border-[#1e2d40] text-gray-800'}`}
                   />
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 text-green-500 bg-white p-1 rounded-full shadow-sm">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
-                  </div>
-              </div>
-            </div>
-
-            {lookupError && <p className="text-xs text-red-500 font-bold ml-1">{lookupError}</p>}
-
-            {/* SỐ TIỀN */}
-            <div className="space-y-2">
-                <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Số tiền chuyển (VND)</label>
-                <div className="relative group">
-                    <input 
-                        type="text" name="amount" value={formData.amount} required placeholder="0"
-                        className="w-full px-6 py-5 rounded-2xl bg-slate-50 border-2 border-transparent focus:border-blue-500 focus:bg-white outline-none font-black text-3xl text-slate-800 transition-all"
-                        onChange={(e) => setFormData({ ...formData, amount: e.target.value.replace(/[^0-9]/g, '') })}
-                    />
-                    <span className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-300 font-black text-lg">VND</span>
+                  {isLookingUp && (
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                      <svg className="w-4 h-4 animate-spin text-[#1e2d40]" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z"></path>
+                      </svg>
+                    </div>
+                  )}
                 </div>
-            </div>
+                {lookupError && <p className="text-[10px] font-semibold text-[#b91c1c] mt-1.5">{lookupError}</p>}
+              </div>
 
-            {/* LỜI NHẮN */}
-            <div className="space-y-2">
-                <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Nội dung</label>
+              {/* TÊN NGƯỜI NHẬN - Dùng màu xanh chức năng báo hiệu an toàn */}
+              {recipientName && (
+                <div className="animate-fade-in">
+                  <label className="block text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2">Tên người nhận</label>
+                  <div className="relative">
+                    <input 
+                      type="text" 
+                      value={recipientName} 
+                      readOnly 
+                      disabled
+                      className="w-full px-4 py-3.5 rounded-xl bg-[#dcfce7] border border-transparent text-[#15803d] font-semibold text-sm cursor-not-allowed"
+                    />
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[#15803d]">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path>
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* SỐ TIỀN */}
+              <div>
+                <label className="block text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2">Số tiền chuyển (VND)</label>
+                <div className="relative">
+                  <input 
+                    type="text" 
+                    name="amount" 
+                    value={formData.amount} 
+                    required 
+                    placeholder="0"
+                    onChange={(e) => setFormData({ ...formData, amount: e.target.value.replace(/[^0-9]/g, '') })}
+                    className="w-full px-4 py-4 rounded-xl bg-[#f4f6f9] border border-transparent focus:border-[#1e2d40] focus:bg-white outline-none font-bold text-2xl text-gray-800 transition-all pr-16"
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-gray-400 uppercase tracking-widest">
+                    VND
+                  </span>
+                </div>
+              </div>
+
+              {/* LỜI NHẮN */}
+              <div>
+                <label className="block text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2">Nội dung</label>
                 <textarea 
-                    name="description" value={formData.description} onChange={handleChange}
-                    className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-2 border-transparent focus:border-blue-500 focus:bg-white outline-none font-medium text-slate-700 resize-none transition-all"
-                    placeholder="Nội dung chuyển khoản..." rows="2"
+                  name="description" 
+                  value={formData.description} 
+                  onChange={handleChange}
+                  placeholder="Nhập nội dung chuyển khoản" 
+                  rows="2"
+                  className="w-full px-4 py-3 rounded-xl bg-[#f4f6f9] border border-transparent focus:border-[#1e2d40] focus:bg-white outline-none text-sm font-medium text-gray-800 resize-none transition-all"
                 />
-            </div>
+              </div>
+
+              <div className="pt-2">
+                <button 
+                  type="submit" 
+                  disabled={isLoading || !recipientName || showPinModal}
+                  className={`w-full py-3.5 rounded-xl text-sm font-semibold tracking-wide transition-all flex items-center justify-center gap-2
+                    ${(isLoading || !recipientName || showPinModal) 
+                      ? 'bg-[#1e2d40]/40 text-white cursor-not-allowed' 
+                      : 'bg-[#1e2d40] text-white hover:bg-[#162233] active:scale-[0.98]'}`}
+                >
+                  {isLoading ? (
+                    <>
+                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z"></path>
+                      </svg>
+                      Đang xử lý rủi ro...
+                    </>
+                  ) : 'Xác nhận giao dịch'}
+                </button>
+              </div>
+
+            </form>
           </div>
-
-            <button 
-            type="submit" 
-            disabled={isLoading || !recipientName || showPinModal}
-            className={`w-full py-5 rounded-2xl text-white font-black text-lg transition-all shadow-lg ${(isLoading || !recipientName || showPinModal) ? 'bg-slate-200 cursor-not-allowed text-slate-400 shadow-none' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200 hover:-translate-y-1 active:scale-95'}`}
-          >
-            {isLoading ? 'ĐANG THẨM ĐỊNH RỦI RO...' : 'XÁC NHẬN GIAO DỊCH'}
-          </button>
-        </form>
-
+        </div>
       </div>
 
-      {/* 🚀 ĐẶT MODAL Ở ĐÂY ĐỂ NÓ NỔI LÊN TRÊN CÙNG */}
+      {/* 🚀 MODAL NẰM ĐÚNG CHỖ CŨ CỦA BRO */}
       <PinModal 
         isOpen={showPinModal} 
         onClose={() => setShowPinModal(false)} 

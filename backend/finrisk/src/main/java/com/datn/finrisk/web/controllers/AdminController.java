@@ -120,12 +120,16 @@ public class AdminController {
     // PHẦN 3: CÁC API QUẢN LÝ NGƯỜI DÙNG
     // ==========================================================
 
+    // 🚀 API MỚI: Hứng tham số page, size, và search từ React
     @GetMapping("/users")
-    public ResponseEntity<?> getAllUsers() {
+    public ResponseEntity<?> getAllUsers(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "") String search) {
         try {
-            return ResponseEntity.ok(adminUserService.getAllUsers());
+            return ResponseEntity.ok(adminUserService.getUsers(search, page, size));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+            return ResponseEntity.badRequest().body("Lỗi lấy danh sách User: " + e.getMessage());
         }
     }
 

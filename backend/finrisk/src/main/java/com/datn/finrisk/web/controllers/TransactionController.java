@@ -442,47 +442,70 @@ public class TransactionController {
             return ResponseEntity.badRequest().body("Lỗi lấy danh sách gần đây: " + e.getMessage());
         }
     }
+ // =========================================================================
+    // 🚀 API MỚI DÀNH RIÊNG CHO MÀN HÌNH BIỂU ĐỒ 7 NGÀY (Không phân trang)
+    // =========================================================================
+    @GetMapping("/analytics/{accountId}")
+    public ResponseEntity<?> get7DaysAnalytics(@PathVariable Long accountId) {
+        try {
+            // 1. Tính toán ngày bắt đầu (7 ngày trước, tính từ 00:00:00)
+            LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7).withHour(0).withMinute(0).withSecond(0);
 
-    // // API MỚI: CHỐT SỔ CHO LUỒNG HIGH RISK (TRỪ TIỀN)
-    // @PostMapping(value = "/verify-voice", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    // public ResponseEntity<?> verifyVoiceLiveness(
-    //         @RequestParam("transactionId") Long transactionId,
-    //         @RequestParam("audioFile") org.springframework.web.multipart.MultipartFile audioFile) {
-    //     try {
-    //         // 🚀 BƯỚC NGOẶT: Dùng hàm JOIN FETCH siêu to khổng lồ thay cho findById mặc định
-    //         Transaction tx = transactionRepository.findByIdWithUserSecurity(transactionId)
-    //                 .orElseThrow(() -> new RuntimeException("Giao dịch không tồn tại!"));
+            // 2. Kéo MỘT MẺ toàn bộ giao dịch từ Repository
+            List<TransactionLedger> rawLedgers = ledgerRepository.findTransactionsForAnalytics(accountId, sevenDaysAgo);
 
-    //         // 🚀 Nhờ hàm trên, dòng này bây giờ tốn 0 query (Lấy thẳng từ RAM)
-    //         String username = tx.getFromAccount().getUser().getUsername();
+            // 3. Gom mẻ Account để lấy tên (Batch Fetching - Giống hàm History)
+            java.util.Set<String> targetAccountNumbers = rawLedgers.stream()
+                    .filter(l -> "DEBIT".equals(l.getEntryType()) && l.getTransaction() != null && l.getTransaction().getToAccountNumber() != null)
+                    .map(l -> l.getTransaction().getToAccountNumber())
+                    .collect(Collectors.toSet());
 
-    //         if (!"PENDING_VOICE_OTP".equals(tx.getStatus())) {
-    //             return ResponseEntity.badRequest().body("Trạng thái giao dịch không hợp lệ!");
-    //         }
+            Map<String, String> accountNameDictionary = new HashMap<>();
+            if (!targetAccountNumbers.isEmpty()) {
+                List<Account> targetAccounts = accountRepository.findByAccountNumberIn(targetAccountNumbers);
+                for (Account acc : targetAccounts) {
+                    accountNameDictionary.put(acc.getAccountNumber(), acc.getUser().getFullName());
+                }
+            }
 
-    //         // Gửi Audio sang Python để bóc băng lấy chữ số
-    //         String recognizedCode = riskEvaluationService.verifyVoiceLivenessAsync(audioFile).get();
+            // 4. Map dữ liệu sang JSON cho Frontend dễ xơi
+            List<Map<String, Object>> result = rawLedgers.stream().map(l -> {
+                Map<String, Object> map = new HashMap<>();
+                Transaction rootTx = l.getTransaction();
+                
+                map.put("id", l.getId());
+                map.put("type", l.getEntryType()); 
+                map.put("amount", l.getAmount());
+                map.put("balanceAfter", l.getBalanceAfter());
+                map.put("date", l.getCreatedAt()); // Giữ nguyên tên là 'date' theo chuẩn cũ của bro
+                
+                String txDescription = (rootTx != null && rootTx.getDescription() != null && !rootTx.getDescription().isEmpty()) 
+                        ? rootTx.getDescription() 
+                        : (l.getEntryType().equals("DEBIT") ? "Chuyển khoản đi" : "Nhận tiền chuyển khoản");
+                map.put("description", txDescription);
+                
+                if (rootTx != null) {
+                    map.put("toAccountNumber", rootTx.getToAccountNumber());
+                    map.put("riskLevel", rootTx.getRiskLevel());
+                    map.put("totalRiskScore", rootTx.getTotalRiskScore());
+                    
+                    String relatedName = "Người dùng ẩn danh";
+                    if ("DEBIT".equals(l.getEntryType())) {
+                        relatedName = accountNameDictionary.getOrDefault(rootTx.getToAccountNumber(), "Người nhận ngoài hệ thống");
+                    } else {
+                        relatedName = rootTx.getFromAccount().getUser().getFullName();
+                    }
+                    map.put("relatedName", relatedName); 
+                }
+                
+                return map;
+            }).collect(Collectors.toList());
 
-    //         if (recognizedCode == null || recognizedCode.trim().isEmpty()) {
-    //             return ResponseEntity.badRequest().body("Không thể nhận diện giọng nói, vui lòng thử lại ở nơi yên tĩnh!");
-    //         }
+            // 5. Trả về đúng một MẢNG (List), không có vỏ bọc 'content' hay 'pageable'
+            return ResponseEntity.ok(result);
 
-    //         // Đem kết quả Python so với OTP trong Redis
-    //         boolean isValid = otpService.verifyOtp(tx.getId(), recognizedCode);
-
-    //         if (!isValid) {
-    //             auditLogService.logAction(username, "VOICE_FAILED", "Đọc sai Voice OTP giao dịch " + tx.getId());
-    //             return ResponseEntity.badRequest().body("Mã giọng nói không khớp ("+ recognizedCode +"). Yêu cầu đọc to, rõ ràng!");
-    //         }
-
-    //         // 🚀 FIX LỖI: VƯỢT QUA VOICE LÀ CHỐT SỔ TRỪ TIỀN LUÔN! KHÔNG ĐÁ ĐI ĐÂU NỮA
-    //         Transaction completedTx = transactionService.executeTransactionCore(tx);
-    //         auditLogService.logAction(username, "TX_SUCCESS", "Chuyển tiền thành công (PIN + Face AI + Voice Liveness).");
-            
-    //         return ResponseEntity.ok(Map.of("status", "SUCCESS", "data", completedTx));
-
-    //     } catch (Exception e) {
-    //         return ResponseEntity.badRequest().body("Lỗi xử lý âm thanh: " + e.getMessage());
-    //     }
-    // }
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Lỗi lấy dữ liệu Analytics: " + e.getMessage());
+        }
+    }
 }

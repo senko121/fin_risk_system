@@ -29,10 +29,14 @@ export default function ExpenseAnalytics() {
     }
   }, [navigate]);
 
-  const fetchHistory = async (accountId) => {
+const fetchHistory = async (accountId) => {
     try {
-      const response = await axiosClient.get(`/transactions/history/${accountId}`);
-      setHistory(response.data.reverse());
+      // 💡 ĐÃ ĐỔI ĐƯỜNG DẪN TỪ /history/ SANG /analytics/
+      const response = await axiosClient.get(`/transactions/analytics/${accountId}`);
+      
+      // 💡 KHÔNG CÒN .content NỮA, VÌ API BÂY GIỜ TRẢ THẲNG VỀ MẢNG RỒI
+      setHistory(response.data || []); 
+      
     } catch (error) {
       toast.warning("Không thể tải dữ liệu phân tích.");
     } finally {
@@ -53,7 +57,7 @@ export default function ExpenseAnalytics() {
   // =================================================================
   // LOGIC TÍNH TOÁN DỮ LIỆU BÁO CÁO 
   // =================================================================
-  const analyticsData = useMemo(() => {
+const analyticsData = useMemo(() => {
     try {
       if (!history || !Array.isArray(history) || history.length === 0) {
         return { chartData: [], totalIn: 0, totalOut: 0, topExpenses: [] };
@@ -65,16 +69,22 @@ export default function ExpenseAnalytics() {
       const expenseList = [];
 
       history.forEach(curr => {
-        if (!curr || !curr.date) return;
-        
-        if (curr.type === 'CREDIT') {
-          totalIn += (curr.amount || 0);
+        // 💡 QUAY LẠI SỬ DỤNG .date VÀ .type THEO ĐÚNG JSON RESPONSE
+        const rawDate = curr.date; 
+        if (!rawDate) return;
+
+        const type = curr.type; 
+        const amount = curr.amount || 0;
+        const description = curr.description || "Giao dịch";
+
+        if (type === 'CREDIT') {
+          totalIn += amount;
         } else {
-          totalOut += (curr.amount || 0);
-          expenseList.push(curr); 
+          totalOut += amount;
+          expenseList.push({ ...curr, displayDescription: description }); 
         }
 
-        const dateObj = new Date(curr.date);
+        const dateObj = new Date(rawDate);
         if (isNaN(dateObj.getTime())) return;
         
         const dateStr = `${dateObj.getDate().toString().padStart(2, '0')}/${(dateObj.getMonth() + 1).toString().padStart(2, '0')}`;
@@ -82,10 +92,10 @@ export default function ExpenseAnalytics() {
           groupedData[dateStr] = { name: dateStr, in: 0, out: 0 };
         }
 
-        if (curr.type === 'CREDIT') {
-          groupedData[dateStr].in += (curr.amount || 0);
+        if (type === 'CREDIT') {
+          groupedData[dateStr].in += amount;
         } else {
-          groupedData[dateStr].out += (curr.amount || 0);
+          groupedData[dateStr].out += amount;
         }
       });
 
@@ -215,7 +225,7 @@ export default function ExpenseAnalytics() {
                     </div>
                     {/* 💡 BÍ KÍP CHỐNG RỚT DÒNG MOBILE: Dùng truncate và max-w */}
                     <div className="overflow-hidden">
-                      <p className="font-bold text-gray-800 text-sm truncate max-w-[130px] sm:max-w-full">{item.description}</p>
+                      <p className="font-bold text-gray-800 text-sm truncate">{item.displayDescription}</p>
                       <p className="text-xs text-gray-500 mt-0.5">{formatDate(item.date)}</p>
                     </div>
                   </div>
