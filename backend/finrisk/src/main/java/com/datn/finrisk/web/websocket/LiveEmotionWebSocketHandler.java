@@ -210,6 +210,7 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
+import java.util.Collections;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -229,7 +230,8 @@ public class LiveEmotionWebSocketHandler extends TextWebSocketHandler {
     @Autowired private ObjectMapper mapper;
 
     private final Map<String, List<String>> sessionFrameBuffer = new ConcurrentHashMap<>();
-    private final Map<String, String> sessionToTxKey = new ConcurrentHashMap<>(); // ← thêm
+    private final Map<String, String> sessionToTxKey = new ConcurrentHashMap<>();  
+    private final Map<String, Long> bufferCreatedAt = new ConcurrentHashMap<>();
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
@@ -262,23 +264,33 @@ public class LiveEmotionWebSocketHandler extends TextWebSocketHandler {
 
                 // Lưu mapping để cleanup khi disconnect
                 sessionToTxKey.put(session.getId(), txKey);
-                sessionFrameBuffer.computeIfAbsent(txKey, k -> new ArrayList<>()).add(base64Frame);
+                List<String> buffer = sessionFrameBuffer.computeIfAbsent(txKey, k -> {bufferCreatedAt.put(txKey, System.currentTimeMillis()); 
+                     return Collections.synchronizedList(new ArrayList<>());
+                });
+                if (buffer.size() < 60) {
+                    buffer.add(base64Frame);
+                } else {
+                    System.out.println("⚠️ [STREAM] Buffer đầy, bỏ frame thừa. txKey=" + txKey);
+                }
                 
                 System.out.println("📡 [STREAM] txKey=" + txKey + " | Frame #" + sessionFrameBuffer.get(txKey).size());
 
-                // ✅ Non-blocking
+                //  Non-blocking
                 riskEvaluationService.detectEmotionAsync(base64Frame)
                     .thenAccept(aiRes -> {
                         try {
+                            if (!session.isOpen()) return; // ← THÊM DÒNG NÀY, bỏ qua nếu session đã đóng
                             Map<String, Object> res = new HashMap<>();
                             res.put("type", "LIVE_RESULT");
                             res.put("emotion", aiRes != null ? aiRes.getEmotion() : "UNKNOWN");
                             res.put("status", "SUCCESS");
                             synchronized (session) {
-                                session.sendMessage(new TextMessage(mapper.writeValueAsString(res)));
+                                if (session.isOpen()) { // ← check lần 2 trong synchronized để tránh race
+                                    session.sendMessage(new TextMessage(mapper.writeValueAsString(res)));
+                                }
                             }
                         } catch (Exception e) {
-                            System.err.println("❌ Lỗi gửi LIVE_RESULT: " + e.getMessage());
+                            System.err.println(" Lỗi gửi LIVE_RESULT: " + e.getMessage());
                         }
                     });
             }
@@ -378,5 +390,21 @@ public class LiveEmotionWebSocketHandler extends TextWebSocketHandler {
                 session.sendMessage(new TextMessage(mapper.writeValueAsString(errRes)));
             }
         }
+    }
+    @jakarta.annotation.PostConstruct
+    public void startCleanupScheduler() {
+        java.util.concurrent.Executors.newSingleThreadScheduledExecutor()
+            .scheduleAtFixedRate(() -> {
+                long now = System.currentTimeMillis();
+                long TTL_MS = 10 * 60 * 1000; // 10 phút
+                bufferCreatedAt.entrySet().removeIf(entry -> {
+                    if (now - entry.getValue() > TTL_MS) {
+                        sessionFrameBuffer.remove(entry.getKey());
+                        System.out.println("🧹 [CLEANUP] Xóa buffer hết hạn: " + entry.getKey());
+                        return true;
+                    }
+                    return false;
+                });
+            }, 5, 5, java.util.concurrent.TimeUnit.MINUTES);
     }
 }

@@ -44,4 +44,8 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
         WHERE t.id = :id
     """)
     Optional<Transaction> findByIdWithUserSecurity(@Param("id") Long id);
+
+ 
+@Query("SELECT t FROM Transaction t WHERE t.status IN ('PENDING', 'PIN_VERIFIED') AND t.createdAt < :threshold")
+List<Transaction> findStalledTransactions(@Param("threshold") LocalDateTime threshold);
 }
