@@ -232,12 +232,49 @@ public class TransactionController {
          
         // TRẠM 2: QUÉT MẶT TĨNH (DÀNH RIÊNG CHO MEDIUM_2)
          
+// TRẠM 2: QUÉT MẶT TĨNH (DÀNH RIÊNG CHO MEDIUM_2)
         else if ("FACE_STATIC".equals(authType)) {
             if ("PENDING_FACE_STATIC".equals(currentStatus)) {
-                // LUỒNG MEDIUM_2: CHỐT TẠI ĐÂY!
-                // TODO: Chỗ này bro gắn cái hàm AI FaceMatch sau nhé
+                
+                // 1. Rút ảnh gốc từ Database ra
+                String savedFaceBase64 = tx.getFromAccount().getUser().getBase64FaceImage();
+                if (savedFaceBase64 == null || savedFaceBase64.isEmpty()) {
+                    return ResponseEntity.badRequest().body("Lỗi: Người dùng chưa thiết lập FaceID gốc!");
+                }
+
+                // 2. Lấy ảnh Webcam Frontend gửi lên
+                String capturedFaceBase64 = request.getFaceImageBase64();
+
+                // 3. 🚀 GỌI HÀM AI SO SÁNH KHUÔN MẶT
+                boolean isMatch = verifyFaceWithAI(savedFaceBase64, capturedFaceBase64);
+
+                // 4. XỬ LÝ KẾT QUẢ TỪ AI
+                if (!isMatch) {
+                    // Lôi biến đếm ra (đề phòng null thì gán = 0)
+                    int currentAttempts = tx.getFailedAiAttempts() != null ? tx.getFailedAiAttempts() : 0;
+                    currentAttempts++; 
+                    tx.setFailedAiAttempts(currentAttempts);
+
+                    if (currentAttempts >= 3) {
+                        // ❌ SAI 3 LẦN -> KHÓA GIAO DỊCH
+                        tx.setStatus("BLOCKED");
+                        transactionRepository.save(tx);
+                        auditLogService.logAction(username, "FACE_REJECT_MAX_RETRIES", "Khóa giao dịch: Xác thực khuôn mặt tĩnh sai quá 3 lần.");
+                        return ResponseEntity.status(403).body("Giao dịch bị hủy do xác thực khuôn mặt sai quá 3 lần!");
+                    } else {
+                        // ⚠️ SAI DƯỚI 3 LẦN -> BÁO LỖI VÀ TRỪ SỐ LẦN THỬ
+                        transactionRepository.save(tx);
+                        int remaining = 3 - currentAttempts;
+                        auditLogService.logAction(username, "FACE_REJECT_RETRY", "Quét khuôn mặt sai lần " + currentAttempts);
+                        return ResponseEntity.badRequest().body("Khuôn mặt không khớp với cơ sở dữ liệu. Bạn còn " + remaining + " lần thử.");
+                    }
+                }
+
+                // 5. ✅ NẾU KHUÔN MẶT KHỚP -> CHỐT ĐƠN TRỪ TIỀN!
+                tx.setFailedAiAttempts(0); // Reset bộ đếm
                 Transaction completedTx = transactionService.executeTransactionCore(tx);
-                auditLogService.logAction(username, "TX_SUCCESS", "Chuyển tiền thành công (PIN + Khuôn Mặt).");
+                
+                auditLogService.logAction(username, "TX_SUCCESS", "Chuyển tiền thành công (PIN + Khuôn Mặt Tĩnh).");
                 return ResponseEntity.ok(Map.of("status", "SUCCESS", "data", completedTx));
             }
         }
@@ -508,4 +545,37 @@ public class TransactionController {
             return ResponseEntity.badRequest().body("Lỗi lấy dữ liệu Analytics: " + e.getMessage());
         }
     }
+
+private boolean verifyFaceWithAI(String savedFaceBase64, String capturedFaceBase64) {
+    try {
+        // 🚀 BƯỚC 1: Sửa đúng Port 5000 và đúng Path của con Python
+        String URL_AI_SERVER = "http://localhost:5000/api/ai/verify-face"; 
+
+        RestTemplate restTemplate = new RestTemplate();
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        // 🚀 BƯỚC 2: Sửa đúng KEY mà code Python (FastAPI) đang yêu cầu
+        Map<String, String> body = new HashMap<>();
+        body.put("live_image_base64", capturedFaceBase64);      // Python cần live_image_base64
+        body.put("registered_image_base64", savedFaceBase64); // Python cần registered_image_base64
+
+        HttpEntity<Map<String, String>> request = new HttpEntity<>(body, headers);
+
+        // 🚀 BƯỚC 3: Gửi đi
+        ResponseEntity<FaceAIResponse> response = restTemplate.postForEntity(
+                URL_AI_SERVER, request, FaceAIResponse.class);
+
+        if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+            boolean isMatched = response.getBody().isMatched();
+            log.info("🤖 AI Chốt hạ: {}", isMatched ? "KHỚP MẶT ✅" : "SAI MẶT ❌");
+            return isMatched;
+        }
+        return false;
+    } catch (Exception e) {
+        log.error("❌ KHÔNG KẾT NỐI ĐƯỢC AI (Port 5000): {}. Hãy chắc chắn đã chạy file Python!", e.getMessage());
+        // Trả về false để hệ thống chặn giao dịch khi AI "sập"
+        return false; 
+    }
+}
 }

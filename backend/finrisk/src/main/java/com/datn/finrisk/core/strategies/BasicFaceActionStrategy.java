@@ -40,7 +40,7 @@ public class BasicFaceActionStrategy implements RiskActionStrategy {
     public Transaction execute(Transaction tx) {
         System.out.println("🟠 THỰC THI: BASIC_FACE_ACTION (MEDIUM_2: PIN -> FACE)");
         
-        // 🚀 LÔ CỐT ĐÃ ĐƯỢC DỰNG LÊN TẠI ĐÂY:
+        //   LÔ CỐT ĐÃ ĐƯỢC DỰNG LÊN TẠI ĐÂY:
         User user = tx.getFromAccount().getUser();
         String registeredImage = user.getBase64FaceImage(); 
         if (registeredImage == null || registeredImage.trim().isEmpty()) {

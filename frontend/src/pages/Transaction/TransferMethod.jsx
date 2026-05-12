@@ -257,7 +257,6 @@
 //     </div>
 //   );
 // }
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axiosClient from '../../api/axiosClient';
@@ -270,7 +269,7 @@ export default function TransferMethod() {
   const [recentRecipients, setRecentRecipients] = useState([]);
   const [favorites, setFavorites] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState('');
   const [showScanner, setShowScanner] = useState(false);
 
   useEffect(() => {
@@ -289,12 +288,12 @@ export default function TransferMethod() {
     try {
       const [recentRes, favoriteRes] = await Promise.all([
         axiosClient.get(`/transactions/recent-recipients/${userId}`),
-        axiosClient.get(`/users/${userId}/contacts`)
+        axiosClient.get(`/users/${userId}/contacts`),
       ]);
       setRecentRecipients(recentRes.data);
       setFavorites(favoriteRes.data);
     } catch (error) {
-      console.error("Lỗi load dữ liệu:", error);
+      console.error('Lỗi load dữ liệu:', error);
     } finally {
       setLoading(false);
     }
@@ -305,72 +304,129 @@ export default function TransferMethod() {
   };
 
   const handleQRSuccess = (decodedText) => {
-    if (decodedText && decodedText.startsWith("FINRISK|")) {
-      const parts = decodedText.split("|");
+    if (decodedText && decodedText.startsWith('FINRISK|')) {
+      const parts = decodedText.split('|');
       const accountNumber = parts[1];
       setShowScanner(false);
-      toast.success("✅ Đã nhận diện mã QR thành công!");
+      toast.success('✅ Đã nhận diện mã QR thành công!');
       handleQuickTransfer(accountNumber);
     } else {
-      toast.error("❌ Mã QR không hợp lệ hoặc không thuộc hệ thống FinRisk!");
+      toast.error('❌ Mã QR không hợp lệ hoặc không thuộc hệ thống FinRisk!');
     }
   };
 
-  const filteredRecent = recentRecipients.filter(person =>
-    person.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    person.accountNumber.includes(searchTerm)
+  const filteredRecent = recentRecipients.filter(
+    (person) =>
+      person.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      person.accountNumber.includes(searchTerm)
   );
 
-  const filteredFavorites = favorites.filter(contact =>
-    contact.contactName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    contact.contactAccountNumber.includes(searchTerm)
+  const filteredFavorites = favorites.filter(
+    (contact) =>
+      contact.contactName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      contact.contactAccountNumber.includes(searchTerm)
   );
 
   return (
-    <div className="min-h-screen bg-[#f4f6f9]">
-      <div className="max-w-2xl mx-auto">
+    <div className="min-h-screen relative" style={{ background: '#f0f2f6' }}>
+    {/* ── HEADER NAVY ── */}
+      <div 
+        style={{ 
+          background: '#0d1b2a', 
+          borderRadius: '0 0 2rem 2rem',  
+          padding: ' 0px 24px 0px'    
+        }}
+      >
+        <div 
+          className="max-w-2xl mx-auto relative flex items-center justify-center" 
+          style={{ height: 80 }}  
+        >
+          {/* Nút quay lại - Vị trí absolute để không làm lệch tiêu đề */}
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="absolute left-0 flex items-center justify-center transition-all"
+            style={{
+              width: 38, 
+              height: 38,
+              background: 'rgba(255,255,255,0.08)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: 10,
+              cursor: 'pointer',
+            }}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="rgba(255,255,255,0.8)" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
 
-        {/* ── Topbar: navy shell ── */}
-        <nav className="bg-[#1e2d40] px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate('/dashboard')}
-              className="p-2 text-white/40 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+          {/* Cụm tiêu đề căn giữa - Đồng bộ cỡ chữ và màu sắc */}
+          <div className="text-center">
+            <h1
+              className="font-black leading-none "  
+              style={{ 
+                fontSize: '22px',  
+                color: 'white', 
+                letterSpacing: '-0.3px' 
+              }}
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-            <div>
-              <p className="text-white font-semibold text-sm">Chuyển tiền</p>
-              <p className="text-white/40 text-[10px]">Chọn hình thức giao dịch</p>
-            </div>
+              Chuyển tiền
+            </h1>
+            <p
+              className="font-bold text-xs mt-1.5"
+              style={{ color: 'rgba(255,255,255,0.38)' }}
+            >
+              Tạo lệnh giao dịch an toàn
+            </p>
           </div>
-          <div className="w-8 h-8 bg-white/10 border border-white/15 rounded-lg flex items-center justify-center text-white font-bold text-sm">
-            F
-          </div>
-        </nav>
-
-        <div className="p-6 space-y-6">
-
-          {/* ── Search bar ── */}
-          <div className="relative group">
-            <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-gray-300 group-focus-within:text-[#1e2d40] transition-colors">
+        </div>
+      </div>
+      {/* ── BODY ── */}
+      <div className="max-w-2xl mx-auto px-5 py-6">
+        <div className="relative mb-6 flex justify-center"> 
+          <div className="relative w-full max-w-[450px]"> 
+            
+            {/* Icon Kính lúp */}
+            <div
+              className="absolute inset-y-0 left-4 flex items-center pointer-events-none"
+              style={{ color: '#94a3b8' }} 
+            >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
+
+            {/* Input chính */}
             <input
               type="text"
-              placeholder="Tìm tên hoặc số tài khoản..."
+              placeholder="Tìm tên hoặc STK..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-11 pr-10 py-3 bg-white border border-gray-100 rounded-xl text-sm font-medium text-gray-700 placeholder-gray-300 focus:outline-none focus:border-[#1e2d40] focus:bg-white transition-all"
+              // Thêm hiệu ứng focus vào className (nếu dùng Tailwind)
+              className="w-full outline-none font-bold text-xs transition-all focus:border-blue-400 focus:ring-1 focus:ring-blue-100" 
+              style={{
+                paddingLeft: 40, 
+                paddingRight: searchTerm ? 40 : 16,
+                paddingTop: 12, 
+                paddingBottom: 12, 
+                background: 'white',  
+                border: '1px solid #e2e8f0',  
+                borderRadius: 14,
+                color: '#1e293b',  
+                boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)'  
+              }}
             />
+
+            {/* Nút Clear - Đã sửa lại màu để nổi trên nền trắng */}
             {searchTerm && (
               <button
-                onClick={() => setSearchTerm("")}
-                className="absolute inset-y-0 right-4 flex items-center text-gray-300 hover:text-gray-500 transition-colors"
+                onClick={() => setSearchTerm('')}
+                className="absolute inset-y-0 right-4 flex items-center transition-opacity hover:opacity-70"
+                style={{ 
+                  color: '#94a3b8',  
+                  background: 'none', 
+                  border: 'none', 
+                  cursor: 'pointer' 
+                }}
               >
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
@@ -378,164 +434,133 @@ export default function TransferMethod() {
               </button>
             )}
           </div>
+        </div>
+        {/* 1. PHƯƠNG THỨC CHUYỂN */}
+        <p
+          className="font-black text-[10px] uppercase mb-3"
+          style={{ color: '#94a3b8', letterSpacing: '0.12em' }}
+        >
+          Phương thức chuyển
+        </p>
+        <div className="grid grid-cols-3 gap-3 mb-7">
 
-          {/* ── 1. Hình thức chuyển tiền ── */}
-          <div>
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3">
-              Hình thức
+          {/* Tài khoản */}
+          <MethodCard
+            onClick={() => navigate('/transfer/stk')}
+            bg="#0d1b2a"
+            accentBg="rgba(26,86,219,0.25)"
+            accentColor="#93b4f8"
+            tag="Đến số"
+            label="Tài khoản"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+            </svg>
+          </MethodCard>
+
+          {/* Thẻ */}
+          <MethodCard
+            bg="#1a56db"
+            accentBg="rgba(255,255,255,0.15)"
+            accentColor="rgba(255,255,255,0.9)"
+            tag="Đến số"
+            label="Thẻ ngân hàng"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+            </svg>
+          </MethodCard>
+
+          {/* QR Code */}
+          <MethodCard
+            onClick={() => setShowScanner(true)}
+            bg="#0f6e56"
+            accentBg="rgba(255,255,255,0.15)"
+            accentColor="rgba(255,255,255,0.9)"
+            tag="Quét mã"
+            label="QR Code"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+            </svg>
+          </MethodCard>
+        </div>
+
+        {/* 2. GIAO DỊCH GẦN ĐÂY */}
+        <div className="mb-7">
+          <p
+            className="font-black text-[10px] uppercase mb-4"
+            style={{ color: '#94a3b8', letterSpacing: '0.12em' }}
+          >
+            Giao dịch gần đây
+          </p>
+          <div className="flex gap-5 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
+            {filteredRecent.length > 0 ? (
+              filteredRecent.map((person, idx) => (
+                <RecentAvatar
+                  key={idx}
+                  name={person.fullName}
+                  onClick={() => handleQuickTransfer(person.accountNumber)}
+                />
+              ))
+            ) : (
+              <p className="text-sm italic" style={{ color: '#94a3b8' }}>Chưa có giao dịch gần đây</p>
+            )}
+          </div>
+        </div>
+
+        {/* 3. DANH BẠ YÊU THÍCH */}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <p
+              className="font-black text-[10px] uppercase"
+              style={{ color: '#94a3b8', letterSpacing: '0.12em' }}
+            >
+              Danh bạ yêu thích
             </p>
-            <div className="grid grid-cols-3 gap-3">
-
-              {/* Tài khoản — navy primary */}
-              <button
-                onClick={() => navigate('/transfer/stk')}
-                className="bg-[#1e2d40] hover:bg-[#162233] p-5 rounded-xl text-left transition-all group active:scale-[0.98]"
-              >
-                <div className="w-10 h-10 bg-white/10 border border-white/15 rounded-xl flex items-center justify-center mb-3">
-                  <svg className="w-5 h-5 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                  </svg>
-                </div>
-                <p className="text-[10px] font-semibold text-white/40 uppercase tracking-widest leading-none mb-1">Đến số</p>
-                <p className="text-sm font-semibold text-white">Tài khoản</p>
-              </button>
-
-              {/* Thẻ — white card, disabled feel */}
-              <button
-                disabled
-                className="bg-white border border-gray-100 p-5 rounded-xl text-left opacity-50 cursor-not-allowed"
-              >
-                <div className="w-10 h-10 bg-[#f4f6f9] rounded-xl flex items-center justify-center mb-3">
-                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                  </svg>
-                </div>
-                <p className="text-[10px] font-semibold text-gray-300 uppercase tracking-widest leading-none mb-1">Đến số</p>
-                <p className="text-sm font-semibold text-gray-400">Thẻ</p>
-              </button>
-
-              {/* QR — blue accent */}
-              <button
-                onClick={() => setShowScanner(true)}
-                className="bg-white border border-gray-100 hover:border-blue-200 hover:bg-blue-50/50 p-5 rounded-xl text-left transition-all group active:scale-[0.98]"
-              >
-                <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center mb-3 group-hover:bg-blue-600 transition-all">
-                  <svg className="w-5 h-5 text-blue-600 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-                  </svg>
-                </div>
-                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest leading-none mb-1">Quét mã</p>
-                <p className="text-sm font-semibold text-gray-700">QR Code</p>
-              </button>
-
-            </div>
+            <button
+              className="font-black text-[10px] uppercase transition-colors"
+              style={{ color: '#1a56db', background: 'none', border: 'none', cursor: 'pointer', letterSpacing: '0.08em' }}
+            >
+              + Thêm mới
+            </button>
           </div>
 
-          {/* ── 2. Giao dịch gần đây ── */}
-          <div>
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3">
-              Giao dịch gần đây
-            </p>
-            <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-              {filteredRecent.length > 0 ? (
-                filteredRecent.map((person, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => handleQuickTransfer(person.accountNumber)}
-                    className="flex flex-col items-center flex-shrink-0 gap-2 group"
-                  >
-                    <div className="w-14 h-14 bg-white border border-gray-100 rounded-full flex items-center justify-center text-base font-bold text-gray-600 group-hover:bg-[#1e2d40] group-hover:text-white group-hover:border-[#1e2d40] transition-all">
-                      {person.fullName.charAt(0)}
-                    </div>
-                    <span className="text-[11px] font-medium text-gray-500 w-16 truncate text-center">
-                      {person.fullName}
-                    </span>
-                  </button>
-                ))
-              ) : (
-                <p className="text-gray-300 text-xs italic">Chưa có giao dịch gần đây</p>
-              )}
-            </div>
+          <div className="flex flex-col gap-3">
+            {filteredFavorites.length > 0 ? (
+              filteredFavorites.map((contact) => (
+                <ContactRow
+                  key={contact.id}
+                  contact={contact}
+                  onClick={() => handleQuickTransfer(contact.contactAccountNumber)}
+                />
+              ))
+            ) : (
+              <div
+                className="text-center py-8"
+                style={{
+                  background: 'white',
+                  borderRadius: 20,
+                  border: '2px dashed #e2e8f0',
+                }}
+              >
+                <p className="text-sm font-bold" style={{ color: '#94a3b8' }}>Danh bạ trống</p>
+              </div>
+            )}
           </div>
-
-          {/* ── 3. Danh bạ yêu thích ── */}
-          <div>
-            <div className="flex justify-between items-center mb-3">
-              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">
-                Danh bạ yêu thích
-              </p>
-              <button className="text-[10px] font-semibold text-blue-600 hover:text-blue-700 uppercase tracking-widest transition-colors">
-                + Thêm mới
-              </button>
-            </div>
-
-            <div className="space-y-2">
-              {filteredFavorites.length > 0 ? (
-                filteredFavorites.map((contact) => (
-                  <button
-                    key={contact.id}
-                    onClick={() => handleQuickTransfer(contact.contactAccountNumber)}
-                    className="w-full bg-white border border-gray-100 hover:border-[#1e2d40] rounded-xl p-4 flex items-center justify-between transition-all group hover:shadow-sm"
-                  >
-                    {/* Avatar + tên */}
-                    <div className="flex items-center gap-3">
-                      <div className="relative flex-shrink-0">
-                        <div className="w-11 h-11 bg-[#f4f6f9] text-gray-600 rounded-xl flex items-center justify-center font-semibold text-base group-hover:bg-[#1e2d40] group-hover:text-white transition-all">
-                          {contact.contactName.charAt(0)}
-                        </div>
-                        {contact.pinned && (
-                          <div className="absolute -top-1 -right-1 bg-amber-400 p-1 rounded-md border border-white">
-                            <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
-                              <path d="M10 12h5l-5 5V12z" />
-                              <path fillRule="evenodd" d="M3 5a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2h-2.22l.123.489.804.804A1 1 0 0113 18H7a1 1 0 01-.707-1.707l.804-.804L7.22 15H5a2 2 0 01-2-2V5zm2 0v8h10V5H5z" clipRule="evenodd" />
-                            </svg>
-                          </div>
-                        )}
-                      </div>
-                      <div className="text-left">
-                        <p className="text-sm font-semibold text-gray-800 group-hover:text-[#1e2d40] transition-colors">
-                          {contact.contactName}
-                        </p>
-                        <p className="text-xs font-mono text-gray-400 tracking-wide">
-                          {contact.contactAccountNumber}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Giao dịch cuối */}
-                    <div className="flex items-center gap-3">
-                      {contact.lastAmount ? (
-                        // Green badge = safe/success — đúng semantic
-                        <div className="bg-[#dcfce7] px-3 py-1.5 rounded-lg">
-                          <p className="text-[9px] font-semibold text-green-600 uppercase leading-none mb-0.5">Giao dịch cuối</p>
-                          <p className="text-xs font-bold text-green-700 leading-none">
-                            {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(contact.lastAmount)}
-                          </p>
-                        </div>
-                      ) : (
-                        <span className="text-[10px] text-gray-300 italic">Chưa có lịch sử</span>
-                      )}
-                      <svg className="w-4 h-4 text-gray-300 group-hover:text-[#1e2d40] transition-colors flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
-                      </svg>
-                    </div>
-                  </button>
-                ))
-              ) : (
-                <div className="text-center py-8 bg-white border border-dashed border-gray-200 rounded-xl">
-                  <p className="text-xs font-medium text-gray-300">Danh bạ trống</p>
-                </div>
-              )}
-            </div>
-          </div>
-
         </div>
       </div>
 
-      {/* ── QR Scanner modal ── */}
+      {/* ── QR SCANNER MODAL ── */}
       {showScanner && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#1e2d40]/80 backdrop-blur-sm px-4">
-          <div className="bg-white w-full max-w-md rounded-2xl p-2 shadow-2xl">
+        <div
+          className="fixed inset-0 flex items-center justify-center px-4"
+          style={{ zIndex: 100, background: 'rgba(13,27,42,0.75)', backdropFilter: 'blur(4px)' }}
+        >
+          <div
+            className="w-full"
+            style={{ maxWidth: 440, background: 'white', borderRadius: '2rem', padding: 8 }}
+          >
             <QRCodeScanner
               onScanSuccess={handleQRSuccess}
               onScanCancel={() => setShowScanner(false)}
@@ -543,7 +568,198 @@ export default function TransferMethod() {
           </div>
         </div>
       )}
-
     </div>
+  );
+}
+
+/* ── MethodCard ── */
+function MethodCard({ onClick, bg, accentBg, accentColor, tag, label, children }) {
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className="text-left transition-all"
+      style={{
+        background: bg,
+        borderRadius: '1.5rem',
+        padding: '20px 16px',
+        border: 'none',
+        cursor: onClick ? 'pointer' : 'default',
+        transform: hovered && onClick ? 'translateY(-4px)' : 'none',
+        opacity: onClick ? 1 : 0.7,
+      }}
+    >
+      <div
+        className="flex items-center justify-center mb-4"
+        style={{
+          width: 42, height: 42,
+          background: accentBg,
+          borderRadius: 12,
+          color: accentColor,
+        }}
+      >
+        {children}
+      </div>
+      <p
+        className="font-black text-[9px] uppercase mb-1"
+        style={{ color: 'rgba(255,255,255,0.5)', letterSpacing: '0.1em' }}
+      >
+        {tag}
+      </p>
+      <p
+        className="font-black text-sm leading-tight"
+        style={{ color: 'white' }}
+      >
+        {label}
+      </p>
+    </button>
+  );
+}
+
+/* ── RecentAvatar ── */
+function RecentAvatar({ name, onClick }) {
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className="flex flex-col items-center flex-shrink-0 transition-all"
+      style={{ background: 'none', border: 'none', cursor: 'pointer', gap: 10 }}
+    >
+      <div
+        className="flex items-center justify-center font-black text-lg transition-all"
+        style={{
+          width: 56, height: 56,
+          borderRadius: '50%',
+          background: hovered ? '#0d1b2a' : 'white',
+          color: hovered ? 'white' : '#1a56db',
+          border: hovered ? '2px solid #0d1b2a' : '2px solid #e2e8f0',
+        }}
+      >
+        {name.charAt(0)}
+      </div>
+      <span
+        className="font-bold text-center"
+        style={{ fontSize: 11, color: '#64748b', width: 68, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+      >
+        {name}
+      </span>
+    </button>
+  );
+}
+
+/* ── ContactRow ── */
+function ContactRow({ contact, onClick }) {
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className="w-full flex items-center justify-between transition-all text-left"
+      style={{
+        background: 'white',
+        borderRadius: 20,
+        padding: '16px 18px',
+        border: hovered ? '1px solid #0d1b2a' : '1px solid #e8ecf2',
+        cursor: 'pointer',
+      }}
+    >
+      {/* Avatar + info */}
+      <div className="flex items-center gap-3" style={{ minWidth: 0, flex: 1 }}>
+        <div style={{ position: 'relative', flexShrink: 0 }}>
+          <div
+            className="flex items-center justify-center font-black text-base transition-all"
+            style={{
+              width: 44, height: 44,
+              borderRadius: 13,
+              background: hovered ? '#0d1b2a' : '#e8f0fd',
+              color: hovered ? 'white' : '#1a56db',
+            }}
+          >
+            {contact.contactName.charAt(0)}
+          </div>
+          {contact.pinned && (
+            <div
+              className="absolute flex items-center justify-center"
+              style={{
+                width: 16, height: 16,
+                background: '#f59e0b',
+                borderRadius: 5,
+                top: -4, right: -4,
+                border: '1.5px solid white',
+              }}
+            >
+              <svg className="w-2 h-2" fill="white" viewBox="0 0 20 20">
+                <path d="M10 12h5l-5 5V12z" /><path fillRule="evenodd" d="M3 5a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2h-2.22l.123.489.804.804A1 1 0 0113 18H7a1 1 0 01-.707-1.707l.804-.804L7.22 15H5a2 2 0 01-2-2V5zm2 0v8h10V5H5z" clipRule="evenodd" />
+              </svg>
+            </div>
+          )}
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <p
+            className="font-black text-sm truncate transition-colors"
+            style={{ color: hovered ? '#0d1b2a' : '#1e293b' }}
+          >
+            {contact.contactName}
+          </p>
+          <p
+            className="font-mono text-xs mt-0.5"
+            style={{ color: '#94a3b8', letterSpacing: '0.04em' }}
+          >
+            {contact.contactAccountNumber}
+          </p>
+        </div>
+      </div>
+
+      {/* Last amount badge */}
+      <div className="flex items-center gap-3 flex-shrink-0 ml-3">
+        {contact.lastAmount ? (
+          <div
+            className="flex items-center gap-2 px-3 py-2"
+            style={{
+              background: '#ecfdf5',
+              borderRadius: 10,
+              border: '1px solid #d1fae5',
+            }}
+          >
+            <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981' }} />
+            <div>
+              <p
+                className="font-black text-[8px] uppercase leading-none mb-0.5"
+                style={{ color: '#6ee7b7', letterSpacing: '0.08em' }}
+              >
+                GD cuối
+              </p>
+              <p
+                className="font-black text-xs leading-none"
+                style={{ color: '#065f46' }}
+              >
+                {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(contact.lastAmount)}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <span
+            className="font-bold text-[10px] italic"
+            style={{ color: '#cbd5e1' }}
+          >
+            Chưa có lịch sử
+          </span>
+        )}
+        <svg
+          className="w-4 h-4 transition-colors"
+          fill="none" stroke={hovered ? '#1a56db' : '#cbd5e1'} strokeWidth="2.5" viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+        </svg>
+      </div>
+    </button>
   );
 }

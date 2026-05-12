@@ -36,7 +36,7 @@ def verify_single(img1, img2, backend):
             img1_path=img1,
             img2_path=img2,
             model_name="ArcFace",
-            enforce_detection=False,
+            enforce_detection=True,
             detector_backend=backend,
             distance_metric="cosine"
         )
@@ -85,7 +85,7 @@ async def verify_face(request: FaceVerificationRequest):
 
         # ── THAY ĐỔI 2: Threshold nới lên 0.55 (chuẩn ArcFace cosine là 0.68) ──
         # 0.55 vẫn chặt hơn chuẩn nhưng chấp nhận được góc nghiêng nhẹ
-        THRESHOLD = 0.55
+        THRESHOLD = 0.45
 
         is_match = distance <= THRESHOLD
 
