@@ -92,8 +92,8 @@ export default function OTPVerification() {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-slate-50 flex justify-center items-center p-4">
+return (
+    <div className="w-full min-h-screen flex justify-center items-center p-4">
       <div className="w-full max-w-md bg-white p-10 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.1)] border border-gray-100 text-center relative overflow-hidden">
         
         {/* Thanh loading mỏng chạy ở trên cùng nếu đang xử lý */}

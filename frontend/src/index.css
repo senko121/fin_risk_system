@@ -1,3 +1,37 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+/* Thêm vào cuối file index.css */
+@keyframes shimmer {
+  0% {
+    background-position: -400px 0;
+  }
+  100% {
+    background-position: 400px 0;
+  }
+}
+
+.skeleton-shimmer {
+  background-color: #f1f5f9; /* Màu nền xám cực nhạt, dịu mắt */
+  background-image: linear-gradient(
+    90deg,
+    #f1f5f9 0px,
+    #ffffff 40px,
+    #f1f5f9 80px
+  );
+  background-size: 400px 100%;
+  background-repeat: no-repeat;
+  animation: shimmer 1.5s infinite linear;
+}
+
+.hide-scrollbar {
+  /* Dành cho Firefox */
+  scrollbar-width: none;
+  /* Dành cho Internet Explorer và Edge cũ */
+  -ms-overflow-style: none;
+}
+
+/* Dành cho Chrome, Safari và Opera (Webkit) */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}

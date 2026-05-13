@@ -205,7 +205,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f4f6f9] flex items-center justify-center p-4">
+    <div className="min-h-screen w-full flex items-center justify-center p-4">
       <div className="w-full max-w-3xl flex rounded-2xl overflow-hidden shadow-lg">
 
         {/* ── CỘT TRÁI: Navy hero panel ── */}

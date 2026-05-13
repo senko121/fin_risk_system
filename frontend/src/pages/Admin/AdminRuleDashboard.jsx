@@ -446,7 +446,7 @@ export default function AdminRuleDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-8 pb-16">
+    <div className="w-full p-8 pb-16">
       <div className="max-w-6xl mx-auto">
         
       {/* HEADER */}

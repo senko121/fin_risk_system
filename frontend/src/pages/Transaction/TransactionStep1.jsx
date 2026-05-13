@@ -291,6 +291,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import axiosClient from '../../api/axiosClient';
 import PinModal from '../../components/PinModal';
+import { useHeaderOverride } from '../../context/HeaderContext';
 
 export default function TransactionStep1() {
   const navigate = useNavigate();
@@ -315,6 +316,8 @@ export default function TransactionStep1() {
     if (!val) return '';
     return new Intl.NumberFormat('vi-VN').format(val);
   };
+
+  useHeaderOverride('Chuyển tiền', 'Tạo lệnh giao dịch an toàn', () => navigate('/transfer'));
 
   useEffect(() => {
     const userStr = localStorage.getItem('currentUser');
@@ -421,51 +424,7 @@ export default function TransactionStep1() {
   const canSubmit = !isLoading && !!recipientName && !showPinModal;
 
 return (
-    <div className="min-h-screen relative" style={{ background: '#f0f2f6' }}>
-
-      {/* ── HEADER NAVY (Đã căn giữa tiêu đề) ── */}
-      <div
-        style={{
-          background: '#0d1b2a',
-          borderRadius: '0 0 2rem 2rem',
-          padding: '40 24px 60px',  
-        }}
-      >
-        <div className="max-w-2xl mx-auto relative flex items-center justify-center" style={{ height: 80 }}>
-          {/* Nút quay lại để absolute để tiêu đề căn giữa tuyệt đối */}
-          <button
-            onClick={() => navigate('/transfer')}
-            className="absolute left-0 flex items-center justify-center transition-all"
-            style={{
-              width: 38, height: 38,
-              background: 'rgba(255,255,255,0.08)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: 10,
-              cursor: 'pointer',
-            }}
-          >
-            <svg className="w-5 h-5" fill="none" stroke="rgba(255,255,255,0.8)" strokeWidth="2.5" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-
-          {/* Cụm tiêu đề căn giữa */}
-          <div className="text-center">
-            <h1
-              className="font-black leading-none"
-              style={{ fontSize: 22, color: 'white', letterSpacing: '-0.3px' }}
-            >
-              Chuyển tiền
-            </h1>
-            <p
-              className="font-bold text-xs mt-1.5"
-              style={{ color: 'rgba(255,255,255,0.38)' }}
-            >
-              Tạo lệnh giao dịch an toàn
-            </p>
-          </div>
-        </div>
-      </div>
+    <div className="w-full relative pb-10">
 
       {/* ── FORM BODY ── */}
       <div className="max-w-2xl mx-auto px-5 py-6" style={{ marginTop: '-5px' }}> {/* Kéo lên một chút để gối lên header */}
