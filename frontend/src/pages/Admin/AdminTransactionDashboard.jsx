@@ -3,6 +3,8 @@ import axiosClient from '../../api/axiosClient';
 import { toast } from 'react-toastify';
 import { Link } from 'react-router-dom';
 
+import AdminTransactionDetailModal from '../../components/AdminTransactionDetailModal';
+
 export default function AdminTransactionDashboard() {
   const [transactions, setTransactions] = useState([]);
   
@@ -16,6 +18,7 @@ export default function AdminTransactionDashboard() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [riskLevel, setRiskLevel] = useState('');
+  const [selectedTransaction, setSelectedTransaction] = useState(null);
 
   // Hàm gọi API lấy danh sách giao dịch
   const fetchTransactions = async (pageNumber, isReset = false) => {
@@ -211,10 +214,13 @@ export default function AdminTransactionDashboard() {
 
                     {/* Cột Người Nhận */}
                     <td className="px-5 py-4">
-                      <div className="flex flex-col">
-                        <span className="font-bold text-slate-700 text-sm">{t.toBankCode}</span>
+                    <div className="flex flex-col">
+                        {/* 🚀 THAY ĐỔI TẠI ĐÂY: Hiển thị tên người nhận từ trường mới */}
+                        <span className="font-bold text-slate-700 text-sm">
+                        {t.recipientFullName || 'Người nhận ngoài hệ thống'}
+                        </span>
                         <span className="text-xs font-mono text-slate-500">{t.toAccountNumber}</span>
-                      </div>
+                    </div>
                     </td>
 
                     {/* Cột Số tiền */}
@@ -240,11 +246,26 @@ export default function AdminTransactionDashboard() {
                       )}
                     </td>
 
-                    {/* Cột Rủi ro & AI (Đã xóa phần cảm xúc ở đây) */}
-                    <td className="px-5 py-4 text-center">
-                      <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm ${getRiskColor(t.riskLevel)}`}>
-                        {t.riskLevel || 'LOW'} ({t.totalRiskScore}đ)
-                      </span>
+                    {/* Cột Rủi ro & AI (Đã tách Icon con mắt) */}
+                    <td className="px-5 py-4">
+                      <div className="flex items-center justify-center gap-2">
+                        {/* Thẻ hiển thị bình thường (Không click được) */}
+                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm ${getRiskColor(t.riskLevel)}`}>
+                          {t.riskLevel || 'LOW'} ({t.totalRiskScore}đ)
+                        </span>
+                        
+                        {/* Nút con mắt để xem chi tiết */}
+                        <button 
+                          onClick={() => setSelectedTransaction(t)}
+                          className="p-1.5 bg-slate-100 text-slate-500 hover:bg-blue-100 hover:text-blue-600 rounded-lg transition-all shadow-sm border border-slate-200 hover:border-blue-200"
+                          title="Xem chi tiết luật vi phạm"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                          </svg>
+                        </button>
+                      </div>
                     </td>
                     
                   </tr>
@@ -279,6 +300,13 @@ export default function AdminTransactionDashboard() {
 
         </div>
       </div>
+      {/* Render Modal */}
+        <AdminTransactionDetailModal 
+          isOpen={!!selectedTransaction} 
+          onClose={() => setSelectedTransaction(null)} 
+          transaction={selectedTransaction} 
+          formatMoney={formatMoney} 
+        />
     </div>
   );
 }

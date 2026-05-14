@@ -1,20 +1,19 @@
 package com.datn.finrisk.core.services;
 
 import com.datn.finrisk.application.dtos.AdminTransactionDTO;
+import com.datn.finrisk.core.entities.RiskScore;
 import com.datn.finrisk.core.entities.Transaction;
+import com.datn.finrisk.core.repository.RiskScoreRepository;
 import com.datn.finrisk.core.repository.TransactionRepository;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class AdminTransactionService {
@@ -22,77 +21,113 @@ public class AdminTransactionService {
     @Autowired
     private TransactionRepository transactionRepository;
 
-    public Page<AdminTransactionDTO> getTransactions(int page, int size, String search, String status, String riskLevel) {
-        // Mặc định sắp xếp giao dịch mới nhất lên đầu
+    @Autowired
+    private RiskScoreRepository riskScoreRepository;
+
+    public Page<AdminTransactionDTO> getTransactions(
+            int page, int size,
+            String search, String status, String riskLevel) {
+
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
 
-        //   BỘ BUILDER LỌC ĐỘNG (DYNAMIC SPECIFICATION)
+        // ================================================================
+        // QUERY 1: Load transactions + Account + User (to-one ONLY)
+        // ✅ KHÔNG fetch riskScores ở đây → tránh HHH90003004
+        // ================================================================
         Specification<Transaction> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
-            // Tối ưu hóa: JOIN FETCH nối từ Transaction -> Account -> User
             if (query.getResultType() != Long.class && query.getResultType() != long.class) {
                 root.fetch("fromAccount", JoinType.LEFT)
-                    .fetch("user", JoinType.LEFT); //   Nối thêm bảng User vào để lấy tên
+                    .fetch("user", JoinType.LEFT);
+                query.distinct(true);
             }
 
-            // 1. Lọc theo trạng thái (VD: PENDING, SUCCESS)
-            if (status != null && !status.isEmpty()) {
+            if (status != null && !status.isBlank())
                 predicates.add(cb.equal(root.get("status"), status));
-            }
-
-            // 2. Lọc theo mức độ rủi ro (VD: HIGH, MEDIUM_2)
-            if (riskLevel != null && !riskLevel.isEmpty()) {
+            if (riskLevel != null && !riskLevel.isBlank())
                 predicates.add(cb.equal(root.get("riskLevel"), riskLevel));
-            }
-
-            // 3. Tìm kiếm tự do (Gõ số tài khoản hoặc IP đều tìm được)
-            if (search != null && !search.isEmpty()) {
-                String likePattern = "%" + search + "%";
-                Predicate toAcc = cb.like(root.get("toAccountNumber"), likePattern);
-                Predicate ip = cb.like(root.get("locationIp"), likePattern);
-                // Tìm cả trong số tài khoản của người gửi (nằm ở bảng Account)
-                Predicate fromAcc = cb.like(root.get("fromAccount").get("accountNumber"), likePattern);
-                
-                predicates.add(cb.or(toAcc, ip, fromAcc));
+            if (search != null && !search.isBlank()) {
+                String like = "%" + search + "%";
+                predicates.add(cb.or(
+                    cb.like(root.get("toAccountNumber"), like),
+                    cb.like(root.get("locationIp"), like),
+                    cb.like(root.get("fromAccount").get("accountNumber"), like)
+                ));
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));
         };
 
-        // Gọi DB đúng 1 lần (hoặc 2 lần vì có query Count của Page), tự động ép điều kiện
-        Page<Transaction> transactionPage = transactionRepository.findAll(spec, pageable);
+        Page<Transaction> txPage = transactionRepository.findAll(spec, pageable);
+        List<Transaction> txList = txPage.getContent();
 
-        // Chuyển đổi Entity sang DTO để trả về
-        return transactionPage.map(this::mapToDTO);
+        if (txList.isEmpty()) {
+            return Page.empty(pageable);
+        }
+
+        // ================================================================
+        // QUERY 2: Batch load recipient names (1 query cho cả page)
+        // ================================================================
+        List<String> toAccNums = txList.stream()
+            .map(Transaction::getToAccountNumber)
+            .filter(Objects::nonNull)
+            .distinct()
+            .collect(Collectors.toList());
+
+        Map<String, String> recipientMap = new HashMap<>();
+        if (!toAccNums.isEmpty()) {
+            transactionRepository.findRecipientNamesBulk(toAccNums)
+                .forEach(row -> recipientMap.put((String) row[0], (String) row[1]));
+        }
+
+        // ================================================================
+        // QUERY 3: Batch load RiskScores + Rule (1 query cho cả page)
+        // ✅ Thay thế N lần gọi findByTransactionId()
+        // ================================================================
+        List<Long> txIds = txList.stream()
+            .map(Transaction::getId)
+            .collect(Collectors.toList());
+
+        Map<Long, List<RiskScore>> riskScoreMap = riskScoreRepository
+            .findByTransactionIdInWithRule(txIds)
+            .stream()
+            .collect(Collectors.groupingBy(rs -> rs.getTransaction().getId()));
+
+        // ================================================================
+        // MAP sang DTO (KHÔNG gọi DB thêm nữa)
+        // ================================================================
+        return txPage.map(t -> mapToDTO(t, recipientMap, riskScoreMap));
     }
 
-    private AdminTransactionDTO mapToDTO(Transaction t) {
+    private AdminTransactionDTO mapToDTO(
+            Transaction t,
+            Map<String, String> recipientMap,
+            Map<Long, List<RiskScore>> riskScoreMap) {
+
         AdminTransactionDTO dto = new AdminTransactionDTO();
         dto.setId(t.getId());
-        
-        // Map dữ liệu Người gửi (Tránh lỗi NullPointerException)
+
+        // Sender info - đã fetch join, 0 query
         if (t.getFromAccount() != null) {
             dto.setSenderAccountNumber(t.getFromAccount().getAccountNumber());
-            
             if (t.getFromAccount().getUser() != null) {
                 dto.setSenderFullName(t.getFromAccount().getUser().getFullName());
                 dto.setSenderUsername(t.getFromAccount().getUser().getUsername());
                 dto.setSenderSuspicious(t.getFromAccount().getUser().isSuspiciousSession());
             }
         }
-        
-        // Map dữ liệu Người nhận
+
+        // Recipient info - lấy từ Map, 0 query
         dto.setToAccountNumber(t.getToAccountNumber());
         dto.setToBankCode(t.getToBankCode());
-        
-        // Map dữ liệu Tiền bạc
+        dto.setRecipientFullName(
+            recipientMap.getOrDefault(t.getToAccountNumber(), "Người nhận ngoài hệ thống")
+        );
+
+        // Basic fields
         dto.setAmount(t.getAmount());
-        // dto.setFee(t.getFee()); // Mở comment ra nếu Entity Transaction đã có fee
-        // dto.setTransactionType(t.getTransactionType()); // Mở comment nếu đã có
         dto.setDescription(t.getDescription());
-        
-        // Map bối cảnh AI và Rủi ro
         dto.setLocationIp(t.getLocationIp());
         dto.setDeviceFingerprint(t.getDeviceFingerprint());
         dto.setStatus(t.getStatus());
@@ -100,9 +135,21 @@ public class AdminTransactionService {
         dto.setTotalRiskScore(t.getTotalRiskScore());
         dto.setEmotionSignal(t.getEmotionSignal());
         dto.setFailedAiAttempts(t.getFailedAiAttempts());
-        
         dto.setCreatedAt(t.getCreatedAt());
-        
+
+        // Risk rules - lấy từ Map, 0 query
+        List<RiskScore> scores = riskScoreMap.getOrDefault(t.getId(), List.of());
+        dto.setViolatedRules(
+            scores.stream()
+                .map(rs -> {
+                    String name = rs.getRule() != null
+                        ? rs.getRule().getRuleName()
+                        : "Unknown Rule";
+                    return name + " (+" + rs.getAppliedScore() + "đ)";
+                })
+                .collect(Collectors.toList())
+        );
+
         return dto;
     }
 }

@@ -150,6 +150,48 @@ public class TransactionController {
         String username = tx.getFromAccount().getUser().getUsername();
         String currentStatus = tx.getStatus();
 
+ 
+        // 1: NHÓM TERMINAL (CHỐT SỔ) - TRẠNG THÁI TỬ
+        // Tuyệt đối không cho phép thao tác lại, tránh Double-Spend hoặc Replay Attack
+ 
+        Set<String> terminalStatuses = Set.of("SUCCESS", "FAILED", "BLOCKED", "REVERSED");
+        if (terminalStatuses.contains(currentStatus)) {
+            auditLogService.logAction(username, "ILLEGAL_ACCESS", "Cố gắng xác thực giao dịch đã đóng: " + tx.getId());
+            return ResponseEntity.status(400).body(Map.of(
+                "status", "ERROR", 
+                "message", "Giao dịch đã kết thúc (Trạng thái: " + currentStatus + "). Không thể thao tác thêm."
+            ));
+        }
+
+        //  2: NHÓM SUSPENDED (ĐÓNG BĂNG / CHỜ XỬ LÝ)
+        // Bắt user phải chờ đợi, chặn mọi nỗ lực bấm nút liên tục
+ 
+        if ("UNDER_REVIEW".equals(currentStatus)) {
+            return ResponseEntity.status(403).body(Map.of(
+                "status", "FROZEN", 
+                "message", "Giao dịch đang được tạm giữ để kiểm duyệt an toàn. Vui lòng chờ hệ thống xử lý."
+            ));
+        }
+        
+        if ("PROCESSING".equals(currentStatus)) {
+            return ResponseEntity.status(409).body(Map.of(
+                "status", "CONFLICT", 
+                "message", "Hệ thống đang xử lý trừ tiền, vui lòng không thao tác đúp."
+            ));
+        }
+
+        //  CỬA KHẨU 3: NHÓM ACTIVE (ĐANG SỐNG)
+        // Đảm bảo chỉ có các trạng thái PENDING_... mới được lọt xuống logic xác thực
+ 
+        if (currentStatus == null || !currentStatus.startsWith("PENDING_")) {
+            return ResponseEntity.status(400).body(Map.of(
+                "status", "INVALID_STATE", 
+                "message", "Trạng thái giao dịch không hợp lệ để xác thực."
+            ));
+        }
+
+        //   NẾU QUA ĐƯỢC 3 CỬA KHẨU TRÊN -> VÀO LOGIC XÁC THỰC CỦA BRO
+
         if ("PIN".equals(authType)) {
             User txUser = tx.getFromAccount().getUser();
             UserSecurity security = txUser.getUserSecurity();
@@ -160,7 +202,7 @@ public class TransactionController {
 
             // ĐIỀU HƯỚNG TẠI ĐÂY (BẺ GHI)
             if ("PENDING_PIN".equals(currentStatus)) { 
-                // 🚀 DỜI HÀM CHECK PIN VÀO TRONG NÀY
+                //   DỜI HÀM CHECK PIN VÀO TRONG NÀY
                 pinService.verifyPin(security, request.getAuthCode());
 
                 //  LUỒNG LOW: CHỐT LUÔN!
@@ -284,7 +326,7 @@ public class TransactionController {
         // TRẠM 3: QUÉT MẶT AI + CẢM XÚC 
          
         else if ("FACE_AI".equals(authType)) {
-            if ("PENDING_FACE_AI".equals(currentStatus)) {
+            if ("PENDING_ALL_IN_ONE".equals(currentStatus) || "PENDING_FACE_AI".equals(currentStatus)) {
                 boolean isSecure = faceScanActionStrategy.validateFaceAndEmotion(tx, request.getFaceFrameSequence());
                 
                 if (!isSecure) {
@@ -312,13 +354,10 @@ public class TransactionController {
                 tx.setFailedAiAttempts(0); // Reset bộ đếm cho sạch sẽ
                 tx.setStatus("PENDING_VOICE_OTP");
                 transactionRepository.save(tx);
-                
-                String voiceCode = otpService.generateVoiceOtp(tx.getId()); 
-                
+
                 return ResponseEntity.ok(Map.of(
                         "status", "NEXT_STEP", 
                         "nextAuthType", "VOICE_OTP", 
-                        "voiceCode", voiceCode,
                         "message", "Xác thực AI thành công. Vui lòng đọc Voice OTP."
                 ));
             }

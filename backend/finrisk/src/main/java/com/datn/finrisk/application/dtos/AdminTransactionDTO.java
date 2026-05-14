@@ -3,6 +3,7 @@ package com.datn.finrisk.application.dtos;
 import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 public class AdminTransactionDTO {
@@ -20,6 +21,7 @@ public class AdminTransactionDTO {
     // 2. THÔNG TIN NGƯỜI NHẬN
     // ==========================================
     private String toAccountNumber;
+    private String recipientFullName;
     private String toBankCode;          // Bổ sung: Biết là chuyển nội bộ hay liên ngân hàng
 
     // ==========================================
@@ -40,6 +42,7 @@ public class AdminTransactionDTO {
     private Integer totalRiskScore;
     private String emotionSignal;
     private Integer failedAiAttempts;   // Bổ sung: Xem user này quét mặt xịt mấy lần
+    private List<String> violatedRules;
 
     private LocalDateTime createdAt;
 }

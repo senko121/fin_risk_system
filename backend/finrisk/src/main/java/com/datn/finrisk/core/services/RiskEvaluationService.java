@@ -9,6 +9,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.datn.finrisk.application.dtos.EmotionAIResponse;
 import com.datn.finrisk.application.dtos.FaceAIResponse;
+import com.datn.finrisk.core.repository.RiskScoreRepository;
+import com.datn.finrisk.core.entities.RiskScore;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.expression.ExpressionParser;
@@ -37,12 +39,13 @@ public class RiskEvaluationService {
     @Autowired private RestTemplate restTemplate;
     @Autowired private RuleRepository ruleRepository;
     @Autowired private TransactionRepository transactionRepository;
+    @Autowired private RiskScoreRepository riskScoreRepository;
 
     
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final ExpressionParser parser = new SpelExpressionParser(); // Cỗ máy SpEL
 
-   public int evaluateRisk(Transaction transaction, boolean isNewRecipient) {
+   public int evaluateRisk(Transaction transaction, boolean isNewRecipient, List<RiskScore> pendingRiskLogs) {
         int totalRiskScore = 0;
         System.out.println("🤖 BẮT ĐẦU CHẠY RULE ENGINE DYNAMIC (SỬ DỤNG SpEL)...");
 
@@ -105,25 +108,29 @@ public class RiskEvaluationService {
         // ==========================================================
         for (Rule rule : activeRules) {
             try {
-                // Lấy thẳng chuỗi SpEL từ Database (Không cần quan tâm JSON nữa)
                 String spelExpression = rule.getSpelExpression();
                 
                 if (spelExpression != null && !spelExpression.isEmpty()) {
-                    // Cỗ máy chỉ việc nhai chuỗi SpEL và nhả kết quả True/False
                     Boolean isMatched = parser.parseExpression(spelExpression).getValue(context, Boolean.class);
                     
                     if (Boolean.TRUE.equals(isMatched)) {
                         totalRiskScore += rule.getActionScore();
-                        System.out.println("⚠️ Khớp luật: [" + rule.getRuleName() + "] -> Điểm: +" + rule.getActionScore());
+                        System.out.println("  Khớp luật: [" + rule.getRuleName() + "] -> Điểm: +" + rule.getActionScore());
+
+                        //   KHÔNG SAVE DB Ở ĐÂY NỮA! CHỈ TẠO OBJECT VÀ BỎ VÀO GIỎ
+                        RiskScore riskLog = new RiskScore();
+                        riskLog.setRule(rule);
+                        riskLog.setAppliedScore(rule.getActionScore());
+                        pendingRiskLogs.add(riskLog); // Ném vào giỏ để lát Service xử lý
                     }
                 }
             } catch (Exception e) {
                 System.err.println("Lỗi SpEL tại Rule ID " + rule.getId() + ": " + e.getMessage());
             }
         }
-        totalRiskScore = Math.max(0, totalRiskScore);
         
-        System.out.println("🎯 TỔNG ĐIỂM RỦI RO LÀ: " + totalRiskScore);
+        totalRiskScore = Math.max(0, totalRiskScore);
+        System.out.println("  TỔNG ĐIỂM RỦI RO LÀ: " + totalRiskScore);
         return totalRiskScore;
     }
 

@@ -1,18 +1,19 @@
 package com.datn.finrisk.core.repository;
 
 import com.datn.finrisk.core.entities.Transaction;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional; 
-import org.springframework.data.repository.query.Param;
-
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.stereotype.Repository;
-
+ 
 //Transaction B5 cung cấp dữ liệu thốn kê cho rule engine tín điểm bao gồm đếm sgd gần đây countRecentTransactions và tính tổng sumSuccessfulAmountToday
 //  -> Transaction B6: RickEvaluationService
 
@@ -47,6 +48,19 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long>,
     Optional<Transaction> findByIdWithUserSecurity(@Param("id") Long id);
 
  
-@Query("SELECT t FROM Transaction t WHERE t.status IN ('PENDING', 'PIN_VERIFIED') AND t.createdAt < :threshold")
-List<Transaction> findStalledTransactions(@Param("threshold") LocalDateTime threshold);
+    @Query("SELECT t FROM Transaction t WHERE t.status IN ('PENDING', 'PIN_VERIFIED') AND t.createdAt < :threshold")
+    List<Transaction> findStalledTransactions(@Param("threshold") LocalDateTime threshold);
+
+    @Transactional
+    @Modifying
+        @Query("UPDATE Transaction t SET t.emotionSignal = :emotion WHERE t.id = :id")
+        void updateEmotionSignal(@Param("id") Long id, @Param("emotion") String emotion);
+
+        //  TRUY VẤN LẤY TÊN NGƯỜI NHẬN TỪ SỐ TÀI KHOẢN
+    @Query("SELECT u.fullName FROM Account a JOIN a.user u WHERE a.accountNumber = :accNum")
+    Optional<String> findRecipientNameByAccountNumber(@Param("accNum") String accNum);
+
+    // Thêm vào TransactionRepository.java
+    @Query("SELECT a.accountNumber, u.fullName FROM Account a JOIN a.user u WHERE a.accountNumber IN :accNums")
+    List<Object[]> findRecipientNamesBulk(@Param("accNums") List<String> accNums);
 }

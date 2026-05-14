@@ -16,19 +16,28 @@ public class WebSocketConfig implements WebSocketConfigurer {
 
     @Autowired
     private LiveEmotionWebSocketHandler liveEmotionWebSocketHandler;
+    
+    @Autowired
+    private LiveVoiceWebSocketHandler liveVoiceWebSocketHandler;
 
-    @Override
-    public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        System.out.println("🔌 [WS CONFIG] Đang đăng ký handler tại /ws/emotion-stream");
-        registry.addHandler(liveEmotionWebSocketHandler, "/ws/emotion-stream")
-                .setAllowedOriginPatterns("*");  
-    }
+        @Override
+        public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
+            System.out.println("🔌 [WS CONFIG] Đang đăng ký handler tại /ws/emotion-stream");
+            registry.addHandler(liveEmotionWebSocketHandler, "/ws/emotion-stream")
+                    .setAllowedOriginPatterns("*");  
+
+            // 🔥 ĐĂNG KÝ THÊM LUỒNG VOICE BẰNG BINARY
+            System.out.println("🔌 [WS CONFIG] Đang đăng ký handler tại /ws/voice-stream");
+            registry.addHandler(liveVoiceWebSocketHandler, "/ws/voice-stream")
+                    .setAllowedOriginPatterns("*");
+        }
         @Bean
-    public ServletServerContainerFactoryBean createWebSocketContainer() {
+        public ServletServerContainerFactoryBean createWebSocketContainer() {
         ServletServerContainerFactoryBean container = new ServletServerContainerFactoryBean();
         container.setMaxTextMessageBufferSize(10 * 1024 * 1024); // 10MB
         container.setMaxBinaryMessageBufferSize(10 * 1024 * 1024); // 10MB
         container.setMaxSessionIdleTimeout(60000L); // 60s timeout
         return container;
     }
+
 }

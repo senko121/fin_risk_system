@@ -91,7 +91,7 @@ public void saveOtp(Long transactionId, String otp) {
         }
     }
 
-    /*** Verify OTP với debug*/
+/*** Verify OTP với debug*/
     public boolean verifyOtp(Long transactionId, String inputOtp) {
         String key = "otp_tx:" + transactionId;
 
@@ -108,8 +108,15 @@ public void saveOtp(Long transactionId, String otp) {
             }
 
             if (storedOtp.equals(inputOtp)) {
-                redisTemplate.delete(key);
-                System.out.println("✅ OTP MATCH → DELETE KEY");
+                // =========================================================
+                // 🚀 BÍ QUYẾT LÀ ĐÂY: KHÔNG ĐƯỢC XÓA KEY NGAY LẬP TỨC!
+                // Để phòng trường hợp WebSocket stream kết quả về nhiều lần.
+                // Redis đã có TTL 3 phút tự hủy rồi nên cứ yên tâm để đó.
+                // =========================================================
+                
+                // redisTemplate.delete(key); <--- COMMENT HOẶC XÓA DÒNG NÀY ĐI BẠN NHÉ!!!
+                
+                System.out.println("✅ OTP MATCH (Giữ nguyên Key cho các luồng stream phía sau)");
                 return true;
             }
 
@@ -121,7 +128,6 @@ public void saveOtp(Long transactionId, String otp) {
             return false;
         }
     }
-
     //  HÀM MỚI: CHỈ TẠO MÃ VOICE OTP, LƯU REDIS VÀ TRẢ VỀ CHUỖI (KHÔNG GỬI SMS)
     public String generateVoiceOtp(Long transactionId) {
         String otp = String.format("%06d", new Random().nextInt(999999));
