@@ -1,0 +1,284 @@
+import React, { useState, useEffect } from 'react';
+import axiosClient from '../../api/axiosClient';
+import { toast } from 'react-toastify';
+import { Link } from 'react-router-dom';
+
+export default function AdminTransactionDashboard() {
+  const [transactions, setTransactions] = useState([]);
+  
+  // State quản lý Phân trang (Lazy Load)
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  // State quản lý Bộ lọc (Filters)
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('');
+  const [riskLevel, setRiskLevel] = useState('');
+
+  // Hàm gọi API lấy danh sách giao dịch
+  const fetchTransactions = async (pageNumber, isReset = false) => {
+    if (pageNumber === 0) setLoading(true);
+    else setIsLoadingMore(true);
+
+    try {
+      // Dùng axios params để tự động nối chuỗi query (?page=0&size=10&status=...)
+      const res = await axiosClient.get('/admin/transactions', {
+        params: {
+          page: pageNumber,
+          size: 10, // Mỗi lần tải 10 giao dịch
+          search: search,
+          status: status || undefined,       // Nếu rỗng thì không gửi
+          riskLevel: riskLevel || undefined  // Nếu rỗng thì không gửi
+        }
+      });
+      
+      const newData = res.data.content || res.data || [];
+
+      if (isReset || pageNumber === 0) {
+        setTransactions(newData);
+      } else {
+        setTransactions(prev => [...prev, ...newData]);
+      }
+
+      setHasMore(!res.data.last); // Backend Spring Boot trả về .last = true nếu hết trang
+      setPage(pageNumber);
+
+    } catch (error) {
+      toast.error("Không thể tải danh sách giao dịch!");
+      console.error(error);
+    } finally {
+      setLoading(false);
+      setIsLoadingMore(false);
+    }
+  };
+
+  // 🚀 Gọi lại API mỗi khi thay đổi Trạng thái hoặc Mức rủi ro
+  useEffect(() => {
+    setPage(0);
+    setHasMore(true);
+    fetchTransactions(0, true);
+  }, [status, riskLevel]);
+
+  // Xử lý khi bấm nút "Lọc" cho ô tìm kiếm
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    setPage(0);
+    setHasMore(true);
+    fetchTransactions(0, true);
+  };
+
+  // Nút tải thêm
+  const handleLoadMore = () => {
+    if (!isLoadingMore && hasMore) {
+      fetchTransactions(page + 1);
+    }
+  };
+
+  // Tiện ích format tiền VNĐ
+  const formatMoney = (amount) => {
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+  };
+
+  // Badge Color cho Trạng thái
+  const getStatusColor = (stt) => {
+    if (stt === 'SUCCESS') return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+    if (stt === 'PENDING') return 'bg-amber-100 text-amber-700 border-amber-200';
+    if (stt === 'FAILED' || stt === 'REJECTED') return 'bg-red-100 text-red-700 border-red-200';
+    return 'bg-slate-100 text-slate-700 border-slate-200';
+  };
+
+  // Badge Color cho Rủi ro
+  const getRiskColor = (risk) => {
+    if (risk === 'HIGH') return 'bg-red-500 text-white shadow-red-500/30';
+    if (risk?.includes('MEDIUM')) return 'bg-orange-500 text-white shadow-orange-500/30';
+    return 'bg-green-500 text-white shadow-green-500/30';
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 p-8 pb-20">
+      <div className="max-w-7xl mx-auto">
+        
+        {/* HEADER */}
+        <div className="flex justify-between items-start mb-8">
+          <div>
+            <h1 className="text-3xl font-black text-slate-900 tracking-tight uppercase">Quản lý Giao dịch</h1>
+            <p className="text-slate-500 font-medium mt-2">Giám sát dòng tiền và rủi ro toàn hệ thống</p>
+          </div>
+          <Link to="/admin" className="px-5 py-2.5 bg-slate-900 text-white font-bold rounded-xl hover:bg-black transition-colors shadow-lg flex items-center">
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+            Quay lại Dashboard
+          </Link>
+        </div>
+
+        {/* BỘ LỌC (FILTERS) */}
+        <div className="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 mb-6 flex flex-wrap gap-4 items-end">
+          <form onSubmit={handleSearchSubmit} className="flex-1 min-w-[250px]">
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Tìm kiếm (STK / IP)</label>
+            <div className="flex gap-2">
+              <input 
+                type="text" 
+                placeholder="Nhập từ khóa..." 
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 px-4 py-2.5 rounded-xl text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none"
+              />
+              <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-bold transition-colors">
+                Lọc
+              </button>
+            </div>
+          </form>
+
+          <div className="w-48">
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Trạng thái</label>
+            <select 
+              value={status} 
+              onChange={(e) => setStatus(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 px-4 py-2.5 rounded-xl text-sm font-bold outline-none cursor-pointer"
+            >
+              <option value="">Tất cả</option>
+              <option value="SUCCESS">Thành công (SUCCESS)</option>
+              <option value="PENDING">Chờ xử lý (PENDING)</option>
+              <option value="FAILED">Thất bại (FAILED)</option>
+            </select>
+          </div>
+
+          <div className="w-48">
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Mức độ rủi ro</label>
+            <select 
+              value={riskLevel} 
+              onChange={(e) => setRiskLevel(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 px-4 py-2.5 rounded-xl text-sm font-bold outline-none cursor-pointer"
+            >
+              <option value="">Tất cả</option>
+              <option value="HIGH">Rủi ro CAO (HIGH)</option>
+              <option value="MEDIUM_2">Cảnh báo (MEDIUM 2)</option>
+              <option value="MEDIUM_1">Cảnh báo (MEDIUM 1)</option>
+              <option value="LOW">An toàn (LOW)</option>
+            </select>
+          </div>
+        </div>
+
+{/* BẢNG DỮ LIỆU */}
+        <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse whitespace-nowrap">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-100">
+                  {/* 🚀 Thêm cột Mã GD */}
+                  <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest">Mã GD</th>
+                  <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest">Thời gian</th>
+                  <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest">Người Gửi</th>
+                  <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest">Người Nhận</th>
+                  <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest text-right">Số tiền</th>
+                  <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">Trạng thái</th>
+                  {/* 🚀 Thêm cột Cảm xúc ngay trước cột Rủi ro */}
+                  <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">Cảm xúc (AI)</th>
+                  <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">Rủi ro (AI)</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {loading ? (
+                   /* 🚀 Sửa colSpan từ 6 thành 8 */
+                   <tr><td colSpan="8" className="text-center py-20 font-bold text-slate-400 animate-pulse">Đang nạp dữ liệu giao dịch...</td></tr>
+                ) : transactions.length === 0 ? (
+                   /* 🚀 Sửa colSpan từ 6 thành 8 */
+                   <tr><td colSpan="8" className="text-center py-10 font-bold text-slate-400 italic">Không tìm thấy giao dịch nào phù hợp.</td></tr>
+                ) : transactions.map((t) => (
+                  <tr key={t.id} className="hover:bg-blue-50/30 transition-colors">
+                    
+                    {/* 🚀 Cột Mã GD (Mới) */}
+                    <td className="px-5 py-4 text-sm font-mono font-bold text-slate-700">
+                      #{t.id}
+                    </td>
+
+                    {/* Cột Thời gian */}
+                    <td className="px-5 py-4 text-xs font-mono text-slate-500">
+                      {new Date(t.createdAt).toLocaleString()}
+                    </td>
+                    
+                    {/* Cột Người Gửi */}
+                    <td className="px-5 py-4">
+                      <div className="flex flex-col">
+                        <span className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                          {t.senderFullName} 
+                          {t.senderSuspicious && <span className="bg-red-100 text-red-600 text-[10px] px-1.5 py-0.5 rounded uppercase font-black" title="Phiên khả nghi">Cờ Đỏ</span>}
+                        </span>
+                        <span className="text-xs font-mono text-slate-500">{t.senderAccountNumber}</span>
+                      </div>
+                    </td>
+
+                    {/* Cột Người Nhận */}
+                    <td className="px-5 py-4">
+                      <div className="flex flex-col">
+                        <span className="font-bold text-slate-700 text-sm">{t.toBankCode}</span>
+                        <span className="text-xs font-mono text-slate-500">{t.toAccountNumber}</span>
+                      </div>
+                    </td>
+
+                    {/* Cột Số tiền */}
+                    <td className="px-5 py-4 text-right font-black text-slate-800 text-base">
+                      {formatMoney(t.amount)}
+                    </td>
+
+                    {/* Cột Trạng thái */}
+                    <td className="px-5 py-4 text-center">
+                      <span className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-tight border ${getStatusColor(t.status)}`}>
+                        {t.status}
+                      </span>
+                    </td>
+
+                    {/* 🚀 Cột Cảm xúc AI (Mới - Tách riêng ra) */}
+                    <td className="px-5 py-4 text-center">
+                      {t.emotionSignal ? (
+                        <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${t.emotionSignal === 'FEAR' || t.emotionSignal === 'STRESS' ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-blue-50 text-blue-600 border border-blue-100'}`}>
+                          {t.emotionSignal}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 font-bold text-[11px]">N/A</span>
+                      )}
+                    </td>
+
+                    {/* Cột Rủi ro & AI (Đã xóa phần cảm xúc ở đây) */}
+                    <td className="px-5 py-4 text-center">
+                      <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm ${getRiskColor(t.riskLevel)}`}>
+                        {t.riskLevel || 'LOW'} ({t.totalRiskScore}đ)
+                      </span>
+                    </td>
+                    
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* NÚT TẢI THÊM (LAZY LOAD) */}
+          {/* ... Phần này giữ nguyên như cũ ... */}
+          {!loading && transactions.length > 0 && (
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-center">
+              {hasMore ? (
+                <button
+                  onClick={handleLoadMore}
+                  disabled={isLoadingMore}
+                  className={`px-8 py-3 rounded-xl font-black text-sm transition-all shadow-sm
+                    ${isLoadingMore 
+                      ? 'bg-slate-200 text-slate-500 cursor-not-allowed' 
+                      : 'bg-white border border-slate-200 text-blue-600 hover:bg-blue-50 hover:shadow-md hover:border-blue-200'
+                    }`}
+                >
+                  {isLoadingMore ? 'Đang tải thêm...' : '⬇️ Xem thêm 10 giao dịch cũ hơn'}
+                </button>
+              ) : (
+                <span className="text-sm font-medium text-slate-400 italic">
+                  Đã hiển thị toàn bộ giao dịch phù hợp.
+                </span>
+              )}
+            </div>
+          )}
+
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -9,6 +9,7 @@ import java.util.Optional;
 import org.springframework.data.repository.query.Param;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
@@ -17,7 +18,7 @@ import org.springframework.stereotype.Repository;
 
 //Transaction B5 Phase 2: lôi lại cái giao dịch ở trạng thái pendingg lên findByIdWithUserSecurity  -> Transaction B11: Pinservice
 @Repository
-public interface TransactionRepository extends JpaRepository<Transaction, Long> {
+public interface TransactionRepository extends JpaRepository<Transaction, Long>, JpaSpecificationExecutor<Transaction> {
 
     @Query("SELECT COUNT(t) FROM Transaction t WHERE t.fromAccount.id = :accountId AND t.createdAt >= :timeLimit")
     int countRecentTransactions(Long accountId, LocalDateTime timeLimit);

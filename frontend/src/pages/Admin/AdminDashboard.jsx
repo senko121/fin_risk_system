@@ -494,6 +494,17 @@ export default function AdminDashboard() {
                   </>
                 )
               },
+              {
+                to: '/admin/all-transactions',
+                label: 'Quản lý Giao dịch',
+                desc: 'Giám sát dòng tiền & rủi ro',
+                iconBg: 'bg-emerald-50',
+                iconColor: 'text-emerald-600',
+                hoverBg: 'hover:bg-emerald-600',
+                icon: (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                )
+              }
             ].map((item) => (
               <Link
                 key={item.to}

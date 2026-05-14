@@ -116,6 +116,7 @@ import AdminUserDashboard from './pages/Admin/AdminUserDashboard';
 import AdminLogDashboard from './pages/Admin/AdminLogDashboard';
 import AdminPolicyDashboard from './pages/Admin/AdminPolicyDashboard';
 import AdminAiLogDashboard from './pages/Admin/AdminAiLogDashboard'; 
+import AdminTransactionDashboard from './pages/Admin/AdminTransactionDashboard'; 
 import LivenessSandbox from './pages/Security/LivenessSandbox';
 
 // Import Wrapper & Layouts
@@ -164,6 +165,7 @@ function App() {
               <Route path="/admin/logs" element={<AdminRoute><PageWrapper key="ad-log"><AdminLogDashboard /></PageWrapper></AdminRoute>} />
               <Route path="/admin/policies" element={<AdminRoute><PageWrapper key="ad-pol"><AdminPolicyDashboard /></PageWrapper></AdminRoute>} />
               <Route path="/admin/ai-logs" element={<AdminRoute><PageWrapper key="ad-ai"><AdminAiLogDashboard /></PageWrapper></AdminRoute>} />
+              <Route path="/admin/all-transactions" element={<AdminRoute><PageWrapper key="ad-all-tx"><AdminTransactionDashboard /></PageWrapper></AdminRoute>} /> 
             </Route>
 
             {/* --- NHÓM 2: CÓ NAVBAR BẤT TỬ (Dashboard, Chuyển tiền, Lịch sử...) --- */}
