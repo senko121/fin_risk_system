@@ -22,7 +22,7 @@ export default function AdminTransactionDetailModal({ isOpen, onClose, transacti
         <div className="flex-shrink-0 flex justify-between items-center p-6 border-b border-slate-100 bg-slate-50/50">
           <div>
             <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">Hồ sơ giao dịch & Rủi ro</h3>
-            <p className="text-xs font-mono text-slate-500 mt-1">Mã GD: #{transaction.id}</p>
+            <p className="text-sm font-mono font-black text-blue-600 mt-1 bg-blue-50 px-2 py-0.5 rounded-md inline-block">Mã GD: #{transaction.id}</p>
           </div>
           <button 
             onClick={onClose}
@@ -51,29 +51,43 @@ export default function AdminTransactionDetailModal({ isOpen, onClose, transacti
             </div>
           </div>
 
-          <div className="space-y-4 text-sm bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-6">
-            {/* ... Giữ nguyên các dòng Thời gian, Người gửi, Người nhận ... */}
+<div className="space-y-4 text-sm bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-6">
+            {/* Dòng Thời gian */}
             <div className="flex justify-between border-b border-slate-200 pb-3">
-              <span className="text-slate-500 font-medium">Thời gian</span>
+              <span className="text-slate-700 font-bold text-sm">Thời gian</span>
               <span className="font-bold text-slate-800">{new Date(transaction.createdAt).toLocaleString()}</span>
             </div>
+
+            {/* Dòng Người gửi (Đã đẹp sẵn) */}
             <div className="flex justify-between border-b border-slate-200 pb-3">
-              <span className="text-slate-500 font-medium">Người gửi</span>
+              <span className="text-slate-700 font-bold text-sm">Người gửi</span>
               <div className="text-right">
                 <span className="font-bold text-slate-800 block">{transaction.senderFullName}</span>
-                <span className="font-mono text-xs text-slate-500">{transaction.senderAccountNumber}</span>
+                <span className="font-mono text-sm font-bold text-slate-700 bg-slate-200/50 px-1.5 py-0.5 rounded">{transaction.senderAccountNumber}</span>
               </div>
             </div>
+
+            {/* 🚀 Dòng Người nhận (CẬP NHẬT MỚI Ở ĐÂY) */}
             <div className="flex justify-between border-b border-slate-200 pb-3">
-              <span className="text-slate-500 font-medium">Người nhận</span>
+              <span className="text-slate-700 font-bold text-sm">Người nhận</span>
               <div className="text-right">
-                <span className="font-bold text-slate-800 block">{transaction.toBankCode}</span>
-                <span className="font-mono text-xs text-slate-500">{transaction.toAccountNumber}</span>
+                {/* Hiển thị Tên người nhận in đậm */}
+                <span className="font-bold text-slate-800 block">
+                  {transaction.recipientFullName || 'Người nhận ngoài hệ thống'}
+                </span>
+                {/* Hiển thị STK và Bank Code nếu có */}
+                <span className="font-mono text-sm font-bold text-slate-700 bg-slate-200/50 px-1.5 py-0.5 rounded">
+                  {transaction.toAccountNumber} {transaction.toBankCode ? `(${transaction.toBankCode})` : ''}
+                </span>
               </div>
             </div>
+
+            {/* Dòng Nội dung */}
             <div className="flex justify-between pb-1">
-              <span className="text-slate-500 font-medium">Nội dung</span>
-              <span className="font-medium text-slate-800 text-right max-w-[60%]">{transaction.description || 'Không có nội dung'}</span>
+              <span className="text-slate-700 font-bold text-sm">Nội dung</span>
+              <span className="text-sm font-bold text-slate-900 text-right max-w-[60%]">
+                {transaction.description || 'Chuyển khoản đi'}
+              </span>
             </div>
           </div>
 
@@ -88,7 +102,7 @@ export default function AdminTransactionDetailModal({ isOpen, onClose, transacti
               <div className="flex justify-between items-center border-b border-red-100 pb-3">
                 <span className="text-red-900/70 font-bold text-sm">Tổng điểm rủi ro:</span>
                 <span className="font-black text-red-600 text-lg">
-                  {transaction.totalRiskScore || 0} / 100đ
+                  {transaction.totalRiskScore || 0} Điểm
                 </span>
               </div>
               

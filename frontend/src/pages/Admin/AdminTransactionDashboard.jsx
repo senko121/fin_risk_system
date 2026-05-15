@@ -179,15 +179,16 @@ export default function AdminTransactionDashboard() {
                   {/* 🚀 Thêm cột Cảm xúc ngay trước cột Rủi ro */}
                   <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">Cảm xúc (AI)</th>
                   <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">Rủi ro (AI)</th>
+                  <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">Chi tiết</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {loading ? (
                    /* 🚀 Sửa colSpan từ 6 thành 8 */
-                   <tr><td colSpan="8" className="text-center py-20 font-bold text-slate-400 animate-pulse">Đang nạp dữ liệu giao dịch...</td></tr>
+                   <tr><td colSpan="9" className="text-center py-20 font-bold text-slate-400 animate-pulse">Đang nạp dữ liệu giao dịch...</td></tr>
                 ) : transactions.length === 0 ? (
                    /* 🚀 Sửa colSpan từ 6 thành 8 */
-                   <tr><td colSpan="8" className="text-center py-10 font-bold text-slate-400 italic">Không tìm thấy giao dịch nào phù hợp.</td></tr>
+                   <tr><td colSpan="9" className="text-center py-10 font-bold text-slate-400 italic">Không tìm thấy giao dịch nào phù hợp.</td></tr>
                 ) : transactions.map((t) => (
                   <tr key={t.id} className="hover:bg-blue-50/30 transition-colors">
                     
@@ -246,26 +247,29 @@ export default function AdminTransactionDashboard() {
                       )}
                     </td>
 
-                    {/* Cột Rủi ro & AI (Đã tách Icon con mắt) */}
-                    <td className="px-5 py-4">
-                      <div className="flex items-center justify-center gap-2">
-                        {/* Thẻ hiển thị bình thường (Không click được) */}
-                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm ${getRiskColor(t.riskLevel)}`}>
-                          {t.riskLevel || 'LOW'} ({t.totalRiskScore}đ)
-                        </span>
-                        
-                        {/* Nút con mắt để xem chi tiết */}
-                        <button 
-                          onClick={() => setSelectedTransaction(t)}
-                          className="p-1.5 bg-slate-100 text-slate-500 hover:bg-blue-100 hover:text-blue-600 rounded-lg transition-all shadow-sm border border-slate-200 hover:border-blue-200"
-                          title="Xem chi tiết luật vi phạm"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                          </svg>
-                        </button>
-                      </div>
+
+
+                      
+                    {/* Cột  Icon con mắt) */}
+                    <td className="px-5 py-4 text-center">
+                      <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm ${getRiskColor(t.riskLevel)}`}>
+                        {t.riskLevel || 'LOW'} ({t.totalRiskScore}đ)
+                      </span>
+                    </td>
+
+                    
+                    {/* 2. 🚀 CỘT CHI TIẾT MỚI (Chứa nút con mắt) */}
+                    <td className="px-5 py-4 text-center">
+                      <button 
+                        onClick={() => setSelectedTransaction(t)}
+                        className="p-1.5 bg-slate-100 text-slate-500 hover:bg-blue-100 hover:text-blue-600 rounded-lg transition-all shadow-sm border border-slate-200 hover:border-blue-200"
+                        title="Xem chi tiết luật vi phạm"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                        </svg>
+                      </button>
                     </td>
                     
                   </tr>

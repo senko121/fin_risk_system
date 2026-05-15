@@ -101,7 +101,7 @@
 //               <p className="text-[10px] text-blue-400 uppercase font-bold mb-1">Nội dung chuyển khoản</p>
 //               <p className="text-gray-700 text-sm font-medium italic">
 //                 {/*   FIX LỖI 5: Lấy description từ Backend */}
-//                 "{formData.description || result.description || "Chuyển tiền nhanh FinRisk"}"
+//                 "{formData.description || result.description || "Chuyển khoản đi"}"
 //               </p>
 //             </div>
 //           </div>
@@ -213,7 +213,7 @@
 //             <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100/50">
 //               <p className="text-[10px] text-blue-400 uppercase font-bold mb-1">Nội dung chuyển khoản</p>
 //               <p className="text-gray-700 text-sm font-medium italic">
-//                 "{formData.description || result.description || "Chuyển tiền nhanh FinRisk"}"
+//                 "{formData.description || result.description || "Chuyển khoản đi"}"
 //               </p>
 //             </div>
 //           </div>
@@ -358,10 +358,10 @@ export default function TransactionResult() {
 
             <div style={{ borderTop: '1px solid #f1f5f9', margin: '14px 0' }} />
 
-            <InfoRow label="MÔ TẢ">
+            <InfoRow label="NỘI DUNG">
               {/* Tăng từ text-sm lên text-base, màu đậm hơn */}
               <p className="text-base font-semibold italic" style={{ color: '#334155', lineHeight: 1.5 }}>
-                "{formData.description || result.description || 'Chuyển tiền nhanh FinRisk'}"
+                "{formData.description || result.description || 'Chuyển khoản đi'}"
               </p>
             </InfoRow>
 
