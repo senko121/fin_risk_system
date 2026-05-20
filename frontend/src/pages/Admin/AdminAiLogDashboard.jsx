@@ -150,7 +150,10 @@ export default function AdminAiLogDashboard() {
                     // Dùng log.id làm key, nếu có nguy cơ trùng lặp khi nối mảng thì nối thêm chuỗi
                     <tr key={`ai_log_${log.id}`} className="hover:bg-slate-50 transition-colors">
                       <td className="p-4 font-mono text-sm font-bold text-slate-700">#{log.transactionId}</td>
-                      <td className="p-4 font-medium text-slate-600">User {log.userId}</td>
+                      <td className="p-4">
+  <div className="font-bold text-slate-800">{log.userFullName || 'Unknown User'}</div>
+  <div className="text-xs font-mono text-slate-400 mt-0.5">ID: {log.userId}</div>
+</td>
                       <td className="p-4">
                         <span className="text-[10px] font-black uppercase tracking-wider bg-purple-100 text-purple-700 px-2 py-1 rounded">
                           {log.scanType}

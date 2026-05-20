@@ -314,7 +314,7 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-[#f4f6f9]">
 
       {/* ── Topbar: navy đậm ── */}
-      <header className="bg-[#1e2d40] px-8 py-4 flex justify-between items-center">
+      <header className="bg-[#1e2d40] px-8 py-4 flex justify-center items-center gap-x-80">
         <div>
           <p className="text-white font-semibold text-sm tracking-wide">Hệ thống quản trị rủi ro</p>
           <p className="text-white/40 text-xs mt-0.5">FinRisk AI Security System · Realtime Dashboard</p>
