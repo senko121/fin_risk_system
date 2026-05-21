@@ -197,10 +197,19 @@ export default function AdminTransactionDashboard() {
                       #{t.id}
                     </td>
 
-                    {/* Cột Thời gian */}
-                    <td className="px-5 py-4 text-xs font-mono text-slate-500">
-                      {new Date(t.createdAt).toLocaleString()}
-                    </td>
+                      {/* Cột Thời gian */}
+                      <td className="px-5 py-4">
+                        <div className="flex flex-col gap-0.5">
+                          {/* Hiển thị Ngày ở trên */}
+                          <span className="font-bold text-slate-700 text-sm">
+                            {new Date(t.createdAt).toLocaleDateString('vi-VN')}
+                          </span>
+                          {/* Hiển thị Giờ ở dưới */}
+                          <span className="text-xs font-mono text-slate-500">
+                            {new Date(t.createdAt).toLocaleTimeString('vi-VN')}
+                          </span>
+                        </div>
+                      </td>
                     
                     {/* Cột Người Gửi */}
                     <td className="px-5 py-4">

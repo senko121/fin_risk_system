@@ -78,9 +78,35 @@ public class TransactionController {
     @Autowired
     private RiskEvaluationService riskEvaluationService;
 
+    // //Transaction B1: Nhan yêu cầu khởi tạo giao dịch -> Transaction B2: Gọi AccountRepository 
+    // @PostMapping("/process")
+
+    // public ResponseEntity<?> processTransaction(@Valid @RequestBody TransactionRequest request, HttpServletRequest httpRequest) throws Exception {
+        
+    //     String currentIp = httpRequest.getRemoteAddr();
+    //     String currentDevice = httpRequest.getHeader("User-Agent");
+        
+    //     if (currentDevice != null && currentDevice.length() > 250) {
+    //         currentDevice = currentDevice.substring(0, 250);
+    //     }
+ 
+    //     Transaction result = transactionService.initiateTransaction(
+    //             request.getFromAccountId(),
+    //             request.getToAccount(),
+    //             request.getAmount(),
+    //             request.getDescription(),
+    //             currentIp,      
+    //             currentDevice   
+    //     );
+
+    //     String username = result.getFromAccount().getUser().getUsername();
+    //     auditLogService.logAction(username, "TRANSACTION_INITIATED", "Tạo lệnh chuyển " + request.getAmount() + " VND đến STK " + request.getToAccount() + ". Mức rủi ro: " + result.getRiskLevel());
+
+    //     return ResponseEntity.ok(result);
+    // }
+
     //Transaction B1: Nhan yêu cầu khởi tạo giao dịch -> Transaction B2: Gọi AccountRepository 
     @PostMapping("/process")
-
     public ResponseEntity<?> processTransaction(@Valid @RequestBody TransactionRequest request, HttpServletRequest httpRequest) throws Exception {
         
         String currentIp = httpRequest.getRemoteAddr();
@@ -90,6 +116,7 @@ public class TransactionController {
             currentDevice = currentDevice.substring(0, 250);
         }
  
+        // 1. Khởi tạo giao dịch qua Service như bình thường
         Transaction result = transactionService.initiateTransaction(
                 request.getFromAccountId(),
                 request.getToAccount(),
@@ -98,6 +125,15 @@ public class TransactionController {
                 currentIp,      
                 currentDevice   
         );
+
+        // 🚀 BƯỚC NGOẶT: Can thiệp thời gian bối cảnh phục vụ Test Case linh hoạt
+        // Nếu trong Body JSON từ Postman có truyền "createdAt", ta ghi đè mốc thời gian này vào Entity
+        if (request.getCreatedAt() != null) {
+            result.setCreatedAt(request.getCreatedAt());
+            // Tiến hành đồng bộ lưu đè mốc thời gian mới sửa xuống Database luôn
+            result = transactionRepository.save(result);
+            log.info("⏰ [MOCK TIME] Đã ép thời gian giao dịch {} về mốc giả lập: {}", result.getId(), request.getCreatedAt());
+        }
 
         String username = result.getFromAccount().getUser().getUsername();
         auditLogService.logAction(username, "TRANSACTION_INITIATED", "Tạo lệnh chuyển " + request.getAmount() + " VND đến STK " + request.getToAccount() + ". Mức rủi ro: " + result.getRiskLevel());

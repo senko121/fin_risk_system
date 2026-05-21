@@ -1,0 +1,33 @@
+package com.datn.finrisk;
+
+import io.swagger.v3.oas.models.Components;
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.security.SecurityScheme;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+public class OpenApiConfig {
+
+    @Bean
+    public OpenAPI finRiskOpenAPI() {
+        String securitySchemeName = "bearerAuth";
+        
+        return new OpenAPI()
+                .info(new Info()
+                        .title("Hệ thống FinRisk - API Tài Liệu")
+                        .version("1.0.0")
+                        .description("Tài liệu đặc tả toàn bộ danh sách API hỗ trợ xác thực giao dịch và phân tích rủi ro tài chính hệ thống (DATN)"))
+                // Đính kèm cấu hình nhập JWT Token lên thanh công cụ Swagger toàn cục
+                .addSecurityItem(new SecurityRequirement().addList(securitySchemeName))
+                .components(new Components()
+                        .addSecuritySchemes(securitySchemeName,
+                                new SecurityScheme()
+                                        .name(securitySchemeName)
+                                        .type(SecurityScheme.Type.HTTP)
+                                        .scheme("bearer")
+                                        .bearerFormat("JWT")));
+    }
+}

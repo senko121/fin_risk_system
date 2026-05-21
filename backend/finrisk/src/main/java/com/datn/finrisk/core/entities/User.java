@@ -58,4 +58,10 @@ public class User {
 
     @Column(name = "admin_flagged")
     private boolean adminFlagged = false;
+
+    @JsonIgnore
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private UserBehaviorProfile behaviorProfile;
 }

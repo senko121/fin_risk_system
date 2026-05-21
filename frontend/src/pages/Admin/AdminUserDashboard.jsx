@@ -395,6 +395,8 @@ import axiosClient from '../../api/axiosClient';
 import { toast } from 'react-toastify';
 import { Link } from 'react-router-dom';
 
+import UserBehaviorProfileModal from '../../components/UserBehaviorProfileModal';  
+
 export default function AdminUserDashboard() {
   const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -416,6 +418,10 @@ export default function AdminUserDashboard() {
 
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [userToReset, setUserToReset] = useState(null);
+
+  // State cho Modal AI Hành vi
+  const [isBehaviorModalOpen, setIsBehaviorModalOpen] = useState(false);
+  const [behaviorUserId, setBehaviorUserId] = useState(null);
 
   // 🚀 HÀM LẤY DỮ LIỆU ĐÃ TÍCH HỢP TÌM KIẾM VÀ PHÂN TRANG
   const fetchUsers = async (pageNumber = 0, isNewSearch = false) => {
@@ -495,6 +501,11 @@ export default function AdminUserDashboard() {
     } finally {
       setIsTxLoading(false);
     }
+  };
+
+  const openBehaviorProfile = (userId) => {
+    setBehaviorUserId(userId);
+    setIsBehaviorModalOpen(true);
   };
 
   const handleResetFaceBiometric = async () => {
@@ -628,6 +639,15 @@ export default function AdminUserDashboard() {
                             )}
                           </td>
                           <td className="px-6 py-5 text-right space-x-2 flex justify-end items-center">
+
+                            <button 
+                            onClick={() => openBehaviorProfile(user.id)}
+                            className="px-3 py-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg font-bold text-xs transition-all mr-2 flex items-center"
+                            title="Phân tích hành vi bằng AI"
+                          >
+                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                            AI HÀNH VI
+                          </button>
                             <button 
                               onClick={() => openUserProfile(user)}
                               className="px-3 py-2 bg-cyan-50 text-cyan-600 hover:bg-cyan-100 rounded-lg font-bold text-xs transition-all mr-2 flex items-center"
@@ -724,6 +744,12 @@ export default function AdminUserDashboard() {
           {/* ... Modal Cảnh báo Content ... */}
         </div>
       )}
+
+      <UserBehaviorProfileModal 
+        userId={behaviorUserId} 
+        isOpen={isBehaviorModalOpen} 
+        onClose={() => setIsBehaviorModalOpen(false)} 
+      />
 
     </div>
   );

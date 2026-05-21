@@ -40,88 +40,189 @@ public class RiskEvaluationService {
     @Autowired private RuleRepository ruleRepository;
     @Autowired private TransactionRepository transactionRepository;
     @Autowired private RiskScoreRepository riskScoreRepository;
+    @Autowired private com.datn.finrisk.core.repository.UserBehaviorProfileRepository profileRepository;
+    @Autowired private com.datn.finrisk.core.services.BehavioralProfilingService behavioralProfilingService;
 
     
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final ExpressionParser parser = new SpelExpressionParser(); // Cỗ máy SpEL
 
-   public int evaluateRisk(Transaction transaction, boolean isNewRecipient, List<RiskScore> pendingRiskLogs) {
-        int totalRiskScore = 0;
-        System.out.println("🤖 BẮT ĐẦU CHẠY RULE ENGINE DYNAMIC (SỬ DỤNG SpEL)...");
+//    public int evaluateRisk(Transaction transaction, boolean isNewRecipient, List<RiskScore> pendingRiskLogs) {
+//         int totalRiskScore = 0;
+//         System.out.println("🤖 BẮT ĐẦU CHẠY RULE ENGINE DYNAMIC (SỬ DỤNG SpEL)...");
 
+//         List<Rule> activeRules = ruleRepository.findByIsActiveTrue();
+
+//         // ==========================================================
+//         // 1. TÍNH TOÁN CÁC CHỈ SỐ BỐI CẢNH (Để bơm vào SpEL)
+//         // ==========================================================
+        
+//         // A. Tần suất giao dịch (Spam check)
+//         LocalDateTime oneMinuteAgo = LocalDateTime.now().minusMinutes(1);
+//         int recentTxCount = transactionRepository.countRecentTransactions(transaction.getFromAccount().getId(), oneMinuteAgo);
+        
+//         // B. Tỷ lệ vét ví (Account Drain - Số tiền chuyển / Tổng số dư)
+//         double balanceRatio = 0.0;
+//         double currentBalance = transaction.getFromAccount().getBalance().doubleValue();
+//         if (currentBalance > 0) {
+//             balanceRatio = transaction.getAmount().doubleValue() / currentBalance;
+//         }
+
+//         // C. Khung giờ âm binh (Night-time check: 23h - 5h)
+//         int currentHour = LocalDateTime.now().getHour();
+//         boolean isNightTime = (currentHour >= 23 || currentHour < 5);
+
+//         // 🚀 D. BỔ SUNG: Tính tổng tiền giao dịch trong ngày (Bao gồm cả hiện tại)
+//         LocalDateTime startOfDay = java.time.LocalDate.now().atStartOfDay();
+//         BigDecimal sumToday = transactionRepository.sumSuccessfulAmountToday(transaction.getFromAccount().getId(), startOfDay);
+        
+//         // Chống NullPointerException cực kỳ quan trọng
+//         double totalTransferredToday = (sumToday != null) ? sumToday.doubleValue() : 0.0;
+        
+//         // Gộp khối tiền đã chuyển thành công + số tiền đang định chuyển
+//         double dailyTotalAmount = totalTransferredToday + transaction.getAmount().doubleValue();
+
+
+//         // ==========================================================
+//         // 2. BƠM BỐI CẢNH VÀO SpEL CONTEXT
+//         // ==========================================================
+//         StandardEvaluationContext context = new StandardEvaluationContext();
+//         context.setVariable("tx", transaction);
+//         context.setVariable("isNewRecipient", isNewRecipient);
+        
+//         // Cú lừa Rule Engine: Gộp cờ IP lạ và cờ Admin
+//         User sender = transaction.getFromAccount().getUser();
+//         boolean combinedSuspiciousRisk = sender.isSuspiciousSession() || sender.isAdminFlagged();
+//         context.setVariable("suspiciousSession", combinedSuspiciousRisk);
+        
+//         // Tạm thời hardcode deviceTrusted = true để test 
+//         context.setVariable("deviceTrusted", true);
+
+//         // Bơm 3 biến rủi ro mới vào Cỗ máy
+//         context.setVariable("recentTxCount", recentTxCount);
+//         context.setVariable("balanceRatio", balanceRatio);
+//         context.setVariable("isNightTime", isNightTime);
+//         context.setVariable("dailyTotalAmount", dailyTotalAmount);
+
+
+// // ==========================================================
+//         // 3. VÒNG LẶP CHẤM ĐIỂM (TỐI ƯU HÓA: DÙNG TRỰC TIẾP SpEL NATIVE)
+//         // ==========================================================
+//         for (Rule rule : activeRules) {
+//             try {
+//                 String spelExpression = rule.getSpelExpression();
+                
+//                 if (spelExpression != null && !spelExpression.isEmpty()) {
+//                     Boolean isMatched = parser.parseExpression(spelExpression).getValue(context, Boolean.class);
+                    
+//                     if (Boolean.TRUE.equals(isMatched)) {
+//                         totalRiskScore += rule.getActionScore();
+//                         System.out.println("  Khớp luật: [" + rule.getRuleName() + "] -> Điểm: +" + rule.getActionScore());
+
+//                         //   KHÔNG SAVE DB Ở ĐÂY NỮA! CHỈ TẠO OBJECT VÀ BỎ VÀO GIỎ
+//                         RiskScore riskLog = new RiskScore();
+//                         riskLog.setRule(rule);
+//                         riskLog.setAppliedScore(rule.getActionScore());
+//                         pendingRiskLogs.add(riskLog); // Ném vào giỏ để lát Service xử lý
+//                     }
+//                 }
+//             } catch (Exception e) {
+//                 System.err.println("Lỗi SpEL tại Rule ID " + rule.getId() + ": " + e.getMessage());
+//             }
+//         }
+        
+//         totalRiskScore = Math.max(0, totalRiskScore);
+//         System.out.println("  TỔNG ĐIỂM RỦI RO LÀ: " + totalRiskScore);
+//         return totalRiskScore;
+//     }
+
+
+public int evaluateRisk(Transaction transaction, boolean isNewRecipient, List<RiskScore> pendingRiskLogs) {
+        System.out.println("🤖 BẮT ĐẦU CHẠY RULE ENGINE + BEHAVIORAL PROFILING...");
+
+        User sender = transaction.getFromAccount().getUser();
         List<Rule> activeRules = ruleRepository.findByIsActiveTrue();
 
         // ==========================================================
-        // 1. TÍNH TOÁN CÁC CHỈ SỐ BỐI CẢNH (Để bơm vào SpEL)
+        // 1. TÍNH TOÁN CÁC CHỈ SỐ BỐI CẢNH DÀNH CHO SpEL (GIỮ NGUYÊN)
         // ==========================================================
-        
-        // A. Tần suất giao dịch (Spam check)
         LocalDateTime oneMinuteAgo = LocalDateTime.now().minusMinutes(1);
         int recentTxCount = transactionRepository.countRecentTransactions(transaction.getFromAccount().getId(), oneMinuteAgo);
         
-        // B. Tỷ lệ vét ví (Account Drain - Số tiền chuyển / Tổng số dư)
         double balanceRatio = 0.0;
         double currentBalance = transaction.getFromAccount().getBalance().doubleValue();
         if (currentBalance > 0) {
             balanceRatio = transaction.getAmount().doubleValue() / currentBalance;
         }
 
-        // C. Khung giờ âm binh (Night-time check: 23h - 5h)
         int currentHour = LocalDateTime.now().getHour();
         boolean isNightTime = (currentHour >= 23 || currentHour < 5);
 
-        // 🚀 D. BỔ SUNG: Tính tổng tiền giao dịch trong ngày (Bao gồm cả hiện tại)
         LocalDateTime startOfDay = java.time.LocalDate.now().atStartOfDay();
         BigDecimal sumToday = transactionRepository.sumSuccessfulAmountToday(transaction.getFromAccount().getId(), startOfDay);
-        
-        // Chống NullPointerException cực kỳ quan trọng
         double totalTransferredToday = (sumToday != null) ? sumToday.doubleValue() : 0.0;
-        
-        // Gộp khối tiền đã chuyển thành công + số tiền đang định chuyển
         double dailyTotalAmount = totalTransferredToday + transaction.getAmount().doubleValue();
 
+        // ==========================================================
+        // 🚀 2. TÍNH ĐIỂM THÓI QUEN (MAHALANOBIS / EUCLIDEAN)
+        // ==========================================================
+        // Lấy Profile từ Database lên
+        com.datn.finrisk.core.entities.UserBehaviorProfile profile = profileRepository.findByUserId(sender.getId()).orElse(null);
+        
+        // Tính khoảng cách thời gian (Gap) so với lần giao dịch trước
+        double gapSeconds = 86400.0; // Mặc định 1 ngày nếu chưa từng giao dịch
+        if (profile != null && profile.getLastTxTimestamp() != null) {
+            gapSeconds = java.time.Duration.between(profile.getLastTxTimestamp(), LocalDateTime.now()).getSeconds();
+        }
+        
+        // Độ lạ của người nhận (Mới = 1.0, Cũ = 0.0)
+        double recipientNovelty = isNewRecipient ? 1.0 : 0.0;
+
+        // Gọi Não bộ tính điểm Thói quen (Sẽ trả về 0 -> 100)
+        int behavioralScore = behavioralProfilingService.calculateBehavioralAnomalyScore(transaction, profile, gapSeconds, recipientNovelty);
+        System.out.println("🧠 ĐIỂM RỦI RO THÓI QUEN (BEHAVIOR): " + behavioralScore);
 
         // ==========================================================
-        // 2. BƠM BỐI CẢNH VÀO SpEL CONTEXT
+        // 3. BƠM BỐI CẢNH VÀO SpEL CONTEXT (GIỮ NGUYÊN)
         // ==========================================================
         StandardEvaluationContext context = new StandardEvaluationContext();
         context.setVariable("tx", transaction);
         context.setVariable("isNewRecipient", isNewRecipient);
-        
-        // Cú lừa Rule Engine: Gộp cờ IP lạ và cờ Admin
-        User sender = transaction.getFromAccount().getUser();
         boolean combinedSuspiciousRisk = sender.isSuspiciousSession() || sender.isAdminFlagged();
         context.setVariable("suspiciousSession", combinedSuspiciousRisk);
-        
-        // Tạm thời hardcode deviceTrusted = true để test 
         context.setVariable("deviceTrusted", true);
-
-        // Bơm 3 biến rủi ro mới vào Cỗ máy
         context.setVariable("recentTxCount", recentTxCount);
         context.setVariable("balanceRatio", balanceRatio);
         context.setVariable("isNightTime", isNightTime);
         context.setVariable("dailyTotalAmount", dailyTotalAmount);
 
-
-// ==========================================================
-        // 3. VÒNG LẶP CHẤM ĐIỂM (TỐI ƯU HÓA: DÙNG TRỰC TIẾP SpEL NATIVE)
         // ==========================================================
+        // 🚀 4. VÒNG LẶP CHẤM ĐIỂM RULE (ĐÃ TÁCH DƯƠNG VÀ ÂM)
+        // ==========================================================
+        int rulePositive = 0;
+        int ruleNegative = 0;
+
         for (Rule rule : activeRules) {
             try {
                 String spelExpression = rule.getSpelExpression();
-                
                 if (spelExpression != null && !spelExpression.isEmpty()) {
                     Boolean isMatched = parser.parseExpression(spelExpression).getValue(context, Boolean.class);
                     
                     if (Boolean.TRUE.equals(isMatched)) {
-                        totalRiskScore += rule.getActionScore();
-                        System.out.println("  Khớp luật: [" + rule.getRuleName() + "] -> Điểm: +" + rule.getActionScore());
+                        int score = rule.getActionScore();
+                        System.out.println("  Khớp luật: [" + rule.getRuleName() + "] -> Điểm: " + (score > 0 ? "+" : "") + score);
 
-                        //   KHÔNG SAVE DB Ở ĐÂY NỮA! CHỈ TẠO OBJECT VÀ BỎ VÀO GIỎ
+                        // Phân loại điểm Cộng và Trừ để chống pha loãng (Risk Dilution)
+                        if (score > 0) {
+                            rulePositive += score;
+                        } else {
+                            ruleNegative += Math.abs(score);
+                        }
+
                         RiskScore riskLog = new RiskScore();
                         riskLog.setRule(rule);
-                        riskLog.setAppliedScore(rule.getActionScore());
-                        pendingRiskLogs.add(riskLog); // Ném vào giỏ để lát Service xử lý
+                        riskLog.setAppliedScore(score);
+                        pendingRiskLogs.add(riskLog); 
                     }
                 }
             } catch (Exception e) {
@@ -129,9 +230,20 @@ public class RiskEvaluationService {
             }
         }
         
-        totalRiskScore = Math.max(0, totalRiskScore);
-        System.out.println("  TỔNG ĐIỂM RỦI RO LÀ: " + totalRiskScore);
-        return totalRiskScore;
+        System.out.println("⚖️ Tổng điểm Rule (+) = " + rulePositive + " | Tổng điểm Rule (-) = " + ruleNegative);
+
+        // ==========================================================
+        // 🚀 5. TỔNG HỢP (BLEND) CÁC NGUỒN ĐIỂM BẰNG TRỌNG SỐ
+        // ==========================================================
+        // Công thức: 40% Thói quen + 60% Rule Dương - 20% Rule Âm
+        double finalScoreDouble = (behavioralScore * 0.4) + (rulePositive * 0.6) - (ruleNegative * 0.2);
+        int finalRiskScore = (int) Math.round(finalScoreDouble);
+        
+        // Đảm bảo điểm không bị âm
+        finalRiskScore = Math.max(0, finalRiskScore);
+        
+        System.out.println("🎯 TỔNG ĐIỂM RỦI RO CUỐI CÙNG LÀ: " + finalRiskScore);
+        return finalRiskScore;
     }
 
 // 1. Fix gọi sang FaceID (Port 5000)

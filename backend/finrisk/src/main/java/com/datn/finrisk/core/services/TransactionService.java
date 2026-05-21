@@ -192,6 +192,7 @@ public class TransactionService {
     @Autowired private RiskEvaluationService riskEvaluationService;
     @Autowired private RiskPolicyRepository riskPolicyRepo;
     @Autowired private UserSecurityRepository userSecurityRepository;
+    @Autowired private BehaviorLearningService behaviorLearningService;
 
     //   BÍ QUYẾT LÀ ĐÂY: Spring tự gom cả 3 class Strategy vào cái Map này!
     @Autowired
@@ -330,6 +331,14 @@ public class TransactionService {
             credit.setBalanceAfter(receiver.getBalance());
             transactionLedgerRepository.save(credit);
         });
+
+        //  BƯỚC 5: KÍCH HOẠT VÒNG LẶP HỌC TẬP (AI FEEDBACK LOOP)
+
+        // Check xem STK người nhận này đã từng nhận tiền chưa
+        boolean isNewRecipient = checkIsNewRecipient(sender.getId(), savedTx.getToAccountNumber());
+        
+        // Gọi hàm chạy ngầm (Nó sẽ tách ra một luồng riêng tự chạy, không chờ)
+        behaviorLearningService.learnFromTransaction(savedTx, isNewRecipient);
 
         return savedTx;
     }
