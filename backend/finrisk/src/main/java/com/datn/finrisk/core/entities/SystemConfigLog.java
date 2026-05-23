@@ -15,8 +15,8 @@ public class SystemConfigLog {
     private Long id;
 
     private String adminUsername;
-    private String actionType; // UPDATE_RULE, CREATE_POLICY...
-    private String targetTable; // rules, risk_policies
+    private String actionType;  
+    private String targetTable;  
     private Long targetId;
 
     @Column(columnDefinition = "JSON")

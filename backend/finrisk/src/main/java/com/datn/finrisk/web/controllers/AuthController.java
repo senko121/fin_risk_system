@@ -2,7 +2,7 @@
 package com.datn.finrisk.web.controllers;
 
 import com.datn.finrisk.application.dtos.LoginRequest;
-import com.datn.finrisk.application.dtos.LoginResponse; // 🚀 Bổ sung import này
+import com.datn.finrisk.application.dtos.LoginResponse;  
 import com.datn.finrisk.application.dtos.UserDTO; 
 import com.datn.finrisk.core.entities.User;
 import com.datn.finrisk.core.entities.Account; 
@@ -80,7 +80,7 @@ public class AuthController {
             user.setSuspiciousSession(isSuspicious);
             user.setLastLoginIp(currentIp);
             user.setLastLoginDevice(currentDevice);
-            // =========================================================
+ 
 
             auditLogService.logAction(username, "LOGIN_SUCCESS", "Đăng nhập hệ thống thành công.");
 
@@ -89,10 +89,7 @@ public class AuthController {
 
             user.setCurrentRefreshToken(refreshToken);
             userRepository.save(user);
-
-            // =========================================================
-            //   4. MẶC ÁO KHOÁC VÀ NHÉT TIỀN VÀO TÚI CHO USERDTO
-            // =========================================================
+ 
             UserDTO userSafeData = new UserDTO(user);
             
             Account userAccount = accountRepository.findByUser(user).orElse(null);
@@ -103,15 +100,14 @@ public class AuthController {
             } else {
                 System.out.println("❌ CẢNH BÁO: User này chưa có tài khoản ngân hàng dưới DB!");
             }
-            // =========================================================
+ 
 
             Map<String, Object> response = new HashMap<>();
             response.put("accessToken", accessToken);
             response.put("refreshToken", refreshToken);
             response.put("user", userSafeData); 
             
-            // 🚀 BƯỚC 2: NHÉT 2 CỜ BẢO MẬT VÀO GÓI HÀNG JSON TRẢ VỀ FRONTEND
-            // (Nếu IDE báo lỗi chữ isPinSetup(), bro đổi thành getPinSetup() hoặc isPinSetup tùy theo cách Lombok generate nhé)
+ 
             response.put("isPinSetup", loginResult.isPinSetup());
             response.put("isFaceSetup", loginResult.isFaceSetup());
 

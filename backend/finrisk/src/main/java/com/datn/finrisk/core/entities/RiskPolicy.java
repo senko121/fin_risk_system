@@ -15,8 +15,8 @@ public class RiskPolicy {
     private Integer minScore;
     private Integer maxScore;
     
-    private String riskLevel; // LOW, MEDIUM, HIGH
-    private String actionBeanName; // Tên của Strategy Bean
+    private String riskLevel;  
+    private String actionBeanName;  
     private String description;
 
     private LocalDateTime createdAt = LocalDateTime.now();

@@ -16,7 +16,7 @@ public class AiAuditService {
     @Autowired private AiScanLogRepository aiScanLogRepo;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    // Hàm này chạy trên Luồng (Thread) riêng biệt nhờ @Async
+ 
     @Async("aiTaskExecutor")
     public void logEmotionScan(Transaction tx, EmotionAIResponse response) {
         try {
@@ -27,8 +27,7 @@ public class AiAuditService {
             log.setResultLabel(response.getEmotion());
             log.setConfidenceScore(response.getConfidence());
             log.setProcessTimeMs(response.getProcessTimeMs());
-            
-            // Biến cái Map 7 cảm xúc thành chuỗi JSON
+ 
             String detailsJson = objectMapper.writeValueAsString(response.getProbDetails());
             log.setEmotionDetails(detailsJson);
             

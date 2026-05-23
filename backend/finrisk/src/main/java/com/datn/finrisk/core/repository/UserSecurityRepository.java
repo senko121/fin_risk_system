@@ -8,8 +8,7 @@ import java.util.Optional;
 
 @Repository
 public interface UserSecurityRepository extends JpaRepository<UserSecurity, Long> {
-    
-    // Tìm kiếm thông tin bảo mật dựa trên ID của User
+ 
     Optional<UserSecurity> findByUserId(Long userId);
     
 }

@@ -17,8 +17,7 @@ public class TransactionCleanupScheduler {
 
     @Autowired
     private AuditLogService auditLogService;
-
-    // Chạy mỗi 5 phút
+ 
     @Scheduled(fixedDelay = 300000)
     public void cleanupStalledTransactions() {
         LocalDateTime threshold = LocalDateTime.now().minusMinutes(10);

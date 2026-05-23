@@ -17,7 +17,7 @@ public class Account {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // 🚀 DÁN 3 CÁI BÙA VÀO ĐÂY
+ 
     @JsonIgnore
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
@@ -28,7 +28,7 @@ public class Account {
     @Column(unique = true)
     private String accountNumber;
 
-    private BigDecimal balance;
+    private BigDecimal balance; 
 
     private String currency = "VND";
 

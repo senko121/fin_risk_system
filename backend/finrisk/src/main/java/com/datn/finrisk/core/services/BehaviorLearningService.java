@@ -24,15 +24,7 @@ public class BehaviorLearningService {
     private static final int    DIMENSIONS = 5;
     private static final double EWMA_ALPHA = 0.05;
 
-    // =========================================================
-    // PUBLIC API — 2 entry points rõ ràng
-    // =========================================================
-
-    /**
-     * PRODUCTION FLOW: Gọi sau mỗi giao dịch thật thành công.
-     * Chạy bất đồng bộ để không block response trả về user.
-     * Gap được tính từ now() vì đây là giao dịch thật.
-     */
+ 
     @Async("aiTaskExecutor")
     @Transactional
     public void learnFromTransaction(Transaction tx, boolean isNewRecipient) {
@@ -46,12 +38,7 @@ public class BehaviorLearningService {
         double gapSeconds = computeGap(profile.getLastTxTimestamp(), LocalDateTime.now());
         executeLearnCycle(tx, profile, gapSeconds, isNewRecipient, LocalDateTime.now());
     }
-
-    /**
-     * SEEDER FLOW: Gọi từ TimeMachineSeederService.
-     * Chạy đồng bộ để đảm bảo thứ tự học đúng theo timeline giả lập.
-     * Gap và timestamp được truyền vào từ ngoài (txTime fake).
-     */
+ 
     @Transactional
     public void learnFromTransactionSync(
             Transaction tx,
@@ -62,17 +49,13 @@ public class BehaviorLearningService {
         UserBehaviorProfile profile = profileRepository
             .findByUserId(user.getId())
             .orElseGet(() -> createInitialProfile(user));
-
-        // Dùng createdAt của tx làm mốc thời gian — không phải now()
+ 
         LocalDateTime txTime = tx.getCreatedAt() != null
             ? tx.getCreatedAt() : LocalDateTime.now();
 
         executeLearnCycle(tx, profile, gapSeconds, isNewRecipient, txTime);
     }
-
-    // =========================================================
-    // CORE LEARNING CYCLE — Dùng chung cho cả 2 flow
-    // =========================================================
+ 
 
     private void executeLearnCycle(
             Transaction tx,
@@ -83,19 +66,16 @@ public class BehaviorLearningService {
 
         double recipientNovelty = isNewRecipient ? 1.0 : 0.0;
 
-        // 1. Trích xuất và làm sạch vector đặc trưng
+ 
         double[] currentVector = extractAndSanitizeVector(tx, gapSeconds, recipientNovelty);
-
-        // 2. Cập nhật Welford (Mean + Covariance Matrix C)
+ 
         updateWelford(profile, currentVector);
-
-        // 3. Cập nhật EWMA (Hành vi ngắn hạn)
+ 
         updateEwma(profile, currentVector);
 
-        // 4. Cập nhật mốc thời gian giao dịch cuối
+ 
         profile.setLastTxTimestamp(timestampToSave);
-
-        // 5. Lưu xuống DB
+ 
         profileRepository.save(profile);
 
         System.out.println("✅ [LEARN] User #"
@@ -104,10 +84,7 @@ public class BehaviorLearningService {
             + " | gap=" + String.format("%.0f", gapSeconds) + "s");
     }
 
-    // =========================================================
-    // WELFORD ONLINE ALGORITHM
-    // =========================================================
-
+ 
     private void updateWelford(UserBehaviorProfile profile, double[] x) {
         int n = profile.getTxCount() + 1;
         profile.setTxCount(n);
@@ -132,17 +109,14 @@ public class BehaviorLearningService {
             }
         }
 
-        // Sanitize trước khi lưu
+ 
         profile.setMeanVector(convertArrayToList(sanitize(meanNew)));
         profile.setCovarianceMatrixC(convertMatrixToNestedList(sanitizeMatrix(covCNew)));
     }
 
-    // =========================================================
-    // EWMA ALGORITHM
-    // =========================================================
-
+ 
     private void updateEwma(UserBehaviorProfile profile, double[] x) {
-        int n = profile.getTxCount(); // Đã được tăng bởi updateWelford
+        int n = profile.getTxCount();  
 
         double[] ewmaMeanOld = convertListToArray(profile.getEwmaMeanVector());
         double[] ewmaVarOld  = convertListToArray(profile.getEwmaVariance());
@@ -151,7 +125,7 @@ public class BehaviorLearningService {
 
         for (int i = 0; i < DIMENSIONS; i++) {
             if (n == 1) {
-                // Giao dịch đầu tiên: khởi tạo bằng chính giá trị đó
+ 
                 ewmaMeanNew[i] = x[i];
                 ewmaVarNew[i]  = 0.0;
             } else {
@@ -165,27 +139,13 @@ public class BehaviorLearningService {
         profile.setEwmaVariance(convertArrayToList(sanitize(ewmaVarNew)));
     }
 
-    // =========================================================
-    // FEATURE VECTOR EXTRACTION + SANITIZE
-    // =========================================================
-
-    /**
-     * Trích xuất vector 5 chiều từ transaction:
-     * [log(amount+1), sin(hour_rad), cos(hour_rad), log(gap+1), recipientNovelty]
-     *
-     * Toán học:
-     * - log1p: Biến phân phối lệch phải (right-skewed) thành gần chuẩn hơn
-     * - sin/cos hour: Circular encoding — tránh vấn đề 23h và 0h xa nhau khi dùng số thẳng
-     * - recipientNovelty: 0 = người quen, 1 = người lạ hoàn toàn
-     */
+  
     private double[] extractAndSanitizeVector(
             Transaction tx, double gapSeconds, double recipientNovelty) {
 
         double amount  = (tx.getAmount() != null)
             ? tx.getAmount().doubleValue() : 0.0;
-
-        // Gap tối thiểu 1 giây để tránh log1p(0) = 0 bị degenerate
-        // và tuyệt đối không được âm
+ 
         double safeGap = Math.max(gapSeconds, 1.0);
 
         double logAmount = Math.log1p(amount);
@@ -204,11 +164,7 @@ public class BehaviorLearningService {
 
         return sanitize(vector);
     }
-
-    // =========================================================
-    // SANITIZE HELPERS — Tất cả NaN/Infinity → 0.0
-    // =========================================================
-
+ 
     private double[] sanitize(double[] arr) {
         double[] result = new double[arr.length];
         for (int i = 0; i < arr.length; i++) {
@@ -227,26 +183,13 @@ public class BehaviorLearningService {
         }
         return result;
     }
-
-    // =========================================================
-    // GAP CALCULATOR
-    // =========================================================
-
-    /**
-     * Tính khoảng cách thời gian giữa 2 mốc.
-     * Trả về 86400.0 (1 ngày) nếu chưa có lastTimestamp.
-     * Đảm bảo không bao giờ trả về số âm.
-     */
+ 
     private double computeGap(LocalDateTime last, LocalDateTime current) {
         if (last == null) return 86400.0;
         long gap = Duration.between(last, current).getSeconds();
         return Math.max(gap, 1.0);
     }
-
-    // =========================================================
-    // INITIALIZER
-    // =========================================================
-
+ 
     private UserBehaviorProfile createInitialProfile(User user) {
         UserBehaviorProfile p = new UserBehaviorProfile();
         p.setUser(user);
@@ -265,10 +208,7 @@ public class BehaviorLearningService {
 
         return p;
     }
-
-    // =========================================================
-    // CONVERSION HELPERS
-    // =========================================================
+ 
 
     private double[] convertListToArray(List<Double> list) {
         if (list == null || list.isEmpty()) return new double[DIMENSIONS];

@@ -56,11 +56,11 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long>,
         @Query("UPDATE Transaction t SET t.emotionSignal = :emotion WHERE t.id = :id")
         void updateEmotionSignal(@Param("id") Long id, @Param("emotion") String emotion);
 
-        //  TRUY VẤN LẤY TÊN NGƯỜI NHẬN TỪ SỐ TÀI KHOẢN
+       
     @Query("SELECT u.fullName FROM Account a JOIN a.user u WHERE a.accountNumber = :accNum")
     Optional<String> findRecipientNameByAccountNumber(@Param("accNum") String accNum);
 
-    // Thêm vào TransactionRepository.java
+ 
     @Query("SELECT a.accountNumber, u.fullName FROM Account a JOIN a.user u WHERE a.accountNumber IN :accNums")
     List<Object[]> findRecipientNamesBulk(@Param("accNums") List<String> accNums);
 }

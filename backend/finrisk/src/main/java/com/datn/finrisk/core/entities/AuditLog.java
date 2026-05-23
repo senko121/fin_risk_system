@@ -16,19 +16,18 @@ public class AuditLog {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Ai là người thực hiện?
+ 
     @Column(nullable = false)
     private String username;
-
-    // Hành động là gì? (VD: LOGIN_SUCCESS, TRANSFER_FAILED, FACE_SCAN_FAILED)
+ 
     @Column(nullable = false)
     private String action;
 
-    // Thông tin thêm (VD: IP, chi tiết lỗi)
+ 
     @Column(columnDefinition = "TEXT")
     private String details;
 
-    // Thời gian xảy ra
+ 
     @Column(nullable = false)
     private LocalDateTime timestamp = LocalDateTime.now();
     

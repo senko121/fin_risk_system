@@ -20,24 +20,24 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    // 🚀 THÊM MỚI: BẮT LỖI NGHIỆP VỤ ĐỂ DỌN SẠCH TERMINAL (Sai PIN, Thiếu tiền,...)
+ 
     @ExceptionHandler(BusinessLogicException.class)
     public ResponseEntity<ApiErrorResponse> handleBusinessLogicException(BusinessLogicException ex) {
-        // 1. In ra Terminal đúng 1 dòng duy nhất, màu vàng, tuyệt đối KHÔNG có Stack Trace rác!
+ 
         log.warn("⚠️ Bị chặn bởi Business Rule [{}]: {}", ex.getErrorCode(), ex.getMessage());
 
-        // 2. Gói lỗi lại vào DTO ApiErrorResponse của bro để trả về React
+ 
         ApiErrorResponse response = ApiErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
-                .status(HttpStatus.BAD_REQUEST.value()) // Mã 400
-                .errorCode(ex.getErrorCode())           // Bốc mã lỗi từ Exception (VD: ERR_WRONG_PIN)
-                .message(ex.getMessage())               // Bốc câu thông báo từ Exception
+                .status(HttpStatus.BAD_REQUEST.value())  
+                .errorCode(ex.getErrorCode())            
+                .message(ex.getMessage())              
                 .build();
 
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }
 
-    // 🚀 1. BẮT LỖI VALIDATION (@Min, @NotNull,...) TỪ DTO
+ 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiErrorResponse> handleValidationExceptions(MethodArgumentNotValidException ex) {
         Map<String, String> errors = new HashMap<>();
@@ -49,21 +49,21 @@ public class GlobalExceptionHandler {
 
         ApiErrorResponse response = ApiErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
-                .status(HttpStatus.BAD_REQUEST.value()) // Mã 400
+                .status(HttpStatus.BAD_REQUEST.value())  
                 .errorCode("ERR_VALIDATION_FAILED")
                 .message("Dữ liệu đầu vào không hợp lệ!")
-                .details(errors) // Gửi kèm Map chi tiết lỗi (ví dụ: amount -> Phải lớn hơn 10000)
+                .details(errors)  
                 .build();
 
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }
 
-    // 🚀 2. BẮT LỖI XUNG ĐỘT GIAO DỊCH CŨ CỦA ÔNG
+ 
     @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
     public ResponseEntity<ApiErrorResponse> handleOptimisticLockingFailure(ObjectOptimisticLockingFailureException ex) {
         ApiErrorResponse response = ApiErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
-                .status(HttpStatus.CONFLICT.value()) // Mã 409
+                .status(HttpStatus.CONFLICT.value())  
                 .errorCode("ERR_CONCURRENT_TRANSACTION")
                 .message("Hệ thống đang xử lý một giao dịch khác trên tài khoản này. Vui lòng đợi vài giây và thử lại!")
                 .build();
@@ -71,12 +71,12 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(response, HttpStatus.CONFLICT);
     }
 
-    // 🚀 3. BẮT LỖI LOGIC SAI CŨ CỦA ÔNG (IllegalArgument)
+ 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ApiErrorResponse> handleIllegalArgumentException(IllegalArgumentException ex) {
         ApiErrorResponse response = ApiErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
-                .status(HttpStatus.BAD_REQUEST.value()) // Mã 400
+                .status(HttpStatus.BAD_REQUEST.value()) 
                 .errorCode("ERR_BAD_REQUEST")
                 .message(ex.getMessage())
                 .build();
@@ -84,14 +84,13 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }
 
-    // 🚀 4. LƯỚI VÉT ĐÁY: Bắt mọi lỗi tào lao chưa biết tên (để không bị 500 hay 403 bừa bãi)
+ 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiErrorResponse> handleGlobalException(Exception ex) {
-        ex.printStackTrace(); // In ra console để Dev đọc
-
+        ex.printStackTrace(); 
         ApiErrorResponse response = ApiErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
-                .status(HttpStatus.INTERNAL_SERVER_ERROR.value()) // Mã 500
+                .status(HttpStatus.INTERNAL_SERVER_ERROR.value())  
                 .errorCode("ERR_SYSTEM_UNKNOWN")
                 .message("Hệ thống gặp sự cố không mong muốn. Vui lòng thử lại sau.")
                 .build();

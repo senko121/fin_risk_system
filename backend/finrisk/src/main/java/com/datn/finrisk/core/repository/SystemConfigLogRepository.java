@@ -9,6 +9,6 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface SystemConfigLogRepository extends JpaRepository<SystemConfigLog, Long> {
-// Lấy tất cả lịch sử sửa Rules/Policies, mới nhất lên đầu
+ 
     List<SystemConfigLog> findAllByOrderByCreatedAtDesc();
 }

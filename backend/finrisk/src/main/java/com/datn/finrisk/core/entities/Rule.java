@@ -17,13 +17,18 @@ public class Rule {
     private String description;
 
     @Column(columnDefinition = "JSON")
-    private String conditions; // Lưu logic JSON: {"field": "amount", "operator": ">", "value": 50000000}
+    private String conditions; 
 
-    // 🚀 BỔ SUNG TRƯỜNG NÀY ĐỂ MAP VỚI CỘT MỚI TRONG DATABASE
+ 
     @Column(name = "spel_expression", columnDefinition = "TEXT")
     private String spelExpression;
 
     private Integer actionScore;
 
     private Boolean isActive = true;
+
+ 
+    @Column(name = "min_policy_override", length = 20)
+    private String minPolicyOverride;
+ 
 }

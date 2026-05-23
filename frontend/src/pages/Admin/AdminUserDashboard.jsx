@@ -751,6 +751,113 @@ export default function AdminUserDashboard() {
         onClose={() => setIsBehaviorModalOpen(false)} 
       />
 
+       {/* ========================================== */}
+      {/*   MODAL HỒ SƠ RỦI RO CHI TIẾT (GIỮ NGUYÊN)  */}
+      {/* ========================================== */}
+      {isProfileModalOpen && selectedUser && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
+            {/* Modal Header */}
+            <div className="bg-slate-900 p-6 flex justify-between items-start">
+              <div>
+                <h2 className="text-xl font-black text-white flex items-center">
+                  Hồ sơ Kiểm sát: {selectedUser.fullName}
+                </h2>
+                <p className="text-slate-400 text-sm mt-1">ID Hệ thống: #{selectedUser.id} | Username: {selectedUser.username}</p>
+              </div>
+              <button onClick={() => setIsProfileModalOpen(false)} className="text-slate-400 hover:text-white bg-slate-800 p-2 rounded-full">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6">
+              {selectedUser.suspiciousSession && (
+                <div className="mb-6 bg-red-50 border border-red-100 p-4 rounded-xl flex items-start">
+                  <span className="text-2xl mr-3">🚨</span>
+                  <div>
+                    <h4 className="text-red-800 font-bold text-sm">Cảnh báo An ninh mức độ cao!</h4>
+                    <p className="text-red-600 text-xs mt-1">Tài khoản này đang bị hệ thống đánh dấu IP đáng ngờ. Mọi giao dịch sẽ bị cộng thêm điểm rủi ro mặc định.</p>
+                  </div>
+                </div>
+              )}
+
+              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Hoạt động giao dịch gần đây</h3>
+              
+              {isTxLoading ? (
+                <div className="py-10 text-center text-slate-400 font-medium animate-pulse">Đang trích xuất dữ liệu từ Core Banking...</div>
+              ) : (
+                <div className="space-y-3">
+                  {recentTransactions.map((tx, index) => (
+                    <div key={index} className="flex items-center justify-between p-4 bg-slate-50 border border-slate-100 rounded-2xl hover:border-blue-200 transition-colors">
+                      <div className="flex items-center space-x-4">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black ${tx.status === 'BLOCKED' ? 'bg-red-100 text-red-600' : tx.status === 'SUCCESS' ? 'bg-green-100 text-green-600' : 'bg-orange-100 text-orange-600'}`}>
+                          {tx.status === 'SUCCESS' ? '✓' : tx.status === 'BLOCKED' ? '✕' : '!'}
+                        </div>
+                        <div>
+                          <p className="font-black text-slate-800">{Number(tx.amount).toLocaleString()} VND</p>
+                          <p className="text-xs text-slate-400 font-medium">{tx.date} • Mã GD: {tx.id}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className={`text-xs font-bold uppercase tracking-wider ${tx.status === 'BLOCKED' ? 'text-red-500' : tx.status === 'SUCCESS' ? 'text-green-500' : 'text-orange-500'}`}>
+                          {tx.status}
+                        </p>
+                        <p className="text-[11px] font-bold text-slate-400 mt-1">
+                          Điểm rủi ro AI: <span className={tx.riskScore > 50 ? 'text-red-500' : 'text-slate-600'}>{tx.riskScore}</span>
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                  {recentTransactions.length === 0 && (
+                    <p className="text-center text-slate-400 text-sm py-4">Chưa có giao dịch nào được ghi nhận.</p>
+                  )}
+                </div>
+              )}
+            </div>
+            
+            {/* Modal Footer */}
+            <div className="bg-slate-50 p-4 border-t border-slate-100 flex justify-end">
+              <button onClick={() => setIsProfileModalOpen(false)} className="px-5 py-2.5 bg-white border border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-100 transition-colors">
+                Đóng hồ sơ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================== */}
+      {/* 🚀 MODAL MỚI: CẢNH BÁO XÓA KHUÔN MẶT */}
+      {/* ========================================== */}
+      {isResetModalOpen && userToReset && (
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl w-full max-w-md p-8 shadow-2xl transform transition-all text-center">
+            <div className="w-20 h-20 bg-red-50 border-[6px] border-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <span className="text-4xl">📸</span>
+            </div>
+            <h2 className="text-2xl font-black text-slate-800 mb-2">Cảnh báo nguy hiểm!</h2>
+            <p className="text-slate-500 font-medium mb-8 leading-relaxed">
+              Bạn đang chuẩn bị hủy vĩnh viễn mẫu khuôn mặt của tài khoản <strong className="text-slate-800">@{userToReset.username}</strong>. 
+              Hành động này không thể hoàn tác. Khách hàng sẽ phải quét lại khuôn mặt ở lần giao dịch bảo mật tiếp theo.
+            </p>
+            <div className="flex space-x-3">
+              <button 
+                onClick={() => setIsResetModalOpen(false)}
+                className="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black rounded-xl transition-colors"
+              >
+                HỦY BỎ
+              </button>
+              <button 
+                onClick={handleResetFaceBiometric}
+                className="flex-1 py-3.5 bg-red-600 hover:bg-red-700 text-white font-black rounded-xl shadow-lg shadow-red-600/30 transition-colors"
+              >
+                XÁC NHẬN XÓA
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

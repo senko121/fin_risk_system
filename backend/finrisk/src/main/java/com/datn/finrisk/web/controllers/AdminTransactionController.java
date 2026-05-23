@@ -1,42 +1,4 @@
-// package com.datn.finrisk.web.controllers;
-
-// import com.datn.finrisk.application.dtos.AdminTransactionDTO;
-// import com.datn.finrisk.core.services.AdminTransactionService;
-// import org.springframework.beans.factory.annotation.Autowired;
-// import org.springframework.data.domain.Page;
-// import org.springframework.http.ResponseEntity;
-// import org.springframework.web.bind.annotation.*;
-
-// @RestController
-// @RequestMapping("/api/admin/transactions")
-// @CrossOrigin(origins = "http://localhost:5173") // Mở CORS cho Frontend ReactJS
-// public class AdminTransactionController {
-
-//     @Autowired
-//     private AdminTransactionService adminTransactionService;
-
-//     // 🚀 API Lấy danh sách giao dịch (Có phân trang và lọc)
-//     @GetMapping
-//     public ResponseEntity<?> getAllTransactions(
-//             @RequestParam(defaultValue = "0") int page,
-//             @RequestParam(defaultValue = "10") int size,
-//             @RequestParam(defaultValue = "") String search,
-//             @RequestParam(required = false) String status,
-//             @RequestParam(required = false) String riskLevel) {
-//         try {
-//             // Gọi Service để lấy dữ liệu đã được lót DTO
-//             Page<AdminTransactionDTO> result = adminTransactionService.getTransactions(page, size, search, status, riskLevel);
-            
-//             return ResponseEntity.ok(result);
-//         } catch (Exception e) {
-//             // Log lỗi ra console để dev dễ debug
-//             e.printStackTrace(); 
-//             return ResponseEntity.badRequest().body("Lỗi tải danh sách giao dịch: " + e.getMessage());
-//         }
-//     }
-
-    
-// }
+ 
 
 package com.datn.finrisk.web.controllers;
 
@@ -57,13 +19,13 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/admin/transactions")
-@CrossOrigin(origins = "http://localhost:5173") // Mở CORS cho Frontend ReactJS
+@CrossOrigin(origins = "http://localhost:5173")  
 public class AdminTransactionController {
 
     @Autowired
     private AdminTransactionService adminTransactionService;
 
-    // Cấp thêm "vũ khí" cho Admin Controller để xử lý lệnh duyệt
+ 
     @Autowired
     private TransactionRepository transactionRepository;
 
@@ -72,10 +34,7 @@ public class AdminTransactionController {
 
     @Autowired
     private AuditLogService auditLogService;
-
-    // =========================================================================
-    // 🚀 API 1: Lấy danh sách giao dịch (Có phân trang và lọc)
-    // =========================================================================
+ 
     @GetMapping
     public ResponseEntity<?> getAllTransactions(
             @RequestParam(defaultValue = "0") int page,
@@ -84,27 +43,25 @@ public class AdminTransactionController {
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String riskLevel) {
         try {
-            // Gọi Service để lấy dữ liệu đã được lót DTO
+ 
             Page<AdminTransactionDTO> result = adminTransactionService.getTransactions(page, size, search, status, riskLevel);
             
             return ResponseEntity.ok(result);
         } catch (Exception e) {
-            // Log lỗi ra console để dev dễ debug
+ 
             e.printStackTrace(); 
             return ResponseEntity.badRequest().body("Lỗi tải danh sách giao dịch: " + e.getMessage());
         }
     }
-// =========================================================================
-    // 🚀 API 2: ADMIN DUYỆT GIAO DỊCH BỊ GIAM LỎNG (UNDER_REVIEW / REVERSE)
-    // =========================================================================
+ 
     @PostMapping("/{txId}/resolve-review")
     public ResponseEntity<?> resolveUnderReviewTransaction(
             @PathVariable Long txId,
-            @RequestParam String action, // Các cờ: APPROVE, REJECT_FRAUD, REVERSE
+            @RequestParam String action,  
             @RequestParam String adminNotes,
             HttpServletRequest request) {
 
-        // 🛡️ BẢO MẬT: Sau này bro nhớ nhúng @PreAuthorize("hasRole('ADMIN')") vào đây
+ 
 
         try {
             Transaction tx = transactionRepository.findById(txId)
@@ -115,7 +72,7 @@ public class AdminTransactionController {
 
             switch (action.toUpperCase()) {
                 case "APPROVE":
-                    // 🔒 CHỈ DUYỆT khi trạng thái đang bị giam lỏng
+ 
                     if (!"UNDER_REVIEW".equals(currentStatus)) {
                         return ResponseEntity.badRequest().body(Map.of(
                                 "status", "ERROR",
@@ -135,7 +92,7 @@ public class AdminTransactionController {
                     ));
 
                 case "REJECT_FRAUD":
-                    // 🔒 CHỈ KHÓA khi trạng thái đang bị giam lỏng
+ 
                     if (!"UNDER_REVIEW".equals(currentStatus)) {
                         return ResponseEntity.badRequest().body(Map.of(
                                 "status", "ERROR",
@@ -153,7 +110,7 @@ public class AdminTransactionController {
                     ));
 
                 case "REVERSE":
-                    // 🔒 CHỈ HOÀN TIỀN khi giao dịch đã chốt sổ thành công
+ 
                     if (!"SUCCESS".equals(currentStatus)) {
                         return ResponseEntity.badRequest().body(Map.of(
                                 "status", "ERROR",
@@ -162,10 +119,7 @@ public class AdminTransactionController {
                     }
                     tx.setStatus("REVERSED");
                     transactionRepository.save(tx);
-                    
-                    // 🚀 Đòi hỏi hàm đảo Sổ Cái trong Service
-                    // Chú ý: Hàm này phải bọc @Transactional cẩn thận
-                    // transactionService.executeReversalCore(tx); 
+ 
                     
                     auditLogService.logAction("ADMIN", "TRANSACTION_REVERSED", "Admin HOÀN TIỀN giao dịch " + txId + ". Ghi chú: " + adminNotes);
                     
@@ -186,6 +140,18 @@ public class AdminTransactionController {
                     "status", "SERVER_ERROR",
                     "message", "Lỗi hệ thống khi xử lý giao dịch: " + e.getMessage()
             ));
+        }
+    }
+ 
+    @GetMapping("/{txId}/risk-details")
+    public ResponseEntity<?> getTransactionRiskDetails(@PathVariable Long txId) {
+ 
+        try {
+            com.datn.finrisk.application.dtos.TransactionRiskDetailDTO detail = 
+                adminTransactionService.getTransactionRiskDetail(txId);
+            return ResponseEntity.ok(detail);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Lỗi truy xuất hồ sơ rủi ro: " + e.getMessage());
         }
     }
 }

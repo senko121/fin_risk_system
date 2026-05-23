@@ -36,7 +36,7 @@ public class AdminAnalyticsController {
 
     @PostMapping("/dev/generate-ai-data")
     public ResponseEntity<String> generateAiData() {
-        // Hàm này chạy mất khoảng 3-5 giây vì nó giả lập và xử lý toán ma trận liên tục cho 1500 giao dịch
+ 
         String result = timeMachineSeeder.startTimeTravelSimulation();
         return ResponseEntity.ok(result);
     }

@@ -17,9 +17,8 @@ public class AuthenticationLog {
     private Transaction transaction;
 
     @Column(nullable = false)
-    private String authMethod; // OTP_SMS, FACE_RECOGNITION
-
-    private String authStatus = "PENDING"; // PENDING, SUCCESS, FAILED
+    private String authMethod; 
+    private String authStatus = "PENDING";  
 
     private Integer attemptCount = 0;
 

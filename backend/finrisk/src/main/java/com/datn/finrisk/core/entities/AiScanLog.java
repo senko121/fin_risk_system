@@ -13,7 +13,7 @@ public class AiScanLog {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Lưu ID thay vì Object để tránh lỗi Lazy Loading khi chạy Async (Bất đồng bộ)
+    
     @Column(name = "transaction_id")
     private Long transactionId;
 
@@ -21,10 +21,10 @@ public class AiScanLog {
     private Long userId;
 
     @Column(name = "scan_type", length = 50)
-    private String scanType; // Ví dụ: EMOTION_FACE, LIVENESS_VOICE
+    private String scanType;  
 
     @Column(name = "result_label", length = 50)
-    private String resultLabel; // HAPPY, FEAR...
+    private String resultLabel;  
 
     @Column(name = "confidence_score")
     private double confidenceScore;
@@ -32,7 +32,7 @@ public class AiScanLog {
     @Column(name = "process_time_ms")
     private double processTimeMs;
 
-    // Lưu nguyên cục JSON {ANGRY: 5.0, HAPPY: 43.15} vào đây
+ 
     @Column(name = "emotion_details", columnDefinition = "TEXT")
     private String emotionDetails;
 

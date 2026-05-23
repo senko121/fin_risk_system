@@ -46,8 +46,7 @@ public class TimeMachineSeederService {
             .orElseThrow(() -> new RuntimeException("Thiếu CN_MAIN_001"));
         Account vipAcc = accountRepository.findByAccountNumberWithUser("VIP_MAIN_001")
             .orElseThrow(() -> new RuntimeException("Thiếu VIP_MAIN_001"));
-
-        // Reset số dư đủ để chạy 180 ngày
+ 
         svAcc.setBalance(BigDecimal.valueOf(50_000_000.0));
         cnAcc.setBalance(BigDecimal.valueOf(50_000_000.0));
         vipAcc.setBalance(BigDecimal.valueOf(500_000_000.0));
@@ -62,8 +61,7 @@ public class TimeMachineSeederService {
 
         while (timeline.isBefore(endTime)) {
             int dom = timeline.getDayOfMonth();
-
-            // ══ NẠP TIỀN TRƯỚC (đầu ngày) ══════════════
+ 
             if (dom == 1)
                 executeMockIncome(godAcc, svAcc, 4_000_000.0,
                     timeline.withHour(7).withMinute(0));
@@ -79,10 +77,8 @@ public class TimeMachineSeederService {
                     mockGen.nextInt(20_000_000, 80_000_000),
                     timeline.withHour(mockGen.nextInt(7, 10)));
             }
-
-            // ══ CHI TIÊU SAU ════════════════════════════
-
-            // Sinh viên
+ 
+ 
             if (dom <= 24) {
                 int count = mockGen.nextInt(2, 4);
                 for (int t = 0; t < count; t++) {
@@ -106,7 +102,7 @@ public class TimeMachineSeederService {
                 }
             }
 
-            // Công nhân
+ 
             if (dom == 11 && cnAcc.getBalance().doubleValue() >= 6_000_000) {
                 if (executeMockTransaction(cnAcc, "SINK_ACC_099", 6_000_000.0,
                         timeline.withHour(19).withMinute(15), false)) totalTx++;
@@ -125,7 +121,7 @@ public class TimeMachineSeederService {
                 }
             }
 
-            // Đại gia
+ 
             int vipCount = mockGen.nextInt(3, 5);
             for (int v = 0; v < vipCount; v++) {
                 double hour = mockGen.nextInt(1, 10) <= 3
@@ -149,7 +145,7 @@ public class TimeMachineSeederService {
         return summary;
     }
 
-    // Trả về true nếu thành công, false nếu bỏ qua do thiếu tiền
+ 
     private boolean executeMockTransaction(
             Account fromAcc, String toAccNum,
             double amount, LocalDateTime txTime,

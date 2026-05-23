@@ -1,14 +1,17 @@
+ 
 package com.datn.finrisk.core.services;
 
 import com.datn.finrisk.core.entities.Rule;
 import com.datn.finrisk.core.entities.User;
 import com.datn.finrisk.core.entities.Transaction;
+import com.datn.finrisk.core.entities.TransactionAiInsight;
 import com.datn.finrisk.core.repository.RuleRepository;
 import com.datn.finrisk.core.repository.TransactionRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.datn.finrisk.application.dtos.EmotionAIResponse;
 import com.datn.finrisk.application.dtos.FaceAIResponse;
+import com.datn.finrisk.application.dtos.BehaviorInsightResult;
 import com.datn.finrisk.core.repository.RiskScoreRepository;
 import com.datn.finrisk.core.entities.RiskScore;
 
@@ -22,7 +25,6 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.web.multipart.MultipartFile;
 import org.springframework.core.io.ByteArrayResource;
 
 import java.util.concurrent.CompletableFuture;
@@ -31,8 +33,9 @@ import java.util.HashMap;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.ArrayList;
 
-//Transaction B6: đây là nao tính điếm chốt lại điểm rui ro -> Transaction B7: RiskPolicyRepository
+// Transaction B6: đây là não tính điểm chốt lại điểm rủi ro -> Transaction B7: RiskPolicyRepository
 @Service
 public class RiskEvaluationService {
 
@@ -43,109 +46,33 @@ public class RiskEvaluationService {
     @Autowired private com.datn.finrisk.core.repository.UserBehaviorProfileRepository profileRepository;
     @Autowired private com.datn.finrisk.core.services.BehavioralProfilingService behavioralProfilingService;
 
-    
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final ExpressionParser parser = new SpelExpressionParser(); // Cỗ máy SpEL
+    private final ExpressionParser parser = new SpelExpressionParser();  
+ 
+    private static final double MAX_RULE_CAP    = 150.0;  
+    private static final double AI_WEIGHT_MIN   = 0.10;   
+    private static final double AI_WEIGHT_MAX   = 0.50;  
+    private static final int    AI_MATURE_COUNT = 150;    
+    private static final int    AI_ACTIVE_COUNT = 50;     
+    private static final int    VETO_AI_THRESHOLD   = 85; 
+    private static final int    VETO_RULE_THRESHOLD = 85;  
+    private static final int    VETO_MIN_SCORE      = 75; 
+    private static final int    VETO_RULE_MIN_SCORE = 80;  
 
-//    public int evaluateRisk(Transaction transaction, boolean isNewRecipient, List<RiskScore> pendingRiskLogs) {
-//         int totalRiskScore = 0;
-//         System.out.println("🤖 BẮT ĐẦU CHẠY RULE ENGINE DYNAMIC (SỬ DỤNG SpEL)...");
+ 
+    private static final Map<String, Integer> OVERRIDE_PRIORITY = Map.of(
+        "MEDIUM_1", 1,
+        "MEDIUM_2", 2,
+        "HIGH",     3
+    );
 
-//         List<Rule> activeRules = ruleRepository.findByIsActiveTrue();
-
-//         // ==========================================================
-//         // 1. TÍNH TOÁN CÁC CHỈ SỐ BỐI CẢNH (Để bơm vào SpEL)
-//         // ==========================================================
-        
-//         // A. Tần suất giao dịch (Spam check)
-//         LocalDateTime oneMinuteAgo = LocalDateTime.now().minusMinutes(1);
-//         int recentTxCount = transactionRepository.countRecentTransactions(transaction.getFromAccount().getId(), oneMinuteAgo);
-        
-//         // B. Tỷ lệ vét ví (Account Drain - Số tiền chuyển / Tổng số dư)
-//         double balanceRatio = 0.0;
-//         double currentBalance = transaction.getFromAccount().getBalance().doubleValue();
-//         if (currentBalance > 0) {
-//             balanceRatio = transaction.getAmount().doubleValue() / currentBalance;
-//         }
-
-//         // C. Khung giờ âm binh (Night-time check: 23h - 5h)
-//         int currentHour = LocalDateTime.now().getHour();
-//         boolean isNightTime = (currentHour >= 23 || currentHour < 5);
-
-//         // 🚀 D. BỔ SUNG: Tính tổng tiền giao dịch trong ngày (Bao gồm cả hiện tại)
-//         LocalDateTime startOfDay = java.time.LocalDate.now().atStartOfDay();
-//         BigDecimal sumToday = transactionRepository.sumSuccessfulAmountToday(transaction.getFromAccount().getId(), startOfDay);
-        
-//         // Chống NullPointerException cực kỳ quan trọng
-//         double totalTransferredToday = (sumToday != null) ? sumToday.doubleValue() : 0.0;
-        
-//         // Gộp khối tiền đã chuyển thành công + số tiền đang định chuyển
-//         double dailyTotalAmount = totalTransferredToday + transaction.getAmount().doubleValue();
-
-
-//         // ==========================================================
-//         // 2. BƠM BỐI CẢNH VÀO SpEL CONTEXT
-//         // ==========================================================
-//         StandardEvaluationContext context = new StandardEvaluationContext();
-//         context.setVariable("tx", transaction);
-//         context.setVariable("isNewRecipient", isNewRecipient);
-        
-//         // Cú lừa Rule Engine: Gộp cờ IP lạ và cờ Admin
-//         User sender = transaction.getFromAccount().getUser();
-//         boolean combinedSuspiciousRisk = sender.isSuspiciousSession() || sender.isAdminFlagged();
-//         context.setVariable("suspiciousSession", combinedSuspiciousRisk);
-        
-//         // Tạm thời hardcode deviceTrusted = true để test 
-//         context.setVariable("deviceTrusted", true);
-
-//         // Bơm 3 biến rủi ro mới vào Cỗ máy
-//         context.setVariable("recentTxCount", recentTxCount);
-//         context.setVariable("balanceRatio", balanceRatio);
-//         context.setVariable("isNightTime", isNightTime);
-//         context.setVariable("dailyTotalAmount", dailyTotalAmount);
-
-
-// // ==========================================================
-//         // 3. VÒNG LẶP CHẤM ĐIỂM (TỐI ƯU HÓA: DÙNG TRỰC TIẾP SpEL NATIVE)
-//         // ==========================================================
-//         for (Rule rule : activeRules) {
-//             try {
-//                 String spelExpression = rule.getSpelExpression();
-                
-//                 if (spelExpression != null && !spelExpression.isEmpty()) {
-//                     Boolean isMatched = parser.parseExpression(spelExpression).getValue(context, Boolean.class);
-                    
-//                     if (Boolean.TRUE.equals(isMatched)) {
-//                         totalRiskScore += rule.getActionScore();
-//                         System.out.println("  Khớp luật: [" + rule.getRuleName() + "] -> Điểm: +" + rule.getActionScore());
-
-//                         //   KHÔNG SAVE DB Ở ĐÂY NỮA! CHỈ TẠO OBJECT VÀ BỎ VÀO GIỎ
-//                         RiskScore riskLog = new RiskScore();
-//                         riskLog.setRule(rule);
-//                         riskLog.setAppliedScore(rule.getActionScore());
-//                         pendingRiskLogs.add(riskLog); // Ném vào giỏ để lát Service xử lý
-//                     }
-//                 }
-//             } catch (Exception e) {
-//                 System.err.println("Lỗi SpEL tại Rule ID " + rule.getId() + ": " + e.getMessage());
-//             }
-//         }
-        
-//         totalRiskScore = Math.max(0, totalRiskScore);
-//         System.out.println("  TỔNG ĐIỂM RỦI RO LÀ: " + totalRiskScore);
-//         return totalRiskScore;
-//     }
-
-
-public int evaluateRisk(Transaction transaction, boolean isNewRecipient, List<RiskScore> pendingRiskLogs) {
+ 
+    public int evaluateRisk(Transaction transaction, boolean isNewRecipient, List<RiskScore> pendingRiskLogs, List<TransactionAiInsight> pendingAiInsights) {
         System.out.println("🤖 BẮT ĐẦU CHẠY RULE ENGINE + BEHAVIORAL PROFILING...");
 
         User sender = transaction.getFromAccount().getUser();
         List<Rule> activeRules = ruleRepository.findByIsActiveTrue();
-
-        // ==========================================================
-        // 1. TÍNH TOÁN CÁC CHỈ SỐ BỐI CẢNH DÀNH CHO SpEL (GIỮ NGUYÊN)
-        // ==========================================================
+ 
         LocalDateTime oneMinuteAgo = LocalDateTime.now().minusMinutes(1);
         int recentTxCount = transactionRepository.countRecentTransactions(transaction.getFromAccount().getId(), oneMinuteAgo);
         
@@ -162,29 +89,26 @@ public int evaluateRisk(Transaction transaction, boolean isNewRecipient, List<Ri
         BigDecimal sumToday = transactionRepository.sumSuccessfulAmountToday(transaction.getFromAccount().getId(), startOfDay);
         double totalTransferredToday = (sumToday != null) ? sumToday.doubleValue() : 0.0;
         double dailyTotalAmount = totalTransferredToday + transaction.getAmount().doubleValue();
-
-        // ==========================================================
-        // 🚀 2. TÍNH ĐIỂM THÓI QUEN (MAHALANOBIS / EUCLIDEAN)
-        // ==========================================================
-        // Lấy Profile từ Database lên
+ 
         com.datn.finrisk.core.entities.UserBehaviorProfile profile = profileRepository.findByUserId(sender.getId()).orElse(null);
         
-        // Tính khoảng cách thời gian (Gap) so với lần giao dịch trước
-        double gapSeconds = 86400.0; // Mặc định 1 ngày nếu chưa từng giao dịch
+        double gapSeconds = 86400.0; 
         if (profile != null && profile.getLastTxTimestamp() != null) {
             gapSeconds = java.time.Duration.between(profile.getLastTxTimestamp(), LocalDateTime.now()).getSeconds();
         }
         
-        // Độ lạ của người nhận (Mới = 1.0, Cũ = 0.0)
         double recipientNovelty = isNewRecipient ? 1.0 : 0.0;
 
-        // Gọi Não bộ tính điểm Thói quen (Sẽ trả về 0 -> 100)
-        int behavioralScore = behavioralProfilingService.calculateBehavioralAnomalyScore(transaction, profile, gapSeconds, recipientNovelty);
-        System.out.println("🧠 ĐIỂM RỦI RO THÓI QUEN (BEHAVIOR): " + behavioralScore);
+        BehaviorInsightResult behaviorResult = behavioralProfilingService
+            .calculateBehavioralAnomalyScore(transaction, profile, gapSeconds, recipientNovelty);
 
-        // ==========================================================
-        // 3. BƠM BỐI CẢNH VÀO SpEL CONTEXT (GIỮ NGUYÊN)
-        // ==========================================================
+        int behavioralScore = behaviorResult.getTotalScore();
+        pendingAiInsights.addAll(behaviorResult.getInsights()); 
+        
+        int txCount = (profile != null) ? profile.getTxCount() : 0;
+        System.out.printf("🧠 ĐIỂM THÓI QUEN (BEHAVIOR): %d | txCount: %d%n", behavioralScore, txCount);
+
+ 
         StandardEvaluationContext context = new StandardEvaluationContext();
         context.setVariable("tx", transaction);
         context.setVariable("isNewRecipient", isNewRecipient);
@@ -196,11 +120,10 @@ public int evaluateRisk(Transaction transaction, boolean isNewRecipient, List<Ri
         context.setVariable("isNightTime", isNightTime);
         context.setVariable("dailyTotalAmount", dailyTotalAmount);
 
-        // ==========================================================
-        // 🚀 4. VÒNG LẶP CHẤM ĐIỂM RULE (ĐÃ TÁCH DƯƠNG VÀ ÂM)
-        // ==========================================================
+ 
         int rulePositive = 0;
         int ruleNegative = 0;
+        String activeOverride = null; 
 
         for (Rule rule : activeRules) {
             try {
@@ -210,50 +133,91 @@ public int evaluateRisk(Transaction transaction, boolean isNewRecipient, List<Ri
                     
                     if (Boolean.TRUE.equals(isMatched)) {
                         int score = rule.getActionScore();
-                        System.out.println("  Khớp luật: [" + rule.getRuleName() + "] -> Điểm: " + (score > 0 ? "+" : "") + score);
+                        System.out.printf("  ✓ Khớp luật: [%s] -> Điểm: %+d%n", rule.getRuleName(), score);
 
-                        // Phân loại điểm Cộng và Trừ để chống pha loãng (Risk Dilution)
-                        if (score > 0) {
-                            rulePositive += score;
-                        } else {
-                            ruleNegative += Math.abs(score);
+                        if (score > 0) rulePositive += score;
+                        else           ruleNegative += Math.abs(score);
+
+ 
+                        String override = rule.getMinPolicyOverride();
+                        if (override != null && !override.isBlank()) {
+                            if (activeOverride == null || 
+                                OVERRIDE_PRIORITY.getOrDefault(override, 0) > OVERRIDE_PRIORITY.getOrDefault(activeOverride, 0)) {
+                                activeOverride = override;
+                                System.out.println("  📌 Override kích hoạt: " + override + " từ luật [" + rule.getRuleName() + "]");
+                            }
                         }
 
-                        RiskScore riskLog = new RiskScore();
-                        riskLog.setRule(rule);
-                        riskLog.setAppliedScore(score);
-                        pendingRiskLogs.add(riskLog); 
+                        if (score != 0) {
+                            RiskScore riskLog = new RiskScore();
+                            riskLog.setRule(rule);
+                            riskLog.setAppliedScore(score);
+                            pendingRiskLogs.add(riskLog); 
+                        }
                     }
                 }
             } catch (Exception e) {
-                System.err.println("Lỗi SpEL tại Rule ID " + rule.getId() + ": " + e.getMessage());
+                System.err.println("⚠ Lỗi SpEL tại Rule [" + rule.getRuleName() + "]: " + e.getMessage());
             }
         }
         
-        System.out.println("⚖️ Tổng điểm Rule (+) = " + rulePositive + " | Tổng điểm Rule (-) = " + ruleNegative);
+        System.out.printf("⚖ Raw Rule Score: (+)%d | (-)%d%n", rulePositive, ruleNegative);
 
-        // ==========================================================
-        // 🚀 5. TỔNG HỢP (BLEND) CÁC NGUỒN ĐIỂM BẰNG TRỌNG SỐ
-        // ==========================================================
-        // Công thức: 40% Thói quen + 60% Rule Dương - 20% Rule Âm
-        double finalScoreDouble = (behavioralScore * 0.4) + (rulePositive * 0.6) - (ruleNegative * 0.2);
-        int finalRiskScore = (int) Math.round(finalScoreDouble);
+ 
+ 
+        int rawRuleScore = Math.max(0, rulePositive - ruleNegative);
+        int normalizedRuleScore = (int) Math.min((rawRuleScore / MAX_RULE_CAP) * 100.0, 100.0);
+
+ 
+        double aiReliability;
+        if (txCount < AI_ACTIVE_COUNT) {
+            aiReliability = 0.0; 
+        } else if (txCount >= AI_MATURE_COUNT) {
+            aiReliability = 1.0;
+        } else {
+            aiReliability = (double)(txCount - AI_ACTIVE_COUNT) / (AI_MATURE_COUNT - AI_ACTIVE_COUNT);
+        }
+ 
+        double aiWeight   = AI_WEIGHT_MIN + (AI_WEIGHT_MAX - AI_WEIGHT_MIN) * aiReliability;
+        double ruleWeight = 1.0 - aiWeight;
+
+        System.out.printf("📊 Trọng số → AI: %.0f%% (reliability=%.2f) | Rule: %.0f%%%n", aiWeight * 100, aiReliability, ruleWeight * 100);
+        System.out.printf("📊 Điểm chuẩn hóa → Behavior: %d | Rule: %d%n", behavioralScore, normalizedRuleScore);
+
+ 
+        double blendedScore = (behavioralScore * aiWeight) + (normalizedRuleScore * ruleWeight);
+        int finalRiskScore  = (int) Math.round(blendedScore);
+
+ 
+        boolean aiVetoTriggered   = behavioralScore >= VETO_AI_THRESHOLD && txCount >= AI_ACTIVE_COUNT; 
+        boolean ruleVetoTriggered = normalizedRuleScore >= VETO_RULE_THRESHOLD;
+
+        if (aiVetoTriggered) {
+            System.out.println("🚨 AI VETO: Behavior=" + behavioralScore + " >= " + VETO_AI_THRESHOLD + " → Điểm tối thiểu " + VETO_MIN_SCORE);
+            finalRiskScore = Math.max(finalRiskScore, VETO_MIN_SCORE);
+        }
+        if (ruleVetoTriggered) {
+            System.out.println("🚨 RULE VETO: Rule=" + normalizedRuleScore + " >= " + VETO_RULE_THRESHOLD + " → Điểm tối thiểu " + VETO_RULE_MIN_SCORE);
+            finalRiskScore = Math.max(finalRiskScore, VETO_RULE_MIN_SCORE);
+        }
+ 
+        finalRiskScore = Math.max(0, Math.min(finalRiskScore, 100));
+
         
-        // Đảm bảo điểm không bị âm
-        finalRiskScore = Math.max(0, finalRiskScore);
-        
-        System.out.println("🎯 TỔNG ĐIỂM RỦI RO CUỐI CÙNG LÀ: " + finalRiskScore);
+        if (activeOverride != null) {
+            transaction.setPolicyOverride(activeOverride);
+        }
+
+        System.out.printf("🎯 TỔNG ĐIỂM CUỐI: %d | Override: %s%n", finalRiskScore, activeOverride != null ? activeOverride : "Không có");
         return finalRiskScore;
     }
 
-// 1. Fix gọi sang FaceID (Port 5000)
+ 
     @Async("aiTaskExecutor")
     public CompletableFuture<FaceAIResponse> verifyIdentityAsync(String liveBase64, String regBase64) {
         System.out.println("--- [STEP 1: FACE-ID] Đang gửi ảnh sang Port 5000... ---");
         try {
             String url = "http://localhost:5000/api/ai/verify-face";
-            
-            // 🔥 BẮT BUỘC: Tạo Header JSON
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
 
@@ -261,9 +225,7 @@ public int evaluateRisk(Transaction transaction, boolean isNewRecipient, List<Ri
             requestMap.put("live_image_base64", liveBase64);
             requestMap.put("registered_image_base64", regBase64);
 
-            // Gói vào HttpEntity
             HttpEntity<Map<String, String>> entity = new HttpEntity<>(requestMap, headers);
-
             FaceAIResponse response = restTemplate.postForObject(url, entity, FaceAIResponse.class);
             
             if (response != null) {
@@ -276,13 +238,11 @@ public int evaluateRisk(Transaction transaction, boolean isNewRecipient, List<Ri
         }
     }
 
-// 2 ĐÃ SỬA: Trả về DTO thay vì chỉ trả về String
     @Async("aiTaskExecutor")
     public CompletableFuture<EmotionAIResponse> detectEmotionAsync(String liveBase64) {
         System.out.println("--- [STEP 2: EMOTION] Đang gửi ảnh sang Port 5001... ---");
         try {
             String url = "http://localhost:5001/api/ai/detect-emotion";
-            
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
 
@@ -290,8 +250,6 @@ public int evaluateRisk(Transaction transaction, boolean isNewRecipient, List<Ri
             requestMap.put("image_base64", liveBase64);
 
             HttpEntity<Map<String, String>> entity = new HttpEntity<>(requestMap, headers);
-
-            // Mapping thẳng vào DTO xịn sò
             EmotionAIResponse response = restTemplate.postForObject(url, entity, EmotionAIResponse.class);
             
             if(response != null) {
@@ -304,32 +262,25 @@ public int evaluateRisk(Transaction transaction, boolean isNewRecipient, List<Ri
         }
     }
 
- // 🚀 BẢN NÂNG CẤP: Nhận chuỗi Base64 từ WebSocket, giả lập thành File ném cho Python
     @Async("aiTaskExecutor")
     public CompletableFuture<String> verifyVoiceLivenessBase64Async(String audioBase64) {
         System.out.println("--- [STEP VOICE-AI] Đang giải mã Base64 và gửi Audio sang Port 5003... ---");
         try {
             String url = "http://localhost:5003/api/ai/verify-voice";
-            
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.MULTIPART_FORM_DATA);
 
-            // 1. Giải mã chuỗi Base64 thành mảng byte thô
             byte[] decodedAudio = java.util.Base64.getDecoder().decode(audioBase64);
-
-            // 2. Bọc mảng byte vào Resource để "đánh lừa" Python rắng đây là 1 file đính kèm
             org.springframework.util.MultiValueMap<String, Object> body = new org.springframework.util.LinkedMultiValueMap<>();
             ByteArrayResource fileResource = new ByteArrayResource(decodedAudio) {
                 @Override
                 public String getFilename() {
-                    return "websocket_voice.wav"; // Tên giả lập
+                    return "websocket_voice.wav"; 
                 }
             };
             body.add("audio_file", fileResource);
 
             HttpEntity<org.springframework.util.MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
-
-            // 3. Nhận kết quả chữ số từ Vosk AI
             JsonNode response = restTemplate.postForObject(url, requestEntity, JsonNode.class);
             
             if (response != null && response.has("authCode")) {

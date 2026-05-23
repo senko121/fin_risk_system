@@ -15,4 +15,7 @@ public interface RiskPolicyRepository extends JpaRepository<RiskPolicy, Long> {
  
     @Query("SELECT p FROM RiskPolicy p WHERE :score >= p.minScore AND :score <= p.maxScore")
     Optional<RiskPolicy> findByScore(@Param("score") int score);
+
+ 
+    Optional<RiskPolicy> findByRiskLevel(String riskLevel);
 }

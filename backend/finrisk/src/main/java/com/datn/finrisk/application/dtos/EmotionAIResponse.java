@@ -13,7 +13,7 @@ public class EmotionAIResponse {
     @JsonProperty("confidence")
     private double confidence;
 
-    // Hứng trọn bộ 7 cảm xúc
+ 
     @JsonProperty("prob_details")
     private Map<String, Double> probDetails;
 

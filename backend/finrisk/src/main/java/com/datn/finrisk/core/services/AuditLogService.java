@@ -12,10 +12,7 @@ public class AuditLogService {
 
     @Autowired
     private AuditLogRepository auditLogRepository;
-
-    /**
-     * Hàm ghi log vào Database
-     */
+ 
     public void logAction(String username, String action, String details) {
         try {
             AuditLog log = new AuditLog(

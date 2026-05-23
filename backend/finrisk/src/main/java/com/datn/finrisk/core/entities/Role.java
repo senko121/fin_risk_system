@@ -1,4 +1,4 @@
-package com.datn.finrisk.core.entities; // Đổi lại package nếu ông để ở thư mục khác
+package com.datn.finrisk.core.entities;  
 
 public enum Role {
     USER,

@@ -46,16 +46,15 @@ import java.util.Optional;
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
 
-    // 🚀 Dùng EntityGraph để khi lấy User là lôi luôn cả Security và Behavior (Trị dứt điểm Lazy Load)
+     
     @EntityGraph(attributePaths = {"userSecurity", "behaviorProfile"})
     Optional<User> findByUsername(String username);
 
-    // 🚀 Ghi đè hàm mặc định của JPA để gắn thêm bùa EntityGraph
+ 
     @EntityGraph(attributePaths = {"userSecurity", "behaviorProfile"}) 
     Optional<User> findById(Long id);
 
-    // 🚀 Tối ưu cho trang danh sách Admin
-    // Không dùng EntityGraph ở đây nữa vì đã dùng JOIN FETCH trực tiếp trong câu SQL để kiểm soát tốt hơn
+   
     @Query(value = """
         SELECT DISTINCT u FROM User u 
         LEFT JOIN FETCH u.userSecurity 

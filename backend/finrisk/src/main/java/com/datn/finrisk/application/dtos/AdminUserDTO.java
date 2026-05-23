@@ -10,8 +10,8 @@ public class AdminUserDTO {
     private String fullName;
     private String phoneNumber;
     private String email;
-    private String status; // ACTIVE hoặc LOCKED
-    private boolean isSuspiciousSession; // Cờ cảnh báo IP
+    private String status;  
+    private boolean isSuspiciousSession;  
     private String lastLoginIp;
     private String lastLoginDevice;
     private LocalDateTime createdAt;

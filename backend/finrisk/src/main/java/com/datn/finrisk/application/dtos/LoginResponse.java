@@ -13,6 +13,6 @@ public class LoginResponse {
     private boolean isFaceSetup; 
     private boolean isPinSetup;
 
-    @com.fasterxml.jackson.annotation.JsonIgnore // 🚀 Chặn không cho trả về client
+    @com.fasterxml.jackson.annotation.JsonIgnore  
     private com.datn.finrisk.core.entities.User userEntity; 
 }

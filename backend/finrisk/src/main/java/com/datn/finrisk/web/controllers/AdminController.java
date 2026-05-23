@@ -39,10 +39,7 @@ public class AdminController {
     @Autowired
     private RiskPolicyService riskPolicyService;
 
-    // ==========================================================
-    // PHẦN 1: CÁC API QUẢN LÝ RULE ENGINE ĐỘNG
-    // ==========================================================
-
+ 
     @GetMapping("/rules")
     public ResponseEntity<?> getAllRules() {
         try {
@@ -52,8 +49,7 @@ public class AdminController {
             return ResponseEntity.badRequest().body("Lỗi lấy danh sách luật: " + e.getMessage());
         }
     }
-
-    // 🚀 Đã thay đổi: Dùng Principal lấy tên thay vì RequestHeader
+ 
     @PutMapping("/rules/{id}")
     public ResponseEntity<?> updateRule(@PathVariable Long id, @RequestBody Rule ruleData, Principal principal) {
         try {
@@ -64,7 +60,7 @@ public class AdminController {
         }
     }
 
-    // 🚀 Đã thay đổi: Dùng Principal lấy tên
+ 
     @PatchMapping("/rules/{id}/toggle")
     public ResponseEntity<?> toggleRule(@PathVariable Long id, Principal principal) {
         try {
@@ -75,7 +71,7 @@ public class AdminController {
         }
     }
 
-    // 🚀 Đã thay đổi: Dùng Principal lấy tên
+ 
     @PostMapping("/rules")
     public ResponseEntity<?> createRule(@RequestBody Rule ruleData, Principal principal) {
         try {
@@ -87,9 +83,7 @@ public class AdminController {
     }
 
 
-    // ==========================================================
-    // PHẦN 2: API THỐNG KÊ DASHBOARD
-    // ==========================================================
+ 
     
     @GetMapping("/dashboard-stats")
     public ResponseEntity<?> getDashboardStats() {
@@ -116,11 +110,7 @@ public class AdminController {
         }
     }
 
-    // ==========================================================
-    // PHẦN 3: CÁC API QUẢN LÝ NGƯỜI DÙNG
-    // ==========================================================
-
-    // 🚀 API MỚI: Hứng tham số page, size, và search từ React
+ 
     @GetMapping("/users")
     public ResponseEntity<?> getAllUsers(
             @RequestParam(defaultValue = "0") int page,
@@ -133,7 +123,7 @@ public class AdminController {
         }
     }
 
-    // 🚀 Đã thay đổi: Dùng Principal lấy tên
+ 
     @PatchMapping("/users/{id}/toggle-status")
     public ResponseEntity<?> toggleUserStatus(@PathVariable Long id, Principal principal) {
         try {
@@ -143,7 +133,7 @@ public class AdminController {
         }
     }
 
-    // 🚀 Đã thay đổi: Dùng Principal lấy tên
+ 
     @PatchMapping("/users/{id}/toggle-suspicious")
     public ResponseEntity<?> toggleSuspicious(@PathVariable Long id, Principal principal) {
         try {
@@ -162,7 +152,7 @@ public class AdminController {
         }
     }
 
-    // 🚀 Đã thay đổi: Dùng Principal lấy tên
+ 
     @PatchMapping("/users/{id}/reset-face")
     public ResponseEntity<?> resetFaceBiometric(@PathVariable Long id, Principal principal) {
         try {
@@ -172,9 +162,7 @@ public class AdminController {
         }
     }
 
-    // ==========================================================
-    // PHẦN 4: API QUẢN LÝ NGƯỠNG ĐIỂM RỦI RO (RISK POLICIES)
-    // ==========================================================
+ 
 
     @GetMapping("/policies")
     public ResponseEntity<?> getAllPolicies() {
@@ -185,7 +173,7 @@ public class AdminController {
         }
     }
 
-    // 🚀 Đã thay đổi: Dùng Principal lấy tên
+ 
     @PutMapping("/policies/{id}")
     public ResponseEntity<?> updatePolicyThresholds(
             @PathVariable Long id, 

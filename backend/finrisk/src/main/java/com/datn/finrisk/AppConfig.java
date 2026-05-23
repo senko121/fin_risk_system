@@ -1,4 +1,4 @@
-package com.datn.finrisk; // Phải khớp với thư mục mới
+package com.datn.finrisk;  
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

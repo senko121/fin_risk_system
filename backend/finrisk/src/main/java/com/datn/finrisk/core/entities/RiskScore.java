@@ -15,8 +15,8 @@ public class RiskScore {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @JsonIgnore          // ✅ Cắt circular reference tại đây
-    @ToString.Exclude    // ✅ Tránh Lombok toString loop
+    @JsonIgnore          
+    @ToString.Exclude    
     @EqualsAndHashCode.Exclude
     @ManyToOne
     @JoinColumn(name = "transaction_id", nullable = false)

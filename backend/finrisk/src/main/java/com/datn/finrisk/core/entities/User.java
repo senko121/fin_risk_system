@@ -4,14 +4,14 @@ import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
 import com.fasterxml.jackson.annotation.JsonIgnore; 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties; // 🚀 Bổ sung import
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;  
 
 @Entity
 @Table(name = "users")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"}) // 🚀 DÁN BÙA TRỊ LỖI PROXY
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})  
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

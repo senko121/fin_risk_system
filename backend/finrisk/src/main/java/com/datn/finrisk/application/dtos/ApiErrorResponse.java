@@ -12,8 +12,8 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 public class ApiErrorResponse {
     private LocalDateTime timestamp;
-    private int status;              // Mã HTTP (ví dụ: 400, 404, 500)
-    private String errorCode;        // Mã lỗi định danh (ví dụ: "ERR_VALIDATION", "ERR_FUNDS")
-    private String message;          // Thông báo lỗi chung chung cho người dùng
-    private Object details;          // Chi tiết lỗi (Ví dụ: danh sách các trường nhập sai)
+    private int status;               
+    private String errorCode;         
+    private String message;          
+    private Object details;           
 }

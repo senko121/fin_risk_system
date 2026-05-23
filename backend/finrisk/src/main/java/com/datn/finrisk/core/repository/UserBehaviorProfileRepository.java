@@ -9,4 +9,4 @@ import java.util.Optional;
 @Repository
 public interface UserBehaviorProfileRepository extends JpaRepository<UserBehaviorProfile, Long> {
     Optional<UserBehaviorProfile> findByUserId(Long userId);
-}
+}   

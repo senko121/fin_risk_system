@@ -8,6 +8,6 @@ public interface IContactLastTransaction {
     String getContactName();
     String getContactAccountNumber();
     Boolean getIsPinned();
-    BigDecimal getLastAmount(); // Số tiền gần nhất
-    LocalDateTime getLastDate(); // Ngày gần nhất
+    BigDecimal getLastAmount();  
+    LocalDateTime getLastDate(); 
 }

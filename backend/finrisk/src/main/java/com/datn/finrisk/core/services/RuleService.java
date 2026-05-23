@@ -19,17 +19,13 @@ public class RuleService {
     
     @Autowired 
     private SystemConfigLogRepository configLogRepository;
-    
-    // Công cụ giúp biến Java Object thành chuỗi JSON
+ 
     private final ObjectMapper objectMapper = new ObjectMapper();
-
-    // 1. Lấy tất cả danh sách Luật (Cả bật và tắt) để hiển thị lên bảng
+ 
     public List<Rule> getAllRules() {
         return ruleRepository.findAll();
     }
-
-    // 2. Cập nhật thông tin Luật và Ghi vết lịch sử
-// 2. Cập nhật thông tin Luật và Ghi vết lịch sử
+ 
     @Transactional(rollbackFor = Exception.class)
     public Rule updateRule(Long id, Rule ruleData, String adminUsername) {
         Rule existingRule = ruleRepository.findById(id)
@@ -37,13 +33,11 @@ public class RuleService {
 
         try {
             String oldJson = objectMapper.writeValueAsString(existingRule);
-
-            // Cập nhật dữ liệu cơ bản
+ 
             existingRule.setRuleName(ruleData.getRuleName());
-            existingRule.setConditions(ruleData.getConditions()); // Lưu JSON cũ cho Frontend đọc
+            existingRule.setConditions(ruleData.getConditions());  
             existingRule.setActionScore(ruleData.getActionScore());
-
-            // 🚀 BỘ PHIÊN DỊCH TỰ ĐỘNG (Dịch JSON sang SpEL)
+ 
             try {
                 com.fasterxml.jackson.databind.JsonNode node = objectMapper.readTree(ruleData.getConditions());
                 String field = node.has("field") ? node.get("field").asText() : "";
@@ -62,7 +56,7 @@ public class RuleService {
                     case "emotion": generatedSpel = "#tx.emotionSignal " + op + " '" + val + "'"; break;
                     case "dailyTotal": generatedSpel = "#dailyTotalAmount " + op + " " + val; break;
                 }
-                existingRule.setSpelExpression(generatedSpel); // Lưu chuỗi SpEL vừa dịch vào DB
+                existingRule.setSpelExpression(generatedSpel);  
             } catch (Exception ex) {
                 System.err.println("Lỗi phiên dịch JSON sang SpEL: " + ex.getMessage());
             }
@@ -78,8 +72,7 @@ public class RuleService {
             throw new RuntimeException("Lỗi khi cập nhật luật: " + e.getMessage());
         }
     }
-
-    // 3. Công tắc Bật/Tắt Luật nhanh (Kèm ghi lịch sử)
+ 
     @Transactional(rollbackFor = Exception.class)
     public Rule toggleRuleStatus(Long id, String adminUsername) {
         Rule existingRule = ruleRepository.findById(id)
@@ -88,7 +81,7 @@ public class RuleService {
         try {
             String oldJson = objectMapper.writeValueAsString(existingRule);
 
-            // Đảo ngược trạng thái hiện tại (Đang bật -> Tắt, Đang tắt -> Bật)
+ 
             existingRule.setIsActive(!existingRule.getIsActive());
 
             Rule savedRule = ruleRepository.save(existingRule);
@@ -102,8 +95,7 @@ public class RuleService {
             throw new RuntimeException("Lỗi khi bật/tắt luật: " + e.getMessage());
         }
     }
-
-    // 4. Tạo luật mới
+ 
     @Transactional(rollbackFor = Exception.class)
     public Rule createRule(Rule ruleData, String adminUsername) {
         try {
@@ -111,9 +103,9 @@ public class RuleService {
             newRule.setRuleName(ruleData.getRuleName());
             newRule.setConditions(ruleData.getConditions());
             newRule.setActionScore(ruleData.getActionScore());
-            newRule.setIsActive(true); // Luật mới tạo mặc định bật luôn
+            newRule.setIsActive(true);  
 
-            // 🚀 BỘ PHIÊN DỊCH TỰ ĐỘNG (Dịch JSON sang SpEL)
+ 
             try {
                 com.fasterxml.jackson.databind.JsonNode node = objectMapper.readTree(ruleData.getConditions());
                 String field = node.has("field") ? node.get("field").asText() : "";
@@ -140,7 +132,7 @@ public class RuleService {
             Rule savedRule = ruleRepository.save(newRule);
             
             String newJson = objectMapper.writeValueAsString(savedRule);
-            // Ghi vết vào hộp đen là CREATE
+ 
             SystemConfigLog log = new SystemConfigLog(adminUsername, "CREATE_RULE", "rules", savedRule.getId(), "{}", newJson);
             configLogRepository.save(log);
 

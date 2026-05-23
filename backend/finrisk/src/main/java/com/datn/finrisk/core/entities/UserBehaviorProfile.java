@@ -33,7 +33,7 @@ public class UserBehaviorProfile {
     @Column(name = "tx_count")
     private Integer txCount = 0;
 
-    // 🚀 BỘ 4 THÔNG SỐ: {Amount(Log), Hour(Sin/Cos), Gap(Seconds), Recipient(Entropy)}
+     
     
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "mean_vector", columnDefinition = "json")
@@ -41,7 +41,7 @@ public class UserBehaviorProfile {
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "covariance_matrix_c", columnDefinition = "json")
-    private List<List<Double>> covarianceMatrixC; // Ma trận 4x4 chưa chuẩn hóa (M2)
+    private List<List<Double>> covarianceMatrixC;  
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "ewma_mean_vector", columnDefinition = "json")
@@ -55,7 +55,7 @@ public class UserBehaviorProfile {
     private LocalDateTime lastTxTimestamp;
 
     @Version
-    private Integer version; // Khóa lạc quan chống đụng độ khi chạy Async
+    private Integer version;  
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();

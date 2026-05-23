@@ -26,7 +26,7 @@ public class MahalanobisCalculator {
         for (int i = 0; i < DIMENSIONS; i++) {
             for (int j = 0; j < DIMENSIONS; j++) {
                 
-                // 🚀 SANITIZE: Khử độc dữ liệu ma trận thô từ DB lên chống nhiễm chéo lỗi hệ số
+                
                 if (Double.isNaN(covarianceC[i][j]) || Double.isInfinite(covarianceC[i][j])) {
                     covarianceC[i][j] = 0.0;
                 }

@@ -10,12 +10,12 @@ import com.datn.finrisk.core.entities.UserSecurity;
 import com.datn.finrisk.core.repository.AccountRepository;
 import com.datn.finrisk.core.repository.UserRepository;
 import com.datn.finrisk.core.repository.UserSecurityRepository;
-import lombok.extern.slf4j.Slf4j; // 🚀 Thêm cái này
+import lombok.extern.slf4j.Slf4j;  
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-
-@Slf4j // 🚀 1. Thêm cái này để dùng log.info, log.error...
+ 
+@Slf4j  
 @Service
 public class AuthService {
 
@@ -25,9 +25,8 @@ public class AuthService {
     @Autowired private PasswordEncoder passwordEncoder;
 
     public LoginResponse login(LoginRequest request) {
-        log.info("=== BẮT ĐẦU XỬ LÝ LOGIN CHO USER: {} ===", request.getUsername()); // 🚀 Log đầu vào
-
-        // 1. Tìm user
+        log.info("=== BẮT ĐẦU XỬ LÝ LOGIN CHO USER: {} ===", request.getUsername()); 
+ 
         User user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> {
                     log.error("❌ LỖI: Không tìm thấy username: {}", request.getUsername());
@@ -38,24 +37,20 @@ public class AuthService {
         if (security == null) {
             throw new RuntimeException("Lỗi hệ thống: Không tìm thấy hồ sơ bảo mật!");
         }
-
-        // 3. KIỂM TRA MẬT KHẨU (Khúc này quan trọng nhất)
+ 
         String rawPassword = request.getPassword();
         String dbHash = security.getPasswordHash();
 
         log.info("🔍 ĐANG SO SÁNH MẬT KHẨU...");
-        log.info("➡️ Mật khẩu thô từ Frontend: [{}]", rawPassword);
-        log.info("➡️ Hash từ Database: [{}]", dbHash);
 
         boolean isMatch = passwordEncoder.matches(rawPassword, dbHash);
-        log.info("🎯 KẾT QUẢ SO SÁNH: {}", isMatch); // 🚀 Chốt hạ xem nó TRUE hay FALSE
+        log.debug("🎯 KẾT QUẢ SO SÁNH: {}", isMatch);
 
         if (!isMatch) {
             log.warn("⚠️ CẢNH BÁO: Sai mật khẩu cho user: {}", request.getUsername());
             throw new RuntimeException("Sai mật khẩu!");
         }
-
-        // 4. Lấy tài khoản ngân hàng
+ 
         Account userAccount = accountRepository.findByUserId(user.getId())
                 .orElseThrow(() -> {
                     log.error("❌ LỖI: User {} không có tài khoản ngân hàng!", request.getUsername());

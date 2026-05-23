@@ -22,45 +22,40 @@ public class JwtUtils {
     @Value("${jwt.expiration}")
     private int jwtExpirationMs;
 
-    //   BỔ SUNG 1: Khai báo thời gian sống của Refresh Token (đọc từ application.yml)
+ 
     @Value("${jwt.refreshExpiration}")
     private int jwtRefreshExpirationMs;
-
-    // Tạo chìa khóa từ chuỗi Secret
+ 
     private Key getSigningKey() {
         return Keys.hmacShaKeyFor(jwtSecret.getBytes());
     }
-
-    // 1. HÀM TẠO ACCESS TOKEN (Vé vào cửa 5 phút, kẹp full thông tin)
+ 
     public String generateJwtToken(User user) {
-        // Gói thêm ID và Role vào Token để Frontend đọc cho dễ
+ 
         Map<String, Object> claims = new HashMap<>();
         claims.put("id", user.getId());
-        claims.put("role", user.getRole().name()); // Lấy chữ "ADMIN" hoặc "USER"
+        claims.put("role", user.getRole().name());  
         claims.put("fullName", user.getFullName());
 
         return Jwts.builder()
-                .setClaims(claims) // Nhét dữ liệu phụ vào
-                .setSubject(user.getUsername()) // Subject chính là tên đăng nhập
-                .setIssuedAt(new Date()) // Thời gian phát hành
-                .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs)) // Thời gian hết hạn
-                .signWith(getSigningKey(), SignatureAlgorithm.HS256) // Đóng mộc mã hóa
+                .setClaims(claims) 
+                .setSubject(user.getUsername())  
+                .setIssuedAt(new Date())  
+                .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs))  
+                .signWith(getSigningKey(), SignatureAlgorithm.HS256)  
                 .compact();
     }
-
-    // =========================================================
-    //   BỔ SUNG 2: HÀM MỚI - TẠO REFRESH TOKEN (Vé gia hạn 7 ngày)
-    // =========================================================
+ 
     public String generateRefreshToken(User user) {
         return Jwts.builder()
-                .setSubject(user.getUsername()) // Chỉ cần username để nhận diện là đủ
+                .setSubject(user.getUsername())  
                 .setIssuedAt(new Date())
-                .setExpiration(new Date((new Date()).getTime() + jwtRefreshExpirationMs)) // Dùng hạn 7 ngày
+                .setExpiration(new Date((new Date()).getTime() + jwtRefreshExpirationMs)) 
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
 
-    // 2. HÀM LẤY USERNAME TỪ TOKEN (Để soi xem ai đang request)
+ 
     public String getUserNameFromJwtToken(String token) {
         return Jwts.parser()
                 .verifyWith((javax.crypto.SecretKey) getSigningKey())
@@ -69,8 +64,7 @@ public class JwtUtils {
                 .getPayload()
                 .getSubject();
     }
-
-    // 3. HÀM KIỂM TRA TOKEN CÓ HỢP LỆ KHÔNG (Bị sửa chữa, hết hạn...)
+ 
     public boolean validateJwtToken(String authToken) {
         try {
             Jwts.parser()

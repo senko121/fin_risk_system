@@ -29,10 +29,10 @@ public class AdminUserService {
     private UserRepository userRepository;
     
     @Autowired 
-    private AuditLogService auditLogService; // Ghi sổ Audit (Tab trái)
+    private AuditLogService auditLogService;  
 
     @Autowired
-    private SystemConfigLogRepository configLogRepository; // 🚀 CAMERA MỚI: Ghi sổ Config (Tab phải)
+    private SystemConfigLogRepository configLogRepository;  
 
     @Autowired
     private TransactionRepository transactionRepository;
@@ -40,17 +40,15 @@ public class AdminUserService {
     private final ObjectMapper objectMapper = new ObjectMapper(); 
     
     public Page<AdminUserDTO> getUsers(String search, int page, int size) {
-            // Tạo cấu hình phân trang, xếp user mới đăng ký lên đầu
+ 
             Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-            
-            // Gọi hàm SQL mình vừa viết bên Repository
+ 
             Page<User> userPage = userRepository.searchUsers(search, pageable);
-            
-            // Dùng luôn hàm .map() của Page để ép kiểu sang DTO cực gọn
+ 
             return userPage.map(this::convertToDTO);
         }
 
-    // 2. Nút bấm: Khóa / Mở khóa tài khoản (KÈM FORCE LOGOUT)
+ 
     @Transactional(rollbackFor = Exception.class)
     public AdminUserDTO toggleUserStatus(Long id, String adminUsername) {
         User user = userRepository.findById(id)
@@ -58,23 +56,20 @@ public class AdminUserService {
         
         String oldStatus = user.getStatus();
         
-        // Kiểm tra xem đang Khóa hay Mở
+ 
         if ("ACTIVE".equals(oldStatus)) {
             user.setStatus("LOCKED");
-            // Khi Refresh Token bị null, Hacker gọi API làm mới Token sẽ bị đá văng ra log in lại!
+ 
             user.setCurrentRefreshToken(null); 
         } else {
             user.setStatus("ACTIVE");
         }
         
         user = userRepository.save(user);
-
-        // --- GHI LOG KÉP ---
-        // 1. Ghi vào Audit Log (Hành vi)
+ 
         auditLogService.logAction(adminUsername, "TOGGLE_USER_STATUS", 
             "Đổi trạng thái tài khoản [" + user.getUsername() + "] từ " + oldStatus + " thành " + user.getStatus());
-
-        // 2. Ghi vào Config Log (Hộp đen JSON)
+ 
         try {
             String oldJson = objectMapper.writeValueAsString(Map.of("status", oldStatus));
             String newJson = objectMapper.writeValueAsString(Map.of("status", user.getStatus()));
@@ -86,26 +81,21 @@ public class AdminUserService {
 
         return convertToDTO(user);
     }
-
-    // 3. Nút bấm: Cảnh báo IP độc hại / Admin Flag
+ 
     @Transactional(rollbackFor = Exception.class)
     public AdminUserDTO toggleSuspicious(Long id, String adminUsername) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy User!"));
         
         boolean oldFlag = user.isAdminFlagged();
-        
-        // 🚀 Admin thao tác trên cờ adminFlagged, không đụng vào cờ của máy nữa
+ 
         user.setAdminFlagged(!oldFlag);
         user = userRepository.save(user);
-
-        // --- GHI LOG KÉP ---
-        // 1. Ghi vào Audit Log
+ 
         String actionMsg = user.isAdminFlagged() ? "BẬT CẢNH BÁO ĐỎ (Thủ công)" : "GỠ CẢNH BÁO (Thủ công)";
         auditLogService.logAction(adminUsername, "TOGGLE_ADMIN_FLAG", 
             actionMsg + " cho tài khoản [" + user.getUsername() + "]");
-
-        // 2. Ghi vào Config Log (Hộp đen JSON)
+ 
         try {
             String oldJson = objectMapper.writeValueAsString(Map.of("adminFlagged", oldFlag));
             String newJson = objectMapper.writeValueAsString(Map.of("adminFlagged", user.isAdminFlagged()));
@@ -117,8 +107,7 @@ public class AdminUserService {
 
         return convertToDTO(user);
     }
-
-    // 4. Lấy lịch sử 5 giao dịch gần nhất của User
+ 
     public List<Map<String, Object>> getRecentTransactionsByUserId(Long userId) {
         List<Transaction> transactions = transactionRepository.findTop5ByFromAccountUserIdOrderByCreatedAtDesc(userId);
         
@@ -129,17 +118,14 @@ public class AdminUserService {
             map.put("status", tx.getStatus());
             map.put("riskScore", tx.getTotalRiskScore());
             
-            // Format lại ngày tháng cho đẹp
+ 
             java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
             map.put("date", tx.getCreatedAt().format(formatter));
             
             return map;
         }).collect(Collectors.toList());
     }
-
-    // ==========================================================
-    // 5. Nút bấm: Xóa dữ liệu khuôn mặt (Tẩy não)
-    // ==========================================================
+ 
     @Transactional(rollbackFor = Exception.class)
     public AdminUserDTO resetFaceBiometric(Long id, String adminUsername) {
         User user = userRepository.findById(id)
@@ -150,20 +136,17 @@ public class AdminUserService {
         if (oldFaceData == null || oldFaceData.trim().isEmpty()) {
             throw new RuntimeException("Người dùng này chưa đăng ký khuôn mặt!");
         }
-
-        // 🚀 Ra đòn chí mạng: Tẩy trắng dữ liệu
+ 
         user.setBase64FaceImage(null);
         user = userRepository.save(user);
 
-        // --- GHI LOG KÉP ---
-        // 1. Ghi vào Audit Log
+ 
         auditLogService.logAction(adminUsername, "RESET_FACE_DATA", 
             "Hủy vĩnh viễn dữ liệu sinh trắc học khuôn mặt của tài khoản [" + user.getUsername() + "]");
 
-        // 2. Ghi vào Config Log (Hộp đen JSON)
+ 
         try {
-            // Mẹo Enterprise: Chuỗi Base64 của ảnh rất nặng (vài MB). 
-            // Ta không nên lưu toàn bộ chuỗi này vào log để tránh sập DB. Chỉ ghi nhãn đại diện.
+ 
             String oldJson = objectMapper.writeValueAsString(Map.of("base64FaceImage", "[DỮ_LIỆU_ẢNH_ĐÃ_BỊ_HỦY]"));
             String newJson = objectMapper.writeValueAsString(Map.of("base64FaceImage", "null"));
             
@@ -175,10 +158,7 @@ public class AdminUserService {
 
         return convertToDTO(user);
     }
-
-    // ==========================================================
-    // Hàm tiện ích: Ép kiểu từ Entity sang DTO (ĐÃ NÂNG CẤP)
-    // ==========================================================
+ 
     private AdminUserDTO convertToDTO(User user) {
         AdminUserDTO dto = new AdminUserDTO();
         dto.setId(user.getId());
@@ -193,8 +173,7 @@ public class AdminUserService {
         dto.setLastLoginIp(user.getLastLoginIp());
         dto.setLastLoginDevice(user.getLastLoginDevice());
         dto.setCreatedAt(user.getCreatedAt());
-
-        // 🚀 BƠM THÊM CỜ KHUÔN MẶT VÀO ĐÂY ĐỂ TRẢ VỀ REACT
+ 
         boolean hasFace = user.getBase64FaceImage() != null && !user.getBase64FaceImage().trim().isEmpty();
         dto.setHasFaceData(hasFace);
 

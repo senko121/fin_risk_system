@@ -25,17 +25,16 @@ public class PassActionStrategy implements RiskActionStrategy {
         System.out.println("✅ THỰC THI CHIẾN THUẬT: PASS_ACTION (Chuyển tiền trực tiếp)");
         tx.setRiskLevel("LOW");
         tx.setStatus("SUCCESS");
-        
-        //   TẠO BIẾN MỚI (savedTx) ĐỂ JAVA KHÔNG CHỬI LỖI "EFFECTIVELY FINAL"
+ 
         Transaction savedTx = transactionRepository.save(tx);
 
-        // TỪ ĐÂY TRỞ XUỐNG DÙNG savedTx THAY CHO tx
+ 
         Account sender = savedTx.getFromAccount();
         sender.setBalance(sender.getBalance().subtract(savedTx.getAmount()));
         accountRepository.save(sender);
 
         TransactionLedger debit = new TransactionLedger();
-        debit.setTransaction(savedTx); // Dùng savedTx
+        debit.setTransaction(savedTx);  
         debit.setAccount(sender);
         debit.setEntryType("DEBIT");
         debit.setAmount(savedTx.getAmount());
@@ -47,7 +46,7 @@ public class PassActionStrategy implements RiskActionStrategy {
             accountRepository.save(receiver);
 
             TransactionLedger credit = new TransactionLedger();
-            credit.setTransaction(savedTx); // Biến savedTx không bị gán lại nên ném vào Lambda thoải mái!
+            credit.setTransaction(savedTx);  
             credit.setAccount(receiver);
             credit.setEntryType("CREDIT");
             credit.setAmount(savedTx.getAmount());

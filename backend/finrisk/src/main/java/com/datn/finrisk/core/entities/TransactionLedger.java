@@ -24,13 +24,13 @@ public class TransactionLedger {
     private Account account;
 
     @Column(nullable = false)
-    private String entryType; // DEBIT (Trừ) hoặc CREDIT (Cộng)
+    private String entryType; 
 
     @Column(nullable = false)
     private BigDecimal amount;
 
     @Column(nullable = false)
-    private BigDecimal balanceAfter; // Số dư sau khi thực hiện
+    private BigDecimal balanceAfter;  
 
     private String description;
 

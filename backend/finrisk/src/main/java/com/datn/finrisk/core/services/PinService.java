@@ -24,35 +24,31 @@ public class PinService {
     @Transactional(noRollbackFor = BusinessLogicException.class)
     public boolean verifyPin(UserSecurity security, String rawPin) {
 
-        // 1. Kiểm tra xem tài khoản có đang bị khóa PIN không
+ 
         if (security.getLockUntil() != null && security.getLockUntil().isAfter(LocalDateTime.now())) {
  
             throw new BusinessLogicException("ERR_PIN_LOCKED", "Tài khoản đang bị tạm khóa do nhập sai PIN quá nhiều lần. Vui lòng thử lại sau!");
         }
-
-        // Nếu thời gian khóa đã hết, tự động mở khóa
+ 
         if (security.getLockUntil() != null && security.getLockUntil().isBefore(LocalDateTime.now())) {
             security.setLockUntil(null);
             security.setFailedPinAttempts(0);
         }
-
-        // 2. Chặn nếu User chưa cài PIN
+ 
         if (security.getPinHash() == null || !security.getIsPinSetup()) {
  
              throw new BusinessLogicException("ERR_PIN_NOT_SETUP", "Người dùng chưa cài đặt Mã PIN!");
         }
-
-        // 3. Giải mã Hash và so sánh
+ 
         boolean isMatch = passwordEncoder.matches(rawPin, security.getPinHash());
-
-        // 4. Xử lý kết quả và đếm số lần sai
+ 
         if (isMatch) {
-            security.setFailedPinAttempts(0); // Nhập đúng thì reset bộ đếm về 0
+            security.setFailedPinAttempts(0);  
             security.setLockUntil(null);
             userSecurityRepository.save(security);
             return true;
         } else {
-            // NẾU NHẬP SAI: Tăng biến đếm và tính toán số lần còn lại
+ 
             int attempts = security.getFailedPinAttempts() + 1;
             security.setFailedPinAttempts(attempts);
             
@@ -60,7 +56,7 @@ public class PinService {
             int remainingAttempts = maxAttempts - attempts;
             
             if (attempts >= maxAttempts) {
-                // Nếu sai 5 lần -> Phạt thẻ đỏ, khóa 15 phút
+ 
                 security.setLockUntil(LocalDateTime.now().plusMinutes(15));
                 userSecurityRepository.save(security);
  
@@ -79,7 +75,7 @@ public class PinService {
         UserSecurity security = userSecurityRepository.findByUserId(userId)
                 .orElseThrow(() -> new BusinessLogicException("ERR_NOT_FOUND", "Lỗi hệ thống: Không tìm thấy hồ sơ bảo mật!"));
 
-        // CÀI ĐẶT LẦN ĐẦU
+ 
         if (!security.getIsPinSetup() || security.getPinHash() == null) {
             security.setPinHash(passwordEncoder.encode(newPin));
             security.setIsPinSetup(true);
@@ -88,17 +84,17 @@ public class PinService {
             return "Cài đặt Mã PIN lần đầu thành công!";
         }
 
-        // ĐỔI MÃ PIN (Yêu cầu PIN cũ)
+ 
         if (oldPin == null || oldPin.isEmpty()) {
             throw new BusinessLogicException("ERR_BAD_REQUEST", "Vui lòng nhập Mã PIN cũ để xác thực!");
         }
 
-        // Kiểm tra PIN cũ có đúng không
+ 
         if (!passwordEncoder.matches(oldPin, security.getPinHash())) {
             throw new BusinessLogicException("ERR_WRONG_PIN", "Mã PIN cũ không chính xác!");
         }
 
-        // Cập nhật PIN mới
+ 
         security.setPinHash(passwordEncoder.encode(newPin));
         security.setLastPinChange(LocalDateTime.now());
         userSecurityRepository.save(security);
