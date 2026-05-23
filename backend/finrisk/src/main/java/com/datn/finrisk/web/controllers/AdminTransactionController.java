@@ -19,7 +19,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/admin/transactions")
-@CrossOrigin(origins = "http://localhost:5173")  
 public class AdminTransactionController {
 
     @Autowired

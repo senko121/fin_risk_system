@@ -43,6 +43,8 @@ twilio:
     number: "+17655725425"
 
 app:
+  cors:
+    allowed-origins: "http://localhost:5173"
   test:
     phone:
       number: "+84794386146"

@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/admin/ai-logs")
-@CrossOrigin(origins = "*") 
 public class AdminAiLogController {
 
     @Autowired

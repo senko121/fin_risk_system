@@ -14,7 +14,6 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/admin/logs")
-@CrossOrigin(origins = "http://localhost:5173")
 public class AdminLogController {
 
     @Autowired private AuditLogRepository auditLogRepo;

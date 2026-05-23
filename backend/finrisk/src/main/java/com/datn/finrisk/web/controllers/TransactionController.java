@@ -46,7 +46,6 @@ import java.time.LocalDateTime;
 @Slf4j
 @RestController
 @RequestMapping("/api/transactions")
-@CrossOrigin(origins = "http://localhost:5173") 
 public class TransactionController {
 
     @Autowired
