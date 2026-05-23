@@ -1,10 +1,12 @@
 package com.datn.finrisk.core.repository;
 
 import com.datn.finrisk.core.entities.Account;
-import com.datn.finrisk.core.entities.User; 
+import com.datn.finrisk.core.entities.User;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query; 
-import org.springframework.data.repository.query.Param; 
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -40,10 +42,18 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
     Optional<Account> findByIdWithUserAndSecurity(@Param("accountId") Long accountId);
 
     @Query("""
-        SELECT a FROM Account a 
-        LEFT JOIN FETCH a.user u 
-        LEFT JOIN FETCH u.userSecurity 
+        SELECT a FROM Account a
+        LEFT JOIN FETCH a.user u
+        LEFT JOIN FETCH u.userSecurity
         WHERE a.accountNumber = :accountNumber
     """)
     Optional<Account> findByAccountNumberWithUser(@Param("accountNumber") String accountNumber);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT a FROM Account a WHERE a.id = :id")
+    Optional<Account> findByIdForUpdate(@Param("id") Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT a FROM Account a WHERE a.accountNumber = :accountNumber")
+    Optional<Account> findByAccountNumberForUpdate(@Param("accountNumber") String accountNumber);
 }

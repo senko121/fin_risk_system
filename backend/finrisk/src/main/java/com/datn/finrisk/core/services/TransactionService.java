@@ -13,9 +13,10 @@ import com.datn.finrisk.core.repository.RiskScoreRepository;
 import com.datn.finrisk.core.repository.TransactionLedgerRepository;
 import com.datn.finrisk.core.repository.TransactionRepository;
 import com.datn.finrisk.core.repository.UserSecurityRepository;
-import com.datn.finrisk.core.strategies.RiskActionStrategy; 
+import com.datn.finrisk.core.strategies.RiskActionStrategy;
 import com.datn.finrisk.core.entities.TransactionAiInsight;
 import com.datn.finrisk.core.repository.TransactionAiInsightRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +31,7 @@ import java.util.Map;
 //Transaction B9: đóng vai trò tonggor chỉ huy gói toan bọ quá trinh trên initiateTransaction -> Transaction B10: Auditllogserrvice
 //Transaction B9 Phase 2: bắt đau gọi hafm xử lý tiền bạcs executeTransactionCore qua trính thực hiện UPDATE  cacs ảng account va INSERT  vao transactiion ledgers
 //Transaction B10 Phase 2 : AuditLogService
+@Slf4j
 @Service
 public class TransactionService {
 
@@ -173,12 +175,28 @@ public class TransactionService {
     
     @Transactional(rollbackFor = Exception.class)
     public Transaction executeTransactionCore(Transaction tx) {
+        // 1. Atomic claim — exactly one thread/request wins; duplicates are rejected at DB level
+        int claimed = transactionRepository.claimForExecution(tx.getId());
+        if (claimed == 0) {
+            log.warn("[TxCore] tx={} already claimed or not in a pending state — aborting duplicate execution.", tx.getId());
+            throw new BusinessLogicException("ERR_DUPLICATE_EXECUTION",
+                "Giao dịch đang được xử lý hoặc đã hoàn tất.");
+        }
         System.out.println("✅ XÁC THỰC THÀNH CÔNG -> ĐÓNG MỘC TRỪ TIỀN VÀO SỔ CÁI");
-        
+
         tx.setStatus("SUCCESS");
         Transaction savedTx = transactionRepository.save(tx);
- 
-        Account sender = savedTx.getFromAccount();
+
+        // 2. Re-load sender with a pessimistic write lock — guarantees fresh balance, prevents lost updates
+        Account sender = accountRepository.findByIdForUpdate(savedTx.getFromAccount().getId())
+            .orElseThrow(() -> new BusinessLogicException("ERR_NOT_FOUND", "Tài khoản nguồn không tồn tại!"));
+
+        // 3. Re-check balance at execution time (may have changed since initiation)
+        if (sender.getBalance().compareTo(savedTx.getAmount()) < 0) {
+            throw new BusinessLogicException("ERR_INSUFFICIENT_BALANCE",
+                "Số dư không đủ tại thời điểm thực hiện giao dịch!");
+        }
+
         sender.setBalance(sender.getBalance().subtract(savedTx.getAmount()));
         accountRepository.save(sender);
 
@@ -189,8 +207,9 @@ public class TransactionService {
         debit.setAmount(savedTx.getAmount());
         debit.setBalanceAfter(sender.getBalance());
         transactionLedgerRepository.save(debit);
- 
-        accountRepository.findByAccountNumber(savedTx.getToAccountNumber()).ifPresent(receiver -> {
+
+        // 4. Lock receiver account before crediting to prevent concurrent balance corruption
+        accountRepository.findByAccountNumberForUpdate(savedTx.getToAccountNumber()).ifPresent(receiver -> {
             receiver.setBalance(receiver.getBalance().add(savedTx.getAmount()));
             accountRepository.save(receiver);
 
@@ -203,9 +222,7 @@ public class TransactionService {
             transactionLedgerRepository.save(credit);
         });
 
- 
         boolean isNewRecipient = checkIsNewRecipient(sender.getId(), savedTx.getToAccountNumber());
- 
         behaviorLearningService.learnFromTransaction(savedTx, isNewRecipient);
 
         return savedTx;

@@ -52,6 +52,13 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long>,
     List<Transaction> findStalledTransactions(@Param("threshold") LocalDateTime threshold);
 
     @Transactional
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Transaction t SET t.status = 'PROCESSING' WHERE t.id = :id " +
+           "AND t.status IN ('PENDING_PIN', 'PENDING_OTP', 'PENDING_FACE_STATIC', " +
+           "'PENDING_ALL_IN_ONE', 'PENDING_VOICE_OTP')")
+    int claimForExecution(@Param("id") Long id);
+
+    @Transactional
     @Modifying
         @Query("UPDATE Transaction t SET t.emotionSignal = :emotion WHERE t.id = :id")
         void updateEmotionSignal(@Param("id") Long id, @Param("emotion") String emotion);
