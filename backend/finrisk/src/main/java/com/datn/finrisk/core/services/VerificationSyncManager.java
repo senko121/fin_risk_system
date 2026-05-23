@@ -60,9 +60,11 @@ public class VerificationSyncManager {
             Transaction tx = transactionRepository.findById(txId).orElse(null);
             if (tx == null) return;
 
-            // Defense-in-depth: reject if transaction is no longer in a pending state
+            // Defense-in-depth: reject if transaction is no longer in an actionable state
             // (covers replayed WebSocket messages and races between async results)
-            if (tx.getStatus() == null || !tx.getStatus().startsWith("PENDING_")) {
+            // UNDER_REVIEW is explicitly allowed through so the notification block below is reachable
+            if (tx.getStatus() == null ||
+                    (!tx.getStatus().startsWith("PENDING_") && !"UNDER_REVIEW".equals(tx.getStatus()))) {
                 System.err.println("⚠️ [SYNC] tx=" + txId + " is in status=" +
                     tx.getStatus() + " — not executable, skipping.");
                 return;

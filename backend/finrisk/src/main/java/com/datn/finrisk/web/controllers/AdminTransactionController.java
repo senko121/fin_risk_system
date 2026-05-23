@@ -78,9 +78,6 @@ public class AdminTransactionController {
                                 "message", "Lỗi: Chỉ có thể APPROVE giao dịch đang ở trạng thái UNDER_REVIEW."
                         ));
                     }
-                    tx.setStatus("PROCESSING"); 
-                    transactionRepository.save(tx);
-                    
                     Transaction completedTx = transactionService.executeTransactionCore(tx);
                     auditLogService.logAction("ADMIN", "RESOLVE_REVIEW_APPROVE", "Admin đã DUYỆT giao dịch " + txId + ". Ghi chú: " + adminNotes);
                     
