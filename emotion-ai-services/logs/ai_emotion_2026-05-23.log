@@ -1388,3 +1388,5 @@
 2026-05-23 11:53:55,550 | INFO     | [BATCH-031553] ↳ Frame 60/60: SAD (40.9%)
 2026-05-23 11:53:55,550 | INFO     | [BATCH-031553] 🎯 KẾT QUẢ CHUỖI: SAD (Tần suất: {'SAD': 60})
 2026-05-23 11:53:55,551 | INFO     | [BATCH-031553] ⏱️ Tổng thời gian xử lý: 3997.55 ms
+2026-05-23 17:32:40,322 | INFO     | ⏳ Đang nạp AI Model vào bộ nhớ...
+2026-05-23 17:32:43,308 | INFO     | ✅ Nạp Model thành công! Server AI đã sẵn sàng.

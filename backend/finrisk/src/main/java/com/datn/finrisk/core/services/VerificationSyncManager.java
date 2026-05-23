@@ -31,21 +31,23 @@ public class VerificationSyncManager {
 
     private final Map<String, AuthState> syncMap = new ConcurrentHashMap<>();
  
-    public synchronized void updateFaceResult(String txKey, boolean isPassed, String username, Long txId, WebSocketSession session) {
+    public void updateFaceResult(String txKey, boolean isPassed, String username, Long txId, WebSocketSession session) {
         AuthState state = syncMap.computeIfAbsent(txKey, k -> new AuthState());
-        state.isFacePassed = isPassed;
-        state.faceSession = session; 
-        
-        if (!isPassed) state.errMsg = "Khuôn mặt hoặc cảm xúc không hợp lệ. ";
-        checkAndFinalize(txKey, username, txId, state);
+        synchronized (state) {
+            state.isFacePassed = isPassed;
+            state.faceSession = session;
+            if (!isPassed) state.errMsg = "Khuôn mặt hoặc cảm xúc không hợp lệ. ";
+            checkAndFinalize(txKey, username, txId, state);
+        }
     }
  
-    public synchronized void updateVoiceResult(String txKey, boolean isPassed, String username, Long txId) {
+    public void updateVoiceResult(String txKey, boolean isPassed, String username, Long txId) {
         AuthState state = syncMap.computeIfAbsent(txKey, k -> new AuthState());
-        state.isVoicePassed = isPassed;
-        
-        if (!isPassed) state.errMsg += "Giọng nói hoặc Mã OTP không khớp. ";
-        checkAndFinalize(txKey, username, txId, state);
+        synchronized (state) {
+            state.isVoicePassed = isPassed;
+            if (!isPassed) state.errMsg += "Giọng nói hoặc Mã OTP không khớp. ";
+            checkAndFinalize(txKey, username, txId, state);
+        }
     }
  
     private void checkAndFinalize(String txKey, String username, Long txId, AuthState state) {
