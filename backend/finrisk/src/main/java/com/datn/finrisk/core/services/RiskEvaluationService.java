@@ -12,13 +12,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.datn.finrisk.application.dtos.EmotionAIResponse;
 import com.datn.finrisk.application.dtos.FaceAIResponse;
 import com.datn.finrisk.application.dtos.BehaviorInsightResult;
+import com.datn.finrisk.application.dtos.TransactionSpelContext;
 import com.datn.finrisk.core.repository.RiskScoreRepository;
 import com.datn.finrisk.core.entities.RiskScore;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.expression.EvaluationException;
 import org.springframework.expression.ExpressionParser;
+import org.springframework.expression.spel.SpelParseException;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
-import org.springframework.expression.spel.support.StandardEvaluationContext;
+import org.springframework.expression.spel.support.SimpleEvaluationContext;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.scheduling.annotation.Async;
@@ -26,6 +29,8 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.core.io.ByteArrayResource;
+
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.Map;
@@ -36,6 +41,7 @@ import java.util.List;
 import java.util.ArrayList;
 
 // Transaction B6: đây là não tính điểm chốt lại điểm rủi ro -> Transaction B7: RiskPolicyRepository
+@Slf4j
 @Service
 public class RiskEvaluationService {
 
@@ -109,8 +115,8 @@ public class RiskEvaluationService {
         System.out.printf("🧠 ĐIỂM THÓI QUEN (BEHAVIOR): %d | txCount: %d%n", behavioralScore, txCount);
 
  
-        StandardEvaluationContext context = new StandardEvaluationContext();
-        context.setVariable("tx", transaction);
+        SimpleEvaluationContext context = SimpleEvaluationContext.forReadOnlyDataBinding().build();
+        context.setVariable("tx", TransactionSpelContext.from(transaction));
         context.setVariable("isNewRecipient", isNewRecipient);
         boolean combinedSuspiciousRisk = sender.isSuspiciousSession() || sender.isAdminFlagged();
         context.setVariable("suspiciousSession", combinedSuspiciousRisk);
@@ -156,8 +162,15 @@ public class RiskEvaluationService {
                         }
                     }
                 }
+            } catch (SpelParseException e) {
+                log.warn("SpEL syntax error in rule [id={}, name='{}'] — rule skipped: {}",
+                    rule.getId(), rule.getRuleName(), e.getMessage());
+            } catch (EvaluationException e) {
+                log.warn("SpEL evaluation error in rule [id={}, name='{}'] — rule skipped: {}",
+                    rule.getId(), rule.getRuleName(), e.getMessage());
             } catch (Exception e) {
-                System.err.println("⚠ Lỗi SpEL tại Rule [" + rule.getRuleName() + "]: " + e.getMessage());
+                log.error("Unexpected error evaluating rule [id={}, name='{}'] — rule skipped.",
+                    rule.getId(), rule.getRuleName(), e);
             }
         }
         

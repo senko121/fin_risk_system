@@ -9,7 +9,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class RuleService {
@@ -21,7 +23,10 @@ public class RuleService {
     private SystemConfigLogRepository configLogRepository;
  
     private final ObjectMapper objectMapper = new ObjectMapper();
- 
+
+    private static final Set<String> NUMERIC_OPS  = Set.of(">", ">=", "<", "<=", "==", "!=");
+    private static final Set<String> EQUALITY_OPS = Set.of("==", "!=");
+
     public List<Rule> getAllRules() {
         return ruleRepository.findAll();
     }
@@ -44,6 +49,8 @@ public class RuleService {
                 String op = node.has("operator") ? node.get("operator").asText() : "";
                 String val = node.has("value") ? node.get("value").asText() : "";
 
+                validateCondition(field, op, val);
+
                 String generatedSpel = "";
                 switch (field) {
                     case "amount": generatedSpel = "#tx.amount " + op + " " + val; break;
@@ -56,7 +63,9 @@ public class RuleService {
                     case "emotion": generatedSpel = "#tx.emotionSignal " + op + " '" + val + "'"; break;
                     case "dailyTotal": generatedSpel = "#dailyTotalAmount " + op + " " + val; break;
                 }
-                existingRule.setSpelExpression(generatedSpel);  
+                existingRule.setSpelExpression(generatedSpel);
+            } catch (IllegalArgumentException e) {
+                throw e;
             } catch (Exception ex) {
                 System.err.println("Lỗi phiên dịch JSON sang SpEL: " + ex.getMessage());
             }
@@ -112,6 +121,8 @@ public class RuleService {
                 String op = node.has("operator") ? node.get("operator").asText() : "";
                 String val = node.has("value") ? node.get("value").asText() : "";
 
+                validateCondition(field, op, val);
+
                 String generatedSpel = "";
                 switch (field) {
                     case "amount": generatedSpel = "#tx.amount " + op + " " + val; break;
@@ -124,7 +135,9 @@ public class RuleService {
                     case "emotion": generatedSpel = "#tx.emotionSignal " + op + " '" + val + "'"; break;
                     case "dailyTotal": generatedSpel = "#dailyTotalAmount " + op + " " + val; break;
                 }
-                newRule.setSpelExpression(generatedSpel); 
+                newRule.setSpelExpression(generatedSpel);
+            } catch (IllegalArgumentException e) {
+                throw e;
             } catch (Exception ex) {
                 System.err.println("Lỗi phiên dịch JSON sang SpEL: " + ex.getMessage());
             }
@@ -139,6 +152,122 @@ public class RuleService {
             return savedRule;
         } catch (Exception e) {
             throw new RuntimeException("Lỗi khi tạo luật mới: " + e.getMessage());
+        }
+    }
+
+    // ── Whitelist validation ──────────────────────────────────────────────────
+    // Called before SpEL generation in both createRule() and updateRule().
+    // Throws IllegalArgumentException (propagated as 400) on any invalid input.
+    private void validateCondition(String field, String op, String val) {
+
+        if (field == null || field.isBlank()) {
+            throw new IllegalArgumentException("Rule condition must specify a 'field'.");
+        }
+
+        switch (field) {
+
+            case "amount":
+            case "dailyTotal": {
+                if (!NUMERIC_OPS.contains(op)) {
+                    throw new IllegalArgumentException(
+                        "Operator '" + op + "' is not allowed for field '" + field + "'. " +
+                        "Allowed: " + NUMERIC_OPS);
+                }
+                try {
+                    new BigDecimal(val);
+                } catch (NumberFormatException e) {
+                    throw new IllegalArgumentException(
+                        "Value '" + val + "' is not a valid number for field '" + field + "'.");
+                }
+                break;
+            }
+
+            case "recentTxCount": {
+                if (!NUMERIC_OPS.contains(op)) {
+                    throw new IllegalArgumentException(
+                        "Operator '" + op + "' is not allowed for field 'recentTxCount'. " +
+                        "Allowed: " + NUMERIC_OPS);
+                }
+                try {
+                    int n = Integer.parseInt(val);
+                    if (n < 0) {
+                        throw new IllegalArgumentException(
+                            "Value for 'recentTxCount' must be >= 0, got: " + val);
+                    }
+                } catch (NumberFormatException e) {
+                    throw new IllegalArgumentException(
+                        "Value '" + val + "' is not a valid integer for field 'recentTxCount'.");
+                }
+                break;
+            }
+
+            case "balanceRatio": {
+                if (!NUMERIC_OPS.contains(op)) {
+                    throw new IllegalArgumentException(
+                        "Operator '" + op + "' is not allowed for field 'balanceRatio'. " +
+                        "Allowed: " + NUMERIC_OPS);
+                }
+                double d;
+                try {
+                    d = Double.parseDouble(val);
+                } catch (NumberFormatException e) {
+                    throw new IllegalArgumentException(
+                        "Value '" + val + "' is not a valid decimal for field 'balanceRatio'.");
+                }
+                if (d < 0.0 || d > 1.0) {
+                    throw new IllegalArgumentException(
+                        "Value for 'balanceRatio' must be between 0.0 and 1.0, got: " + val);
+                }
+                break;
+            }
+
+            case "suspiciousSession":
+            case "deviceTrusted":
+            case "isNightTime": {
+                if (!EQUALITY_OPS.contains(op)) {
+                    throw new IllegalArgumentException(
+                        "Operator '" + op + "' is not allowed for field '" + field + "'. " +
+                        "Allowed: " + EQUALITY_OPS);
+                }
+                if (!"true".equals(val) && !"false".equals(val)) {
+                    throw new IllegalArgumentException(
+                        "Value for '" + field + "' must be 'true' or 'false', got: '" + val + "'.");
+                }
+                break;
+            }
+
+            case "emotion": {
+                if (!EQUALITY_OPS.contains(op)) {
+                    throw new IllegalArgumentException(
+                        "Operator '" + op + "' is not allowed for field 'emotion'. " +
+                        "Allowed: " + EQUALITY_OPS);
+                }
+                if (val == null || !val.matches("[A-Z][A-Z_]{1,19}")) {
+                    throw new IllegalArgumentException(
+                        "Value for 'emotion' must be an uppercase name (e.g. HAPPY, FEAR, NEUTRAL), " +
+                        "got: '" + val + "'.");
+                }
+                break;
+            }
+
+            case "history": {
+                if (!EQUALITY_OPS.contains(op)) {
+                    throw new IllegalArgumentException(
+                        "Operator '" + op + "' is not allowed for field 'history'. " +
+                        "Allowed: " + EQUALITY_OPS);
+                }
+                if (!"NEW_RECIPIENT".equals(val)) {
+                    throw new IllegalArgumentException(
+                        "Value for 'history' must be 'NEW_RECIPIENT', got: '" + val + "'.");
+                }
+                break;
+            }
+
+            default:
+                throw new IllegalArgumentException(
+                    "Unknown field: '" + field + "'. Allowed fields: " +
+                    "amount, dailyTotal, recentTxCount, balanceRatio, " +
+                    "suspiciousSession, deviceTrusted, isNightTime, emotion, history.");
         }
     }
 }
