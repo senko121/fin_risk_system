@@ -20,7 +20,7 @@ public class TransactionCleanupScheduler {
  
     @Scheduled(fixedDelay = 300000)
     public void cleanupStalledTransactions() {
-        LocalDateTime threshold = LocalDateTime.now().minusMinutes(10);
+        LocalDateTime threshold = LocalDateTime.now().minusMinutes(20);
         List<Transaction> stalled = transactionRepository.findStalledTransactions(threshold);
 
         if (stalled.isEmpty()) return;
