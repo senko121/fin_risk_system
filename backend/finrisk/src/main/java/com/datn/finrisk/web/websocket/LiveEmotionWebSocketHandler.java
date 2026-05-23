@@ -10,6 +10,7 @@ import com.datn.finrisk.core.strategies.AdvancedFaceActionStrategy;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -119,19 +120,16 @@ public class LiveEmotionWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
-    @jakarta.annotation.PostConstruct
-    public void startCleanupScheduler() {
-        java.util.concurrent.Executors.newSingleThreadScheduledExecutor()
-            .scheduleAtFixedRate(() -> {
-                long now = System.currentTimeMillis();
-                long TTL_MS = 10 * 60 * 1000;
-                bufferCreatedAt.entrySet().removeIf(entry -> {
-                    if (now - entry.getValue() > TTL_MS) {
-                        sessionFrameBuffer.remove(entry.getKey());
-                        return true;
-                    }
-                    return false;
-                });
-            }, 5, 5, java.util.concurrent.TimeUnit.MINUTES);
+    @Scheduled(initialDelay = 5 * 60 * 1000, fixedRate = 5 * 60 * 1000)
+    void cleanupStaleBuffers() {
+        long now = System.currentTimeMillis();
+        long TTL_MS = 10 * 60 * 1000;
+        bufferCreatedAt.entrySet().removeIf(entry -> {
+            if (now - entry.getValue() > TTL_MS) {
+                sessionFrameBuffer.remove(entry.getKey());
+                return true;
+            }
+            return false;
+        });
     }
 }
