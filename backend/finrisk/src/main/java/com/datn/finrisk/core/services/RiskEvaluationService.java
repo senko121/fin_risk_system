@@ -14,6 +14,7 @@ import com.datn.finrisk.application.dtos.FaceAIResponse;
 import com.datn.finrisk.application.dtos.BehaviorInsightResult;
 import com.datn.finrisk.application.dtos.TransactionSpelContext;
 import com.datn.finrisk.core.repository.RiskScoreRepository;
+import com.datn.finrisk.core.repository.UserDeviceRepository;
 import com.datn.finrisk.core.entities.RiskScore;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,6 +52,7 @@ public class RiskEvaluationService {
     @Autowired private RiskScoreRepository riskScoreRepository;
     @Autowired private com.datn.finrisk.core.repository.UserBehaviorProfileRepository profileRepository;
     @Autowired private com.datn.finrisk.core.services.BehavioralProfilingService behavioralProfilingService;
+    @Autowired private UserDeviceRepository userDeviceRepository;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final ExpressionParser parser = new SpelExpressionParser();  
@@ -120,7 +122,8 @@ public class RiskEvaluationService {
         context.setVariable("isNewRecipient", isNewRecipient);
         boolean combinedSuspiciousRisk = sender.isSuspiciousSession() || sender.isAdminFlagged();
         context.setVariable("suspiciousSession", combinedSuspiciousRisk);
-        context.setVariable("deviceTrusted", true);
+        boolean deviceTrusted = resolveDeviceTrusted(transaction, sender);
+        context.setVariable("deviceTrusted", deviceTrusted);
         context.setVariable("recentTxCount", recentTxCount);
         context.setVariable("balanceRatio", balanceRatio);
         context.setVariable("isNightTime", isNightTime);
@@ -226,6 +229,17 @@ public class RiskEvaluationService {
     }
 
  
+    private boolean resolveDeviceTrusted(Transaction transaction, User sender) {
+        String fingerprint = transaction.getDeviceFingerprint();
+        if (fingerprint == null || fingerprint.isBlank()) {
+            return false;
+        }
+        return userDeviceRepository.findByDeviceFingerprint(fingerprint)
+                .filter(d -> d.getUser().getId().equals(sender.getId()))
+                .map(d -> Boolean.TRUE.equals(d.getIsTrusted()))
+                .orElse(false);
+    }
+
     @Async("aiTaskExecutor")
     public CompletableFuture<FaceAIResponse> verifyIdentityAsync(String liveBase64, String regBase64) {
         System.out.println("--- [STEP 1: FACE-ID] Đang gửi ảnh sang Port 5000... ---");
