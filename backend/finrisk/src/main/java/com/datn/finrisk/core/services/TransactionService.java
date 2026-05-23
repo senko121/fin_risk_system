@@ -61,12 +61,6 @@ public class TransactionService {
         "HIGH", 3
     );
 
-    @Transactional
-    public Transaction executeAfterOtp(Transaction tx) {
-        RiskActionStrategy strategy = actionStrategies.get("passActionStrategy");
-        return strategy.execute(tx);
-    }
-
     private boolean checkIsNewRecipient(Long accountId, String toAccountNumber) {
  
         return !transactionLedgerRepository
