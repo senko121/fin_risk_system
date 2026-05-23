@@ -110,21 +110,17 @@ public class AdminTransactionController {
                     ));
 
                 case "REVERSE":
- 
                     if (!"SUCCESS".equals(currentStatus)) {
                         return ResponseEntity.badRequest().body(Map.of(
                                 "status", "ERROR",
                                 "message", "Lỗi: Nút REVERSE chỉ dùng để hoàn tác giao dịch đã SUCCESS."
                         ));
                     }
-                    tx.setStatus("REVERSED");
-                    transactionRepository.save(tx);
- 
-                    
-                    auditLogService.logAction("ADMIN", "TRANSACTION_REVERSED", "Admin HOÀN TIỀN giao dịch " + txId + ". Ghi chú: " + adminNotes);
-                    
+                    transactionService.executeReversalCore(tx);
+                    auditLogService.logAction("ADMIN", "TRANSACTION_REVERSED",
+                        "Admin HOÀN TIỀN giao dịch " + txId + ". Ghi chú: " + adminNotes);
                     return ResponseEntity.ok(Map.of(
-                            "status", "REVERSED", 
+                            "status", "REVERSED",
                             "message", "Đã hoàn tác giao dịch, tiền đã được lệnh trả về tài khoản gửi."
                     ));
 

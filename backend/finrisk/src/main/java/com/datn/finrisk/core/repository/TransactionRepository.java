@@ -59,6 +59,11 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long>,
     int claimForExecution(@Param("id") Long id);
 
     @Transactional
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Transaction t SET t.status = 'PROCESSING_REVERSAL' WHERE t.id = :id AND t.status = 'SUCCESS'")
+    int claimForReversal(@Param("id") Long id);
+
+    @Transactional
     @Modifying
         @Query("UPDATE Transaction t SET t.emotionSignal = :emotion WHERE t.id = :id")
         void updateEmotionSignal(@Param("id") Long id, @Param("emotion") String emotion);

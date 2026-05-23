@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Map;
+import java.util.Optional;
 
 //Transaction B9: đóng vai trò tonggor chỉ huy gói toan bọ quá trinh trên initiateTransaction -> Transaction B10: Auditllogserrvice
 //Transaction B9 Phase 2: bắt đau gọi hafm xử lý tiền bạcs executeTransactionCore qua trính thực hiện UPDATE  cacs ảng account va INSERT  vao transactiion ledgers
@@ -230,40 +231,56 @@ public class TransactionService {
  
     @Transactional(rollbackFor = Exception.class)
     public Transaction executeReversalCore(Transaction tx) {
-        System.out.println("🔄 ADMIN YÊU CẦU HOÀN TÁC -> THỰC HIỆN ĐẢO CHIỀU SỔ CÁI");
- 
+        // 1. Atomic claim — only one request can reverse a SUCCESS transaction
+        int claimed = transactionRepository.claimForReversal(tx.getId());
+        if (claimed == 0) {
+            log.warn("[ReversalCore] tx={} already claimed for reversal or not SUCCESS — aborting.", tx.getId());
+            throw new BusinessLogicException("ERR_DUPLICATE_REVERSAL",
+                "Giao dịch đã được hoàn tác hoặc không ở trạng thái hợp lệ để hoàn tác.");
+        }
+
         tx.setStatus("REVERSED");
         Transaction reversedTx = transactionRepository.save(tx);
 
         BigDecimal reversalAmount = reversedTx.getAmount();
- 
-        Account originalSender = reversedTx.getFromAccount();
+
+        // 2. Re-load sender with a pessimistic write lock — guarantees fresh balance
+        Account originalSender = accountRepository.findByIdForUpdate(reversedTx.getFromAccount().getId())
+            .orElseThrow(() -> new BusinessLogicException("ERR_NOT_FOUND", "Tài khoản nguồn không tồn tại!"));
+
         originalSender.setBalance(originalSender.getBalance().add(reversalAmount));
         accountRepository.save(originalSender);
 
         TransactionLedger refundCredit = new TransactionLedger();
         refundCredit.setTransaction(reversedTx);
         refundCredit.setAccount(originalSender);
-        refundCredit.setEntryType("CREDIT");  
+        refundCredit.setEntryType("CREDIT");
         refundCredit.setAmount(reversalAmount);
         refundCredit.setBalanceAfter(originalSender.getBalance());
         transactionLedgerRepository.save(refundCredit);
 
- 
-        accountRepository.findByAccountNumber(reversedTx.getToAccountNumber()).ifPresent(originalReceiver -> {
-            
- 
+        // 3. Lock receiver account before clawback
+        Optional<Account> receiverOpt = accountRepository.findByAccountNumberForUpdate(reversedTx.getToAccountNumber());
+        if (receiverOpt.isPresent()) {
+            Account originalReceiver = receiverOpt.get();
+
+            // 4. Floor check — receiver may have spent the credited funds; refuse rather than produce negative balance
+            if (originalReceiver.getBalance().compareTo(reversalAmount) < 0) {
+                throw new BusinessLogicException("ERR_REVERSAL_INSUFFICIENT_FUNDS",
+                    "Số dư tài khoản nhận không đủ để thu hồi. Cần can thiệp thủ công.");
+            }
+
             originalReceiver.setBalance(originalReceiver.getBalance().subtract(reversalAmount));
             accountRepository.save(originalReceiver);
 
             TransactionLedger clawbackDebit = new TransactionLedger();
             clawbackDebit.setTransaction(reversedTx);
             clawbackDebit.setAccount(originalReceiver);
-            clawbackDebit.setEntryType("DEBIT");  
+            clawbackDebit.setEntryType("DEBIT");
             clawbackDebit.setAmount(reversalAmount);
             clawbackDebit.setBalanceAfter(originalReceiver.getBalance());
             transactionLedgerRepository.save(clawbackDebit);
-        });
+        }
 
         return reversedTx;
     }
