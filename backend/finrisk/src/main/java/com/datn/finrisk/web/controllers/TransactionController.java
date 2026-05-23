@@ -16,6 +16,7 @@ import com.datn.finrisk.core.services.AuditLogService; //   IMPORT THƯ KÝ
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.http.HttpEntity;
@@ -87,7 +88,16 @@ public class TransactionController {
         if (currentDevice != null && currentDevice.length() > 250) {
             currentDevice = currentDevice.substring(0, 250);
         }
- 
+
+        String principalUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+        Account senderAccount = accountRepository.findByIdWithUserAndSecurity(request.getFromAccountId()).orElse(null);
+        if (senderAccount == null || !senderAccount.getUser().getUsername().equals(principalUsername)) {
+            return ResponseEntity.status(403).body(Map.of(
+                "status", "FORBIDDEN",
+                "message", "Không có quyền thực hiện giao dịch từ tài khoản này."
+            ));
+        }
+
         Transaction result = transactionService.initiateTransaction(
                 request.getFromAccountId(),
                 request.getToAccount(),
@@ -152,6 +162,13 @@ public class TransactionController {
                     .orElseThrow(() -> new RuntimeException("Giao dịch không tồn tại!"));
 
         String username = tx.getFromAccount().getUser().getUsername();
+        String principalUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+        if (!username.equals(principalUsername)) {
+            return ResponseEntity.status(403).body(Map.of(
+                "status", "FORBIDDEN",
+                "message", "Không có quyền xác thực giao dịch này."
+            ));
+        }
         String currentStatus = tx.getStatus();
 
  
