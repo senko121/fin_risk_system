@@ -1,11 +1,13 @@
 package com.datn.finrisk.core.services;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 public class EmailService {
 
@@ -36,7 +38,7 @@ public class EmailService {
             System.out.println("📧 ĐÃ GỬI OTP FALLBACK QUA EMAIL TỚI: " + toEmail);
 
         } catch (Exception e) {
-            System.err.println("❌ Lỗi gửi Email Fallback: " + e.getMessage());
+            log.error("[Email] Failed to send OTP fallback email to {}: {}", toEmail, e.getMessage(), e);
         }
     }
 }

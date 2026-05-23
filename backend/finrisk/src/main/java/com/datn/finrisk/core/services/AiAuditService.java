@@ -5,11 +5,13 @@ import com.datn.finrisk.core.entities.AiScanLog;
 import com.datn.finrisk.core.entities.Transaction;
 import com.datn.finrisk.core.repository.AiScanLogRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 
+@Slf4j
 @Service
 public class AiAuditService {
 
@@ -36,7 +38,8 @@ public class AiAuditService {
             aiScanLogRepo.save(log);
             System.out.println("📝 [AUDIT] Đã ghi log nhận diện cảm xúc vào DB thành công ngầm!");
         } catch (Exception e) {
-            System.err.println("❌ [AUDIT] Lỗi ghi log AI: " + e.getMessage());
+            log.warn("[AiAudit] Failed to save emotion scan log for tx={}: {}",
+                tx.getId(), e.getMessage(), e);
         }
     }
 }

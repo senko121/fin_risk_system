@@ -4,6 +4,7 @@ import com.datn.finrisk.core.entities.Transaction;
 import com.datn.finrisk.core.entities.User;
 import com.datn.finrisk.core.entities.UserBehaviorProfile;
 import com.datn.finrisk.core.repository.UserBehaviorProfileRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -15,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+@Slf4j
 @Service
 public class BehaviorLearningService {
 
@@ -29,14 +31,18 @@ public class BehaviorLearningService {
     @Transactional
     public void learnFromTransaction(Transaction tx, boolean isNewRecipient) {
         System.out.println("🧠 [ASYNC] Học giao dịch thật #" + tx.getId());
+        try {
+            User user = tx.getFromAccount().getUser();
+            UserBehaviorProfile profile = profileRepository
+                .findByUserId(user.getId())
+                .orElseGet(() -> createInitialProfile(user));
 
-        User user = tx.getFromAccount().getUser();
-        UserBehaviorProfile profile = profileRepository
-            .findByUserId(user.getId())
-            .orElseGet(() -> createInitialProfile(user));
-
-        double gapSeconds = computeGap(profile.getLastTxTimestamp(), LocalDateTime.now());
-        executeLearnCycle(tx, profile, gapSeconds, isNewRecipient, LocalDateTime.now());
+            double gapSeconds = computeGap(profile.getLastTxTimestamp(), LocalDateTime.now());
+            executeLearnCycle(tx, profile, gapSeconds, isNewRecipient, LocalDateTime.now());
+        } catch (Exception e) {
+            log.warn("[BehaviorLearning] Failed to update behavioral profile for tx={}: {}",
+                tx.getId(), e.getMessage(), e);
+        }
     }
  
     @Transactional

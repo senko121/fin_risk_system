@@ -10,6 +10,7 @@ import com.twilio.rest.api.v2010.account.Message;
 
 import com.twilio.type.PhoneNumber;
 import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -20,6 +21,7 @@ import java.time.Duration;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 
+@Slf4j
 @Service
 public class OtpService {
 
@@ -53,18 +55,18 @@ public class OtpService {
         try {
             Message.creator(new PhoneNumber(userPhoneNumber), new PhoneNumber(twilioPhoneNumber), "FinRisk OTP: " + otp + " (Có hiệu lực 3 phút)").create();
         } catch (Exception e) {
-            System.err.println("🚨 Lỗi gửi SMS Twilio, tự động chuyển sang gửi Email...");
+            log.warn("[OtpService] SMS delivery failed for tx={}, falling back to email.", tx.getId());
             try {
                 String userEmail = tx.getFromAccount().getUser().getEmail();
  
                 if (userEmail != null && !userEmail.trim().isEmpty()) {
                     emailService.sendOtpEmail(userEmail, otp);
                 } else {
-                    System.err.println("🚨 Không có Email để gửi Fallback! Giao dịch ID: " + tx.getId());
+                    log.error("[OtpService] No email address for OTP fallback — user unreachable for tx={}.", tx.getId());
                 }
                 
             } catch (Exception ex) {
-                System.err.println("🚨 Lỗi không thể gửi OTP qua Email: " + ex.getMessage());
+                log.error("[OtpService] OTP email fallback failed for tx={}: {}", tx.getId(), ex.getMessage(), ex);
             }
         }
         
@@ -86,7 +88,7 @@ public void saveOtp(Long transactionId, String otp) {
             System.out.println("🔥 REDIS TTL: " + ttl);
 
         } catch (Exception e) {
-            System.err.println("❌ REDIS ERROR (SAVE): " + e.getMessage());
+            log.error("[OtpService] Redis OTP save failed for tx={}: {}", transactionId, e.getMessage(), e);
         }
     }
  
@@ -116,7 +118,7 @@ public void saveOtp(Long transactionId, String otp) {
             return false;
 
         } catch (Exception e) {
-            System.err.println("❌ REDIS ERROR (VERIFY): " + e.getMessage());
+            log.error("[OtpService] Redis OTP verify failed for tx={}: {}", transactionId, e.getMessage(), e);
             return false;
         }
     }

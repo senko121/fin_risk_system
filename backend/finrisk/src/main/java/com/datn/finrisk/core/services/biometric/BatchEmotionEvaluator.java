@@ -1,6 +1,9 @@
 package com.datn.finrisk.core.services.biometric;
 
 import com.datn.finrisk.application.dtos.EmotionAIResponse;
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -18,8 +21,10 @@ import java.util.concurrent.CompletableFuture;
 @Service("batchEmotionEvaluator") 
 public class BatchEmotionEvaluator implements EmotionEvaluator {
 
-    @Autowired 
+    @Autowired
     private RestTemplate restTemplate;
+    @Autowired
+    private CircuitBreakerRegistry circuitBreakerRegistry;
 
     @Async("aiTaskExecutor")
     @Override
@@ -36,13 +41,16 @@ public class BatchEmotionEvaluator implements EmotionEvaluator {
             requestMap.put("image_base64_list", frames);  
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestMap, headers);
- 
-            EmotionAIResponse response = restTemplate.postForObject(url, entity, EmotionAIResponse.class);
-            
+            CircuitBreaker cb = circuitBreakerRegistry.circuitBreaker("emotionAiService");
+            EmotionAIResponse response = cb.executeSupplier(() -> restTemplate.postForObject(url, entity, EmotionAIResponse.class));
+
             if(response != null) {
                  System.out.println("✅ [BATCH EMOTION] Cảm xúc tổng hợp chuỗi: " + response.getEmotion());
             }
             return CompletableFuture.completedFuture(response);
+        } catch (CallNotPermittedException e) {
+            System.err.println("❌ [BATCH EMOTION] Circuit OPEN for emotionAiService — skipping call.");
+            return CompletableFuture.completedFuture(null);
         } catch (Exception e) {
             System.err.println("❌ [BATCH EMOTION] LỖI: " + e.getMessage());
             return CompletableFuture.completedFuture(null);

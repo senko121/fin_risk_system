@@ -16,6 +16,9 @@ import com.datn.finrisk.application.dtos.TransactionSpelContext;
 import com.datn.finrisk.core.repository.RiskScoreRepository;
 import com.datn.finrisk.core.repository.UserDeviceRepository;
 import com.datn.finrisk.core.entities.RiskScore;
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.expression.EvaluationException;
@@ -53,6 +56,7 @@ public class RiskEvaluationService {
     @Autowired private com.datn.finrisk.core.repository.UserBehaviorProfileRepository profileRepository;
     @Autowired private com.datn.finrisk.core.services.BehavioralProfilingService behavioralProfilingService;
     @Autowired private UserDeviceRepository userDeviceRepository;
+    @Autowired private CircuitBreakerRegistry circuitBreakerRegistry;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final ExpressionParser parser = new SpelExpressionParser();  
@@ -253,12 +257,16 @@ public class RiskEvaluationService {
             requestMap.put("registered_image_base64", regBase64);
 
             HttpEntity<Map<String, String>> entity = new HttpEntity<>(requestMap, headers);
-            FaceAIResponse response = restTemplate.postForObject(url, entity, FaceAIResponse.class);
-            
+            CircuitBreaker cb = circuitBreakerRegistry.circuitBreaker("faceAiService");
+            FaceAIResponse response = cb.executeSupplier(() -> restTemplate.postForObject(url, entity, FaceAIResponse.class));
+
             if (response != null) {
                 System.out.println("✅ [STEP 1: FACE-ID] Phản hồi: Matched=" + response.isMatched());
             }
             return CompletableFuture.completedFuture(response);
+        } catch (CallNotPermittedException e) {
+            log.warn("[FACE-ID] Circuit OPEN for faceAiService — skipping call.");
+            return CompletableFuture.completedFuture(null);
         } catch (Exception e) {
             System.err.println("❌ [STEP 1: FACE-ID] LỖI: " + e.getMessage());
             return CompletableFuture.completedFuture(null);
@@ -277,12 +285,16 @@ public class RiskEvaluationService {
             requestMap.put("image_base64", liveBase64);
 
             HttpEntity<Map<String, String>> entity = new HttpEntity<>(requestMap, headers);
-            EmotionAIResponse response = restTemplate.postForObject(url, entity, EmotionAIResponse.class);
-            
+            CircuitBreaker cb = circuitBreakerRegistry.circuitBreaker("emotionAiService");
+            EmotionAIResponse response = cb.executeSupplier(() -> restTemplate.postForObject(url, entity, EmotionAIResponse.class));
+
             if(response != null) {
                  System.out.println("✅ [STEP 2: EMOTION] Cảm xúc: " + response.getEmotion());
             }
             return CompletableFuture.completedFuture(response);
+        } catch (CallNotPermittedException e) {
+            log.warn("[EMOTION] Circuit OPEN for emotionAiService — skipping call.");
+            return CompletableFuture.completedFuture(null);
         } catch (Exception e) {
             System.err.println("❌ [STEP 2: EMOTION] LỖI: " + e.getMessage());
             return CompletableFuture.completedFuture(null);
@@ -308,13 +320,17 @@ public class RiskEvaluationService {
             body.add("audio_file", fileResource);
 
             HttpEntity<org.springframework.util.MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
-            JsonNode response = restTemplate.postForObject(url, requestEntity, JsonNode.class);
-            
+            CircuitBreaker cb = circuitBreakerRegistry.circuitBreaker("voiceAiService");
+            JsonNode response = cb.executeSupplier(() -> restTemplate.postForObject(url, requestEntity, JsonNode.class));
+
             if (response != null && response.has("authCode")) {
                 String authCode = response.get("authCode").asText();
                 System.out.println("✅ [VOICE-AI] Python nhận diện thành công mã: " + authCode);
                 return CompletableFuture.completedFuture(authCode);
             }
+            return CompletableFuture.completedFuture("");
+        } catch (CallNotPermittedException e) {
+            log.warn("[VOICE-AI] Circuit OPEN for voiceAiService — skipping call.");
             return CompletableFuture.completedFuture("");
         } catch (Exception e) {
             System.err.println("❌ [VOICE-AI] LỖI GIAO TIẾP VỚI PYTHON (Port 5003): " + e.getMessage());
