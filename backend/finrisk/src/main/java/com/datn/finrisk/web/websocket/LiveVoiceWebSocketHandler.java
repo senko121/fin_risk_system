@@ -54,7 +54,7 @@ public class LiveVoiceWebSocketHandler extends BinaryWebSocketHandler {
                     Transaction tx = transactionRepository.findByIdWithUserSecurity(txId).orElse(null);
                     String username = (tx != null) ? tx.getFromAccount().getUser().getUsername() : "Unknown";
 
-                    boolean isMatch = otpService.verifyOtp(txId, authCode);
+                    boolean isMatch = otpService.verifyVoiceOtp(txId, authCode);
                     System.out.println("🏁 [Worker-Voice] OTP Match: " + isMatch);
  
                     syncManager.updateVoiceResult(txKey, isMatch, username, txId);

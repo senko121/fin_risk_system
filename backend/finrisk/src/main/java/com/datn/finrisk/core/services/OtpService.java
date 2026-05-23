@@ -18,7 +18,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
-import java.util.Random;
+import java.security.SecureRandom;
 import java.util.concurrent.CompletableFuture;
 
 @Slf4j
@@ -34,6 +34,7 @@ public class OtpService {
     @Value("${app.test.phone.number}") private String userPhoneNumber;
 
     private static final int OTP_EXPIRE_SECONDS = 180;
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
 
 @PostConstruct
@@ -47,8 +48,7 @@ public class OtpService {
 
 @Async("aiTaskExecutor")
     public CompletableFuture<Void> generateAndSendOtpAsync(Transaction tx) {
-        String otp = String.format("%06d", new Random().nextInt(999999));
-        
+        String otp = String.format("%06d", SECURE_RANDOM.nextInt(1_000_000));
         this.saveOtp(tx.getId(), otp);
         System.out.println("🚨 MÃ OTP TẠO MỚI LÀ: " + otp);
 
@@ -108,9 +108,8 @@ public void saveOtp(Long transactionId, String otp) {
             }
 
             if (storedOtp.equals(inputOtp)) {
- 
-                
-                System.out.println("✅ OTP MATCH (Giữ nguyên Key cho các luồng stream phía sau)");
+                redisTemplate.delete(key);
+                System.out.println("✅ OTP MATCH");
                 return true;
             }
 
@@ -124,11 +123,32 @@ public void saveOtp(Long transactionId, String otp) {
     }
  
     public String generateVoiceOtp(Long transactionId) {
-        String otp = String.format("%06d", new Random().nextInt(999999));
- 
-        this.saveOtp(transactionId, otp);
-        
+        String otp = String.format("%06d", SECURE_RANDOM.nextInt(1_000_000));
+        String key = "voice_otp_tx:" + transactionId;
+        try {
+            redisTemplate.opsForValue().set(key, otp, Duration.ofSeconds(OTP_EXPIRE_SECONDS));
+        } catch (Exception e) {
+            log.error("[OtpService] Redis voice OTP save failed for tx={}: {}", transactionId, e.getMessage(), e);
+        }
         System.out.println("🎤 VOICE OTP TẠO MỚI LÀ: " + otp);
         return otp;
+    }
+
+    public boolean verifyVoiceOtp(Long transactionId, String inputOtp) {
+        String key = "voice_otp_tx:" + transactionId;
+        try {
+            String storedOtp = redisTemplate.opsForValue().get(key);
+            if (storedOtp == null) {
+                return false;
+            }
+            if (storedOtp.equals(inputOtp)) {
+                redisTemplate.delete(key);
+                return true;
+            }
+            return false;
+        } catch (Exception e) {
+            log.error("[OtpService] Redis voice OTP verify failed for tx={}: {}", transactionId, e.getMessage(), e);
+            return false;
+        }
     }
 }
