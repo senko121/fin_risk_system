@@ -182,6 +182,8 @@ public class TransactionService {
         tx.setStatus("SUCCESS");
         Transaction savedTx = transactionRepository.save(tx);
 
+        boolean isNewRecipient = checkIsNewRecipient(savedTx.getFromAccount().getId(), savedTx.getToAccountNumber());
+
         // 2. Re-load sender with a pessimistic write lock — guarantees fresh balance, prevents lost updates
         Account sender = accountRepository.findByIdForUpdate(savedTx.getFromAccount().getId())
             .orElseThrow(() -> new BusinessLogicException("ERR_NOT_FOUND", "Tài khoản nguồn không tồn tại!"));
@@ -217,7 +219,6 @@ public class TransactionService {
             transactionLedgerRepository.save(credit);
         });
 
-        boolean isNewRecipient = checkIsNewRecipient(sender.getId(), savedTx.getToAccountNumber());
         behaviorLearningService.learnFromTransaction(savedTx, isNewRecipient);
 
         return savedTx;
