@@ -58,6 +58,28 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long>,
            "AND t.createdAt < :threshold")
     List<Transaction> findStalledTransactions(@Param("threshold") LocalDateTime threshold);
 
+    // Lightweight ID-only scan for stalled-transaction scheduler — no entity hydration, no JOIN cascade.
+    @Query("SELECT t.id FROM Transaction t " +
+           "WHERE t.status IN " +
+           "('PENDING_PIN', 'PENDING_OTP', 'PENDING_FACE_STATIC', " +
+           "'PENDING_ALL_IN_ONE', 'PENDING_VOICE_OTP', 'PENDING_PIN_OTP', " +
+           "'PENDING_PIN_FACE', 'PENDING_PIN_HIGH') " +
+           "AND t.createdAt < :threshold")
+    List<Long> findStalledTransactionIds(@Param("threshold") LocalDateTime threshold);
+
+    // Atomic bulk expiry: PENDING_* → EXPIRED for the given IDs.
+    // WHERE status IN (...) guard ensures rows already claimed (PROCESSING / SUCCESS)
+    // by a concurrent execution are silently skipped — prevents CF1 overwrite.
+    @Transactional
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Transaction t SET t.status = 'EXPIRED' " +
+           "WHERE t.id IN (:ids) " +
+           "AND t.status IN " +
+           "('PENDING_PIN', 'PENDING_OTP', 'PENDING_FACE_STATIC', " +
+           "'PENDING_ALL_IN_ONE', 'PENDING_VOICE_OTP', 'PENDING_PIN_OTP', " +
+           "'PENDING_PIN_FACE', 'PENDING_PIN_HIGH')")
+    int expireStaleByIds(@Param("ids") List<Long> ids);
+
     @Transactional
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE Transaction t SET t.status = 'PROCESSING' WHERE t.id = :id " +
@@ -76,6 +98,17 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long>,
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE Transaction t SET t.status = 'BLOCKED' WHERE t.id = :id AND t.status = 'UNDER_REVIEW'")
     int blockIfUnderReview(@Param("id") Long id);
+
+    // Lightweight ID-only scan for scheduler audit trail — no entity hydration.
+    @Query("SELECT t.id FROM Transaction t WHERE t.status = 'UNDER_REVIEW' AND t.createdAt < :threshold")
+    List<Long> findStaleUnderReviewIds(@Param("threshold") LocalDateTime threshold);
+
+    // Atomic bulk expiry: UNDER_REVIEW → EXPIRED for rows older than threshold.
+    // WHERE status guard means rows claimed by a concurrent admin action are immune.
+    @Transactional
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Transaction t SET t.status = 'EXPIRED' WHERE t.status = 'UNDER_REVIEW' AND t.createdAt < :threshold")
+    int expireStaleUnderReview(@Param("threshold") LocalDateTime threshold);
 
     @Transactional
     @Modifying
