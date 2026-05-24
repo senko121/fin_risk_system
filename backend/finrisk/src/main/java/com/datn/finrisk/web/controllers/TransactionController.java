@@ -299,9 +299,20 @@ public class TransactionController {
                 boolean isMatch = verifyFaceWithAI(savedFaceBase64, capturedFaceBase64);
  
                 if (!isMatch) {
- 
+                    // Defensive guard: protect UNDER_REVIEW from being overwritten.
+                    // verifyFaceWithAI() does not set UNDER_REVIEW today, but this guard
+                    // prevents a silent overwrite if that ever changes.
+                    if ("UNDER_REVIEW".equals(tx.getStatus())) {
+                        auditLogService.logAction(username, "FACE_STATIC_FROZEN",
+                            "Trạng thái UNDER_REVIEW được bảo vệ — giao dịch " + tx.getId() + " không bị ghi đè.");
+                        return ResponseEntity.status(403).body(Map.of(
+                            "status", "FROZEN",
+                            "message", "Giao dịch đang được tạm giữ để kiểm duyệt an toàn. Vui lòng chờ hệ thống xử lý."
+                        ));
+                    }
+
                     int currentAttempts = tx.getFailedAiAttempts() != null ? tx.getFailedAiAttempts() : 0;
-                    currentAttempts++; 
+                    currentAttempts++;
                     tx.setFailedAiAttempts(currentAttempts);
 
                     if (currentAttempts >= 3) {
@@ -333,9 +344,20 @@ public class TransactionController {
                 boolean isSecure = faceScanActionStrategy.validateFaceAndEmotion(tx, request.getFaceFrameSequence());
                 
                 if (!isSecure) {
- 
+                    // Guard: strategy may have set UNDER_REVIEW (coercion/fear signal).
+                    // The tx object is mutated in-place by validateFaceAndEmotion before it returns false.
+                    // Never overwrite that status with BLOCKED.
+                    if ("UNDER_REVIEW".equals(tx.getStatus())) {
+                        auditLogService.logAction(username, "AI_COERCION_FROZEN",
+                            "Phát hiện tâm lý bất thường — giao dịch " + tx.getId() + " bị đóng băng để kiểm duyệt.");
+                        return ResponseEntity.status(403).body(Map.of(
+                            "status", "FROZEN",
+                            "message", "Giao dịch đang được tạm giữ để kiểm duyệt an toàn. Vui lòng chờ hệ thống xử lý."
+                        ));
+                    }
+
                     int currentAttempts = tx.getFailedAiAttempts() != null ? tx.getFailedAiAttempts() : 0;
-                    currentAttempts++; 
+                    currentAttempts++;
                     tx.setFailedAiAttempts(currentAttempts);
 
                     if (currentAttempts >= 3) {
