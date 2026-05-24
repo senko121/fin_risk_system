@@ -70,6 +70,13 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long>,
     @Query("UPDATE Transaction t SET t.status = 'PROCESSING_REVERSAL' WHERE t.id = :id AND t.status = 'SUCCESS'")
     int claimForReversal(@Param("id") Long id);
 
+    // Atomic guard for admin REJECT_FRAUD: only transitions UNDER_REVIEW → BLOCKED.
+    // Returns 1 on success, 0 if the status was already changed by another admin (race lost).
+    @Transactional
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Transaction t SET t.status = 'BLOCKED' WHERE t.id = :id AND t.status = 'UNDER_REVIEW'")
+    int blockIfUnderReview(@Param("id") Long id);
+
     @Transactional
     @Modifying
         @Query("UPDATE Transaction t SET t.emotionSignal = :emotion WHERE t.id = :id")

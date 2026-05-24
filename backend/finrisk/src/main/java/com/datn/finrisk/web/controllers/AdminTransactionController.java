@@ -4,6 +4,7 @@ package com.datn.finrisk.web.controllers;
 
 import com.datn.finrisk.application.dtos.AdminTransactionDTO;
 import com.datn.finrisk.core.entities.Transaction;
+import com.datn.finrisk.core.exceptions.BusinessLogicException;
 import com.datn.finrisk.core.repository.TransactionRepository;
 import com.datn.finrisk.core.services.AdminTransactionService;
 import com.datn.finrisk.core.services.AuditLogService;
@@ -88,20 +89,27 @@ public class AdminTransactionController {
                     ));
 
                 case "REJECT_FRAUD":
- 
+                    // Fast-fail: obvious wrong state (admin has a stale but non-concurrent view)
                     if (!"UNDER_REVIEW".equals(currentStatus)) {
                         return ResponseEntity.badRequest().body(Map.of(
                                 "status", "ERROR",
                                 "message", "Lỗi: Chỉ có thể REJECT_FRAUD giao dịch đang ở trạng thái UNDER_REVIEW."
                         ));
                     }
-                    tx.setStatus("BLOCKED");
-                    transactionRepository.save(tx);
-                    
+                    // Atomic guard: only transitions UNDER_REVIEW → BLOCKED at DB level.
+                    // Returns 0 if another admin already changed the status (APPROVE won the race).
+                    int blocked = transactionRepository.blockIfUnderReview(txId);
+                    if (blocked == 0) {
+                        return ResponseEntity.status(409).body(Map.of(
+                                "status", "CONFLICT",
+                                "message", "Giao dịch vừa được xử lý bởi admin khác. Vui lòng tải lại trang để xem trạng thái mới nhất."
+                        ));
+                    }
+
                     auditLogService.logAction("ADMIN", "RESOLVE_REVIEW_REJECT", "Đánh dấu LỪA ĐẢO giao dịch " + txId + ". Ghi chú: " + adminNotes);
-                    
+
                     return ResponseEntity.ok(Map.of(
-                            "status", "BLOCKED", 
+                            "status", "BLOCKED",
                             "message", "Đã khóa giao dịch để bảo vệ tài sản khách hàng."
                     ));
 
@@ -126,6 +134,19 @@ public class AdminTransactionController {
                             "message", "Hành động (Action) không hợp lệ. Hãy truyền lên APPROVE, REJECT_FRAUD, hoặc REVERSE."
                     ));
             }
+        } catch (BusinessLogicException e) {
+            // ERR_DUPLICATE_EXECUTION: claimForExecution returned 0 — another admin approved or
+            // rejected this transaction between our findById and the atomic claim inside executeTransactionCore.
+            if ("ERR_DUPLICATE_EXECUTION".equals(e.getErrorCode())) {
+                return ResponseEntity.status(409).body(Map.of(
+                        "status", "CONFLICT",
+                        "message", "Giao dịch vừa được xử lý bởi admin khác. Vui lòng tải lại trang để xem trạng thái mới nhất."
+                ));
+            }
+            return ResponseEntity.internalServerError().body(Map.of(
+                    "status", "SERVER_ERROR",
+                    "message", "Lỗi nghiệp vụ: " + e.getMessage()
+            ));
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.internalServerError().body(Map.of(
