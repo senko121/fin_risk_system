@@ -77,8 +77,11 @@ public class TransactionController {
 
     @Autowired
     private RiskEvaluationService riskEvaluationService;
- 
-    //Transaction B1: Nhan yêu cầu khởi tạo giao dịch -> Transaction B2: Gọi AccountRepository 
+
+    @Autowired
+    private RestTemplate restTemplate;
+
+    //Transaction B1: Nhan yêu cầu khởi tạo giao dịch -> Transaction B2: Gọi AccountRepository
     @PostMapping("/process")
     public ResponseEntity<?> processTransaction(@Valid @RequestBody TransactionRequest request, HttpServletRequest httpRequest) throws Exception {
         
@@ -573,9 +576,8 @@ public class TransactionController {
 private boolean verifyFaceWithAI(String savedFaceBase64, String capturedFaceBase64) {
     try {
  
-        String URL_AI_SERVER = "http://localhost:5000/api/ai/verify-face"; 
+        String URL_AI_SERVER = "http://localhost:5000/api/ai/verify-face";
 
-        RestTemplate restTemplate = new RestTemplate();
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
  

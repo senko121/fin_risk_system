@@ -48,7 +48,10 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long>,
     Optional<Transaction> findByIdWithUserSecurity(@Param("id") Long id);
 
  
-    @Query("SELECT t FROM Transaction t WHERE t.status IN " +
+    @Query("SELECT t FROM Transaction t " +
+           "LEFT JOIN FETCH t.fromAccount a " +
+           "LEFT JOIN FETCH a.user " +
+           "WHERE t.status IN " +
            "('PENDING_PIN', 'PENDING_OTP', 'PENDING_FACE_STATIC', " +
            "'PENDING_ALL_IN_ONE', 'PENDING_VOICE_OTP', 'PENDING_PIN_OTP', " +
            "'PENDING_PIN_FACE', 'PENDING_PIN_HIGH') " +

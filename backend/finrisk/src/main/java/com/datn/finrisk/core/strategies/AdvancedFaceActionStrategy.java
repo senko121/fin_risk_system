@@ -18,6 +18,8 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 @Service("advancedFaceActionStrategy") 
 public class AdvancedFaceActionStrategy implements RiskActionStrategy {
@@ -26,9 +28,15 @@ public class AdvancedFaceActionStrategy implements RiskActionStrategy {
     @Autowired private RiskEvaluationService riskEvaluationService;
     @Autowired private AiAuditService aiAuditService;
 
-    @Autowired 
+    @Autowired
     @Qualifier("batchEmotionEvaluator")
     private EmotionEvaluator emotionEvaluator;
+
+    // Bounded wait ceiling for the parallel AI calls (face identity + emotion sequence).
+    // Each individual AI call has a 15 s read timeout configured in AppConfig.RestTemplate.
+    // 20 s = 15 s read-timeout ceiling + 5 s headroom for aiTaskExecutor queue scheduling.
+    // If this deadline fires, the calling Tomcat or WebSocket thread is unconditionally released.
+    private static final int AI_PARALLEL_TIMEOUT_SECONDS = 20;
 
     @Override
     public Transaction execute(Transaction tx) {
@@ -68,19 +76,19 @@ public class AdvancedFaceActionStrategy implements RiskActionStrategy {
             emotionEvaluator.evaluateSequenceAsync(liveImageFrames);
 
         try {
-            CompletableFuture.allOf(identityTask, emotionTask).join();
+            CompletableFuture.allOf(identityTask, emotionTask).get(AI_PARALLEL_TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
             FaceAIResponse idResult = identityTask.get();
-            EmotionAIResponse emotionResult = emotionTask.get(); 
+            EmotionAIResponse emotionResult = emotionTask.get();
 
-            String emotion = (emotionResult != null && emotionResult.getEmotion() != null) 
+            String emotion = (emotionResult != null && emotionResult.getEmotion() != null)
                              ? emotionResult.getEmotion().toUpperCase() : "UNKNOWN";
 
-            System.out.println("🔍 KẾT QUẢ AI: Identity=" + 
+            System.out.println("🔍 KẾT QUẢ AI: Identity=" +
                 (idResult != null && idResult.isMatched()) + " | Aggregate Emotion=" + emotion);
 
             transactionRepository.updateEmotionSignal(tx.getId(), emotion);
-            
+
             tx.setEmotionSignal(emotion);
 
             if (emotionResult != null) {
@@ -88,26 +96,36 @@ public class AdvancedFaceActionStrategy implements RiskActionStrategy {
             }
 
             if (idResult == null || !idResult.isMatched()) {
-                return false;  
+                return false;
             }
- 
+
             if ("FEAR".equals(emotion) || "STRESS".equals(emotion) || "ANGRY".equals(emotion)) {
                 System.out.println("🚨 PHÁT HIỆN TÂM LÝ BẤT THƯỜNG - ĐÓNG BĂNG GIAO DỊCH NGAY LẬP TỨC!");
-                
- 
+
+
                 tx.setStatus("UNDER_REVIEW");
-                
- 
+
+
                 String currentDesc = tx.getDescription() != null ? tx.getDescription() : "";
                 tx.setDescription("[CẢNH BÁO BẢO MẬT: AI PHÁT HIỆN " + emotion + "] " + currentDesc);
-                
-                transactionRepository.save(tx);  
-                
-                return false;  
+
+                transactionRepository.save(tx);
+
+                return false;
             }
 
             return true;
 
+        } catch (TimeoutException e) {
+            identityTask.cancel(true);
+            emotionTask.cancel(true);
+            System.err.println("⏰ [FaceAI] Chờ AI vượt quá " + AI_PARALLEL_TIMEOUT_SECONDS
+                    + "s cho tx=" + tx.getId() + " — giải phóng luồng.");
+            return false;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            System.err.println("⚠️ [FaceAI] Luồng bị ngắt khi chờ AI cho tx=" + tx.getId());
+            return false;
         } catch (Exception e) {
             System.err.println("Lỗi xử lý AI song song: " + e.getMessage());
             return false;
