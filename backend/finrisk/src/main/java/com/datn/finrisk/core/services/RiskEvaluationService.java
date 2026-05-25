@@ -1,4 +1,3 @@
- 
 package com.datn.finrisk.core.services;
 
 import com.datn.finrisk.core.entities.Rule;
@@ -19,8 +18,10 @@ import com.datn.finrisk.core.entities.RiskScore;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import org.springframework.web.client.HttpServerErrorException;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.expression.EvaluationException;
 import org.springframework.expression.ExpressionParser;
 import org.springframework.expression.spel.SpelParseException;
@@ -39,15 +40,26 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.concurrent.CompletableFuture;
 import java.util.Map;
 import java.util.HashMap;
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.ArrayList;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
-// Transaction B6: đây là não tính điểm chốt lại điểm rủi ro -> Transaction B7: RiskPolicyRepository
 @Slf4j
 @Service
 public class RiskEvaluationService {
+
+    @Value("${ai.service.face-url:http://localhost:5000/api/ai/verify-face}")
+    private String faceAiUrl;
+
+    @Value("${ai.service.emotion-url:http://localhost:5001/api/ai/detect-emotion}")
+    private String emotionAiUrl;
+
+    @Value("${ai.service.emotion-sequence-url:http://localhost:5001/api/ai/detect-emotion-sequence}")
+    private String emotionSequenceAiUrl;
+
+    @Value("${ai.service.voice-url:http://localhost:5003/api/ai/verify-voice}")
+    private String voiceAiUrl;
 
     @Autowired private RestTemplate restTemplate;
     @Autowired private RuleRepository ruleRepository;
@@ -57,37 +69,42 @@ public class RiskEvaluationService {
     @Autowired private com.datn.finrisk.core.services.BehavioralProfilingService behavioralProfilingService;
     @Autowired private UserDeviceRepository userDeviceRepository;
     @Autowired private CircuitBreakerRegistry circuitBreakerRegistry;
+    @Autowired private FaceEnrollService faceEnrollService;  // ← THÊM MỚI
 
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final ExpressionParser parser = new SpelExpressionParser();  
- 
-    private static final double MAX_RULE_CAP    = 150.0;  
-    private static final double AI_WEIGHT_MIN   = 0.10;   
-    private static final double AI_WEIGHT_MAX   = 0.50;  
-    private static final int    AI_MATURE_COUNT = 150;    
-    private static final int    AI_ACTIVE_COUNT = 50;     
-    private static final int    VETO_AI_THRESHOLD   = 85; 
-    private static final int    VETO_RULE_THRESHOLD = 85;  
-    private static final int    VETO_MIN_SCORE      = 75; 
-    private static final int    VETO_RULE_MIN_SCORE = 80;  
+    private final ExpressionParser parser = new SpelExpressionParser();
 
- 
+    private static final double MAX_RULE_CAP    = 150.0;
+    private static final double AI_WEIGHT_MIN   = 0.10;
+    private static final double AI_WEIGHT_MAX   = 0.50;
+    private static final int    AI_MATURE_COUNT = 150;
+    private static final int    AI_ACTIVE_COUNT = 50;
+    private static final int    VETO_AI_THRESHOLD   = 85;
+    private static final int    VETO_RULE_THRESHOLD = 85;
+    private static final int    VETO_MIN_SCORE      = 75;
+    private static final int    VETO_RULE_MIN_SCORE = 80;
+
     private static final Map<String, Integer> OVERRIDE_PRIORITY = Map.of(
         "MEDIUM_1", 1,
         "MEDIUM_2", 2,
         "HIGH",     3
     );
 
- 
-    public int evaluateRisk(Transaction transaction, boolean isNewRecipient, List<RiskScore> pendingRiskLogs, List<TransactionAiInsight> pendingAiInsights) {
-        System.out.println("🤖 BẮT ĐẦU CHẠY RULE ENGINE + BEHAVIORAL PROFILING...");
+    // =========================================================================
+    // evaluateRisk — không thay đổi
+    // =========================================================================
+    public int evaluateRisk(Transaction transaction, boolean isNewRecipient,
+                            List<RiskScore> pendingRiskLogs,
+                            List<TransactionAiInsight> pendingAiInsights) {
+        log.debug("[RISK-ENGINE][START] tx={} evaluating risk", transaction.getId());
 
         User sender = transaction.getFromAccount().getUser();
         List<Rule> activeRules = ruleRepository.findByIsActiveTrue();
- 
+
         LocalDateTime oneMinuteAgo = LocalDateTime.now().minusMinutes(1);
-        int recentTxCount = transactionRepository.countRecentTransactions(transaction.getFromAccount().getId(), oneMinuteAgo);
-        
+        int recentTxCount = transactionRepository.countRecentTransactions(
+                transaction.getFromAccount().getId(), oneMinuteAgo);
+
         double balanceRatio = 0.0;
         double currentBalance = transaction.getFromAccount().getBalance().doubleValue();
         if (currentBalance > 0) {
@@ -98,29 +115,29 @@ public class RiskEvaluationService {
         boolean isNightTime = (currentHour >= 23 || currentHour < 5);
 
         LocalDateTime startOfDay = java.time.LocalDate.now().atStartOfDay();
-        BigDecimal sumToday = transactionRepository.sumSuccessfulAmountToday(transaction.getFromAccount().getId(), startOfDay);
+        BigDecimal sumToday = transactionRepository.sumSuccessfulAmountToday(
+                transaction.getFromAccount().getId(), startOfDay);
         double totalTransferredToday = (sumToday != null) ? sumToday.doubleValue() : 0.0;
         double dailyTotalAmount = totalTransferredToday + transaction.getAmount().doubleValue();
- 
-        com.datn.finrisk.core.entities.UserBehaviorProfile profile = profileRepository.findByUserId(sender.getId()).orElse(null);
-        
-        double gapSeconds = 86400.0; 
-        if (profile != null && profile.getLastTxTimestamp() != null) {
-            gapSeconds = java.time.Duration.between(profile.getLastTxTimestamp(), LocalDateTime.now()).getSeconds();
-        }
-        
-        double recipientNovelty = isNewRecipient ? 1.0 : 0.0;
 
+        com.datn.finrisk.core.entities.UserBehaviorProfile profile =
+                profileRepository.findByUserId(sender.getId()).orElse(null);
+
+        double gapSeconds = 86400.0;
+        if (profile != null && profile.getLastTxTimestamp() != null) {
+            gapSeconds = java.time.Duration.between(
+                    profile.getLastTxTimestamp(), LocalDateTime.now()).getSeconds();
+        }
+
+        double recipientNovelty = isNewRecipient ? 1.0 : 0.0;
         BehaviorInsightResult behaviorResult = behavioralProfilingService
-            .calculateBehavioralAnomalyScore(transaction, profile, gapSeconds, recipientNovelty);
+                .calculateBehavioralAnomalyScore(transaction, profile, gapSeconds, recipientNovelty);
 
         int behavioralScore = behaviorResult.getTotalScore();
-        pendingAiInsights.addAll(behaviorResult.getInsights()); 
-        
-        int txCount = (profile != null) ? profile.getTxCount() : 0;
-        System.out.printf("🧠 ĐIỂM THÓI QUEN (BEHAVIOR): %d | txCount: %d%n", behavioralScore, txCount);
+        pendingAiInsights.addAll(behaviorResult.getInsights());
 
- 
+        int txCount = (profile != null) ? profile.getTxCount() : 0;
+
         SimpleEvaluationContext context = SimpleEvaluationContext.forReadOnlyDataBinding().build();
         context.setVariable("tx", TransactionSpelContext.from(transaction));
         context.setVariable("isNewRecipient", isNewRecipient);
@@ -133,208 +150,375 @@ public class RiskEvaluationService {
         context.setVariable("isNightTime", isNightTime);
         context.setVariable("dailyTotalAmount", dailyTotalAmount);
 
- 
         int rulePositive = 0;
         int ruleNegative = 0;
-        String activeOverride = null; 
+        String activeOverride = null;
 
         for (Rule rule : activeRules) {
             try {
                 String spelExpression = rule.getSpelExpression();
                 if (spelExpression != null && !spelExpression.isEmpty()) {
-                    Boolean isMatched = parser.parseExpression(spelExpression).getValue(context, Boolean.class);
-                    
+                    Boolean isMatched = parser.parseExpression(spelExpression)
+                            .getValue(context, Boolean.class);
                     if (Boolean.TRUE.equals(isMatched)) {
                         int score = rule.getActionScore();
-                        System.out.printf("  ✓ Khớp luật: [%s] -> Điểm: %+d%n", rule.getRuleName(), score);
-
                         if (score > 0) rulePositive += score;
                         else           ruleNegative += Math.abs(score);
 
- 
                         String override = rule.getMinPolicyOverride();
                         if (override != null && !override.isBlank()) {
-                            if (activeOverride == null || 
-                                OVERRIDE_PRIORITY.getOrDefault(override, 0) > OVERRIDE_PRIORITY.getOrDefault(activeOverride, 0)) {
+                            if (activeOverride == null ||
+                                OVERRIDE_PRIORITY.getOrDefault(override, 0) >
+                                OVERRIDE_PRIORITY.getOrDefault(activeOverride, 0)) {
                                 activeOverride = override;
-                                System.out.println("  📌 Override kích hoạt: " + override + " từ luật [" + rule.getRuleName() + "]");
                             }
                         }
-
                         if (score != 0) {
                             RiskScore riskLog = new RiskScore();
                             riskLog.setRule(rule);
                             riskLog.setAppliedScore(score);
-                            pendingRiskLogs.add(riskLog); 
+                            pendingRiskLogs.add(riskLog);
                         }
                     }
                 }
-            } catch (SpelParseException e) {
-                log.warn("SpEL syntax error in rule [id={}, name='{}'] — rule skipped: {}",
-                    rule.getId(), rule.getRuleName(), e.getMessage());
-            } catch (EvaluationException e) {
-                log.warn("SpEL evaluation error in rule [id={}, name='{}'] — rule skipped: {}",
-                    rule.getId(), rule.getRuleName(), e.getMessage());
+            } catch (SpelParseException | EvaluationException e) {
+                log.warn("SpEL error rule [id={}, name='{}'] — skipped: {}",
+                        rule.getId(), rule.getRuleName(), e.getMessage());
             } catch (Exception e) {
-                log.error("Unexpected error evaluating rule [id={}, name='{}'] — rule skipped.",
-                    rule.getId(), rule.getRuleName(), e);
+                log.error("Unexpected error rule [id={}, name='{}'] — skipped.",
+                        rule.getId(), rule.getRuleName(), e);
             }
         }
-        
-        System.out.printf("⚖ Raw Rule Score: (+)%d | (-)%d%n", rulePositive, ruleNegative);
 
- 
- 
         int rawRuleScore = Math.max(0, rulePositive - ruleNegative);
         int normalizedRuleScore = (int) Math.min((rawRuleScore / MAX_RULE_CAP) * 100.0, 100.0);
 
- 
         double aiReliability;
         if (txCount < AI_ACTIVE_COUNT) {
-            aiReliability = 0.0; 
+            aiReliability = 0.0;
         } else if (txCount >= AI_MATURE_COUNT) {
             aiReliability = 1.0;
         } else {
             aiReliability = (double)(txCount - AI_ACTIVE_COUNT) / (AI_MATURE_COUNT - AI_ACTIVE_COUNT);
         }
- 
+
         double aiWeight   = AI_WEIGHT_MIN + (AI_WEIGHT_MAX - AI_WEIGHT_MIN) * aiReliability;
         double ruleWeight = 1.0 - aiWeight;
 
-        System.out.printf("📊 Trọng số → AI: %.0f%% (reliability=%.2f) | Rule: %.0f%%%n", aiWeight * 100, aiReliability, ruleWeight * 100);
-        System.out.printf("📊 Điểm chuẩn hóa → Behavior: %d | Rule: %d%n", behavioralScore, normalizedRuleScore);
-
- 
         double blendedScore = (behavioralScore * aiWeight) + (normalizedRuleScore * ruleWeight);
         int finalRiskScore  = (int) Math.round(blendedScore);
 
- 
-        boolean aiVetoTriggered   = behavioralScore >= VETO_AI_THRESHOLD && txCount >= AI_ACTIVE_COUNT; 
+        boolean aiVetoTriggered   = behavioralScore >= VETO_AI_THRESHOLD && txCount >= AI_ACTIVE_COUNT;
         boolean ruleVetoTriggered = normalizedRuleScore >= VETO_RULE_THRESHOLD;
 
-        if (aiVetoTriggered) {
-            System.out.println("🚨 AI VETO: Behavior=" + behavioralScore + " >= " + VETO_AI_THRESHOLD + " → Điểm tối thiểu " + VETO_MIN_SCORE);
-            finalRiskScore = Math.max(finalRiskScore, VETO_MIN_SCORE);
-        }
-        if (ruleVetoTriggered) {
-            System.out.println("🚨 RULE VETO: Rule=" + normalizedRuleScore + " >= " + VETO_RULE_THRESHOLD + " → Điểm tối thiểu " + VETO_RULE_MIN_SCORE);
-            finalRiskScore = Math.max(finalRiskScore, VETO_RULE_MIN_SCORE);
-        }
- 
+        if (aiVetoTriggered)   finalRiskScore = Math.max(finalRiskScore, VETO_MIN_SCORE);
+        if (ruleVetoTriggered) finalRiskScore = Math.max(finalRiskScore, VETO_RULE_MIN_SCORE);
+
         finalRiskScore = Math.max(0, Math.min(finalRiskScore, 100));
 
-        
         if (activeOverride != null) {
             transaction.setPolicyOverride(activeOverride);
         }
 
-        System.out.printf("🎯 TỔNG ĐIỂM CUỐI: %d | Override: %s%n", finalRiskScore, activeOverride != null ? activeOverride : "Không có");
+        log.info("[RISK-ENGINE][RESULT] tx={} final_score={} override={}",
+                transaction.getId(), finalRiskScore,
+                activeOverride != null ? activeOverride : "NONE");
         return finalRiskScore;
     }
 
- 
-    private boolean resolveDeviceTrusted(Transaction transaction, User sender) {
-        String fingerprint = transaction.getDeviceFingerprint();
-        if (fingerprint == null || fingerprint.isBlank()) {
-            return false;
-        }
-        return userDeviceRepository.findByDeviceFingerprint(fingerprint)
-                .filter(d -> d.getUser().getId().equals(sender.getId()))
-                .map(d -> Boolean.TRUE.equals(d.getIsTrusted()))
-                .orElse(false);
+    // =========================================================================
+    // verifyIdentityAsync — SỬA: ưu tiên embedding, fallback ảnh
+    // =========================================================================
+    @Async("biometricVerifyExecutor")
+    public CompletableFuture<FaceAIResponse> verifyIdentityAsync(
+            List<String> liveFrames, String regBase64) {
+
+        // Lấy user từ context — không có sẵn ở đây,
+        // nên dùng overload mới verifyIdentityAsync(liveFrames, user) thay thế.
+        // Giữ method này để backward compat với code cũ chưa migrate.
+        return verifyIdentityWithImageAsync(liveFrames, regBase64);
     }
 
-    @Async("aiTaskExecutor")
-    public CompletableFuture<FaceAIResponse> verifyIdentityAsync(String liveBase64, String regBase64) {
-        System.out.println("--- [STEP 1: FACE-ID] Đang gửi ảnh sang Port 5000... ---");
+    /**
+     * OVERLOAD MỚI — Tự động chọn embedding hoặc ảnh tùy theo trạng thái user.
+     * Dùng cái này thay thế cho verifyIdentityAsync(liveFrames, regBase64).
+     */
+    @Async("biometricVerifyExecutor")
+    public CompletableFuture<FaceAIResponse> verifyIdentityAsync(
+            List<String> liveFrames, User user) {
+
+        if (user.hasFaceEmbedding()) {
+            // ĐƯỜNG MỚI: parse embedding → truyền registered_embedding
+            List<Double> embedding = faceEnrollService.parseEmbedding(user.getFaceEmbedding());
+            if (embedding != null) {
+                log.info("[FACE-ID][MODE] userId={} using pre-computed embedding", user.getId());
+                return verifyIdentityWithEmbeddingAsync(liveFrames, embedding);
+            }
+            log.warn("[FACE-ID][FALLBACK] userId={} embedding parse failed → falling back to legacy image",
+                    user.getId());
+        }
+
+        // ĐƯỜNG CŨ: fallback sang ảnh nếu chưa migrate hoặc parse lỗi
+        if (user.hasLegacyFaceImage()) {
+            log.info("[FACE-ID][MODE] userId={} using legacy base64 image (not yet migrated)", user.getId());
+            return verifyIdentityWithImageAsync(liveFrames, user.getBase64FaceImage());
+        }
+
+        log.error("[FACE-ID][NO-DATA] userId={} has neither embedding nor legacy image", user.getId());
+        return CompletableFuture.completedFuture(null);
+    }
+
+    // =========================================================================
+    // verifyFaceStaticAsync — SỬA: overload nhận User
+    // =========================================================================
+    @Async("biometricVerifyExecutor")
+    public CompletableFuture<FaceAIResponse> verifyFaceStaticAsync(
+            String savedBase64, String capturedBase64) {
+        // Giữ signature cũ để backward compat với TransactionController hiện tại
+        return doVerifyFaceStatic(null, savedBase64, capturedBase64);
+    }
+
+    /**
+     * OVERLOAD MỚI — Nhận User thay vì ảnh, tự chọn embedding hoặc ảnh.
+     */
+    @Async("biometricVerifyExecutor")
+    public CompletableFuture<FaceAIResponse> verifyFaceStaticAsync(
+            User user, String capturedBase64) {
+
+        if (user.hasFaceEmbedding()) {
+            List<Double> embedding = faceEnrollService.parseEmbedding(user.getFaceEmbedding());
+            if (embedding != null) {
+                log.info("[FACE-STATIC][MODE] userId={} using pre-computed embedding", user.getId());
+                return doVerifyFaceStaticWithEmbedding(embedding, capturedBase64);
+            }
+            log.warn("[FACE-STATIC][FALLBACK] userId={} embedding parse failed → falling back to legacy",
+                    user.getId());
+        }
+
+        return doVerifyFaceStatic(null, user.getBase64FaceImage(), capturedBase64);
+    }
+
+    // =========================================================================
+    // PRIVATE helpers
+    // =========================================================================
+
+    /** Gọi Python verify với registered_image_base64 (đường cũ). */
+    private CompletableFuture<FaceAIResponse> verifyIdentityWithImageAsync(
+            List<String> liveFrames, String regBase64) {
+        long startMs = System.currentTimeMillis();
+        log.info("[FACE-ID][START] mode=IMAGE frames={} thread={}",
+                liveFrames != null ? liveFrames.size() : 0, Thread.currentThread().getName());
         try {
-            String url = "http://localhost:5000/api/ai/verify-face";
+            Map<String, Object> requestMap = buildLiveFrameMap(liveFrames);
+            requestMap.put("registered_image_base64", regBase64);
+            return doCallFaceApi(requestMap, startMs, "FACE-ID");
+        } catch (Exception e) {
+            log.error("[FACE-ID][ERROR] elapsed={}ms error={}",
+                    System.currentTimeMillis() - startMs, e.getMessage());
+            return CompletableFuture.completedFuture(null);
+        }
+    }
+
+    /** Gọi Python verify với registered_embedding (đường mới). */
+    private CompletableFuture<FaceAIResponse> verifyIdentityWithEmbeddingAsync(
+            List<String> liveFrames, List<Double> embedding) {
+        long startMs = System.currentTimeMillis();
+        log.info("[FACE-ID][START] mode=EMBEDDING frames={} thread={}",
+                liveFrames != null ? liveFrames.size() : 0, Thread.currentThread().getName());
+        try {
+            Map<String, Object> requestMap = buildLiveFrameMap(liveFrames);
+            requestMap.put("registered_embedding", embedding);
+            return doCallFaceApi(requestMap, startMs, "FACE-ID");
+        } catch (Exception e) {
+            log.error("[FACE-ID][ERROR] elapsed={}ms error={}",
+                    System.currentTimeMillis() - startMs, e.getMessage());
+            return CompletableFuture.completedFuture(null);
+        }
+    }
+
+    /** Gọi Python verify-face static với ảnh (đường cũ). */
+    private CompletableFuture<FaceAIResponse> doVerifyFaceStatic(
+            Object unused, String savedBase64, String capturedBase64) {
+        long startMs = System.currentTimeMillis();
+        log.info("[FACE-STATIC][START] mode=IMAGE thread={}", Thread.currentThread().getName());
+        try {
+            Map<String, Object> body = new HashMap<>();
+            body.put("live_image_base64", capturedBase64);
+            body.put("registered_image_base64", savedBase64);
+            return doCallFaceApi(body, startMs, "FACE-STATIC");
+        } catch (Exception e) {
+            log.error("[FACE-STATIC][ERROR] elapsed={}ms error={}",
+                    System.currentTimeMillis() - startMs, e.getMessage());
+            return CompletableFuture.completedFuture(null);
+        }
+    }
+
+    /** Gọi Python verify-face static với embedding (đường mới). */
+    private CompletableFuture<FaceAIResponse> doVerifyFaceStaticWithEmbedding(
+            List<Double> embedding, String capturedBase64) {
+        long startMs = System.currentTimeMillis();
+        log.info("[FACE-STATIC][START] mode=EMBEDDING thread={}", Thread.currentThread().getName());
+        try {
+            Map<String, Object> body = new HashMap<>();
+            body.put("live_image_base64", capturedBase64);
+            body.put("registered_embedding", embedding);
+            return doCallFaceApi(body, startMs, "FACE-STATIC");
+        } catch (Exception e) {
+            log.error("[FACE-STATIC][ERROR] elapsed={}ms error={}",
+                    System.currentTimeMillis() - startMs, e.getMessage());
+            return CompletableFuture.completedFuture(null);
+        }
+    }
+
+    /** Build request body với live frames. */
+    private Map<String, Object> buildLiveFrameMap(List<String> liveFrames) {
+        Map<String, Object> map = new HashMap<>();
+        if (liveFrames != null && liveFrames.size() > 1) {
+            map.put("live_image_base64_list", liveFrames);
+        } else if (liveFrames != null && !liveFrames.isEmpty()) {
+            map.put("live_image_base64", liveFrames.get(0));
+        }
+        return map;
+    }
+
+    /** Gọi Python /api/ai/verify-face với circuit breaker và logging. */
+    private CompletableFuture<FaceAIResponse> doCallFaceApi(
+            Map<String, Object> requestMap, long startMs, String logPrefix) {
+        try {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestMap, headers);
 
-            Map<String, String> requestMap = new HashMap<>();
-            requestMap.put("live_image_base64", liveBase64);
-            requestMap.put("registered_image_base64", regBase64);
-
-            HttpEntity<Map<String, String>> entity = new HttpEntity<>(requestMap, headers);
             CircuitBreaker cb = circuitBreakerRegistry.circuitBreaker("faceAiService");
-            FaceAIResponse response = cb.executeSupplier(() -> restTemplate.postForObject(url, entity, FaceAIResponse.class));
+            FaceAIResponse response = cb.executeSupplier(
+                    () -> restTemplate.postForObject(faceAiUrl, entity, FaceAIResponse.class));
 
+            long elapsed = System.currentTimeMillis() - startMs;
             if (response != null) {
-                System.out.println("✅ [STEP 1: FACE-ID] Phản hồi: Matched=" + response.isMatched());
+                log.info("[{}][DONE] elapsed={}ms matched={} distance={} band={} backend={}",
+                        logPrefix, elapsed, response.isMatched(),
+                        response.getSimilarityDistance(), response.getConfidenceBand(),
+                        response.getBackendUsed());
+            } else {
+                log.warn("[{}][DONE] elapsed={}ms — null response from Python", logPrefix, elapsed);
+            }
+            if (elapsed > 12_000) {
+                log.warn("[{}][SLOW] elapsed={}ms — executor may be under pressure", logPrefix, elapsed);
             }
             return CompletableFuture.completedFuture(response);
+
         } catch (CallNotPermittedException e) {
-            log.warn("[FACE-ID] Circuit OPEN for faceAiService — skipping call.");
+            log.warn("[{}] Circuit OPEN — elapsed={}ms", logPrefix, System.currentTimeMillis() - startMs);
+            return CompletableFuture.completedFuture(null);
+        } catch (HttpServerErrorException e) {
+            if (e.getStatusCode().value() == 503) {
+                log.warn("[{}][OVERLOAD-503] Python at capacity. elapsed={}ms",
+                        logPrefix, System.currentTimeMillis() - startMs);
+            } else {
+                log.error("[{}][HTTP-{}] elapsed={}ms", logPrefix,
+                        e.getStatusCode().value(), System.currentTimeMillis() - startMs);
+            }
+            return CompletableFuture.completedFuture(null);
+        } catch (org.springframework.web.client.HttpClientErrorException e) {
+            String body = e.getResponseBodyAsString();
+            if (body.contains("LIVENESS_FAILED")) {
+                log.warn("[{}][LIVENESS-FAIL] elapsed={}ms body={}",
+                        logPrefix, System.currentTimeMillis() - startMs, body);
+            } else if (body.contains("REPLAY_ATTACK_DETECTED")) {
+                log.warn("[{}][REPLAY-DETECTED] elapsed={}ms body={}",
+                        logPrefix, System.currentTimeMillis() - startMs, body);
+            } else {
+                log.warn("[{}][HTTP-400] elapsed={}ms body={}",
+                        logPrefix, System.currentTimeMillis() - startMs, body);
+            }
             return CompletableFuture.completedFuture(null);
         } catch (Exception e) {
-            System.err.println("❌ [STEP 1: FACE-ID] LỖI: " + e.getMessage());
+            log.error("[{}][ERROR] elapsed={}ms error={}",
+                    logPrefix, System.currentTimeMillis() - startMs, e.getMessage());
             return CompletableFuture.completedFuture(null);
         }
     }
 
-    @Async("aiTaskExecutor")
+    // =========================================================================
+    // detectEmotionAsync + verifyVoiceLivenessBase64Async — không thay đổi
+    // =========================================================================
+    @Async("realtimeEmotionExecutor")
     public CompletableFuture<EmotionAIResponse> detectEmotionAsync(String liveBase64) {
-        System.out.println("--- [STEP 2: EMOTION] Đang gửi ảnh sang Port 5001... ---");
+        long startMs = System.currentTimeMillis();
         try {
-            String url = "http://localhost:5001/api/ai/detect-emotion";
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-
             Map<String, String> requestMap = new HashMap<>();
             requestMap.put("image_base64", liveBase64);
-
             HttpEntity<Map<String, String>> entity = new HttpEntity<>(requestMap, headers);
             CircuitBreaker cb = circuitBreakerRegistry.circuitBreaker("emotionAiService");
-            EmotionAIResponse response = cb.executeSupplier(() -> restTemplate.postForObject(url, entity, EmotionAIResponse.class));
-
-            if(response != null) {
-                 System.out.println("✅ [STEP 2: EMOTION] Cảm xúc: " + response.getEmotion());
+            EmotionAIResponse response = cb.executeSupplier(
+                    () -> restTemplate.postForObject(emotionAiUrl, entity, EmotionAIResponse.class));
+            long elapsed = System.currentTimeMillis() - startMs;
+            if (response != null) {
+                log.debug("[RT-EMOTION][DONE] elapsed={}ms emotion={}", elapsed, response.getEmotion());
+            }
+            if (elapsed > 1_000) {
+                log.warn("[RT-EMOTION][SLOW] elapsed={}ms", elapsed);
             }
             return CompletableFuture.completedFuture(response);
         } catch (CallNotPermittedException e) {
-            log.warn("[EMOTION] Circuit OPEN for emotionAiService — skipping call.");
+            log.warn("[RT-EMOTION] Circuit OPEN");
+            return CompletableFuture.completedFuture(null);
+        } catch (HttpServerErrorException e) {
+            log.error("[RT-EMOTION][HTTP-{}] elapsed={}ms",
+                    e.getStatusCode().value(), System.currentTimeMillis() - startMs);
             return CompletableFuture.completedFuture(null);
         } catch (Exception e) {
-            System.err.println("❌ [STEP 2: EMOTION] LỖI: " + e.getMessage());
+            log.error("[RT-EMOTION][ERROR] elapsed={}ms error={}",
+                    System.currentTimeMillis() - startMs, e.getMessage());
             return CompletableFuture.completedFuture(null);
         }
     }
 
     @Async("aiTaskExecutor")
     public CompletableFuture<String> verifyVoiceLivenessBase64Async(String audioBase64) {
-        System.out.println("--- [STEP VOICE-AI] Đang giải mã Base64 và gửi Audio sang Port 5003... ---");
+        long startMs = System.currentTimeMillis();
+        log.info("[VOICE-AI][START] thread={}", Thread.currentThread().getName());
         try {
-            String url = "http://localhost:5003/api/ai/verify-voice";
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.MULTIPART_FORM_DATA);
-
             byte[] decodedAudio = java.util.Base64.getDecoder().decode(audioBase64);
-            org.springframework.util.MultiValueMap<String, Object> body = new org.springframework.util.LinkedMultiValueMap<>();
+            org.springframework.util.MultiValueMap<String, Object> body =
+                    new org.springframework.util.LinkedMultiValueMap<>();
             ByteArrayResource fileResource = new ByteArrayResource(decodedAudio) {
-                @Override
-                public String getFilename() {
-                    return "websocket_voice.wav"; 
-                }
+                @Override public String getFilename() { return "websocket_voice.wav"; }
             };
             body.add("audio_file", fileResource);
-
-            HttpEntity<org.springframework.util.MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+            HttpEntity<org.springframework.util.MultiValueMap<String, Object>> requestEntity =
+                    new HttpEntity<>(body, headers);
             CircuitBreaker cb = circuitBreakerRegistry.circuitBreaker("voiceAiService");
-            JsonNode response = cb.executeSupplier(() -> restTemplate.postForObject(url, requestEntity, JsonNode.class));
-
+            JsonNode response = cb.executeSupplier(
+                    () -> restTemplate.postForObject(voiceAiUrl, requestEntity, JsonNode.class));
+            long elapsed = System.currentTimeMillis() - startMs;
             if (response != null && response.has("authCode")) {
                 String authCode = response.get("authCode").asText();
-                System.out.println("✅ [VOICE-AI] Python nhận diện thành công mã: " + authCode);
+                log.info("[VOICE-AI][DONE] elapsed={}ms authCode_length={}", elapsed, authCode.length());
                 return CompletableFuture.completedFuture(authCode);
             }
+            log.warn("[VOICE-AI][DONE] elapsed={}ms — no authCode", elapsed);
             return CompletableFuture.completedFuture("");
         } catch (CallNotPermittedException e) {
-            log.warn("[VOICE-AI] Circuit OPEN for voiceAiService — skipping call.");
+            log.warn("[VOICE-AI] Circuit OPEN — elapsed={}ms", System.currentTimeMillis() - startMs);
             return CompletableFuture.completedFuture("");
         } catch (Exception e) {
-            System.err.println("❌ [VOICE-AI] LỖI GIAO TIẾP VỚI PYTHON (Port 5003): " + e.getMessage());
+            log.error("[VOICE-AI][ERROR] elapsed={}ms error={}",
+                    System.currentTimeMillis() - startMs, e.getMessage());
             return CompletableFuture.completedFuture("");
         }
+    }
+
+    private boolean resolveDeviceTrusted(Transaction transaction, User sender) {
+        String fingerprint = transaction.getDeviceFingerprint();
+        if (fingerprint == null || fingerprint.isBlank()) return false;
+        return userDeviceRepository.findByDeviceFingerprint(fingerprint)
+                .filter(d -> d.getUser().getId().equals(sender.getId()))
+                .map(d -> Boolean.TRUE.equals(d.getIsTrusted()))
+                .orElse(false);
     }
 }

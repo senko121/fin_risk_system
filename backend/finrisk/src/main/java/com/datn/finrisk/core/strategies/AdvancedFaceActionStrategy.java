@@ -1,5 +1,3 @@
- 
-
 package com.datn.finrisk.core.strategies;
 
 import com.datn.finrisk.application.dtos.FaceAIResponse;
@@ -14,10 +12,14 @@ import com.datn.finrisk.core.services.biometric.EmotionEvaluator;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -27,25 +29,49 @@ public class AdvancedFaceActionStrategy implements RiskActionStrategy {
     @Autowired private TransactionRepository transactionRepository;
     @Autowired private RiskEvaluationService riskEvaluationService;
     @Autowired private AiAuditService aiAuditService;
+    private static final Logger log =
+    LoggerFactory.getLogger(AdvancedFaceActionStrategy.class);
 
     @Autowired
     @Qualifier("batchEmotionEvaluator")
     private EmotionEvaluator emotionEvaluator;
 
-    // Bounded wait ceiling for the parallel AI calls (face identity + emotion sequence).
-    // Each individual AI call has a 15 s read timeout configured in AppConfig.RestTemplate.
-    // 20 s = 15 s read-timeout ceiling + 5 s headroom for aiTaskExecutor queue scheduling.
-    // If this deadline fires, the calling Tomcat or WebSocket thread is unconditionally released.
+    @Autowired
+    @Qualifier("biometricVerifyExecutor")
+    private ThreadPoolTaskExecutor biometricVerifyExecutor;
+
     private static final int AI_PARALLEL_TIMEOUT_SECONDS = 20;
+    private static final int BIOMETRIC_QUEUE_WARN_THRESHOLD   = 30;
+    private static final int BIOMETRIC_QUEUE_REJECT_THRESHOLD = 40;
+
+    private boolean isBiometricExecutorOverloaded() {
+        ThreadPoolExecutor tpe    = biometricVerifyExecutor.getThreadPoolExecutor();
+        int queueSize           = tpe.getQueue().size();
+        int activeCount         = tpe.getActiveCount();
+        int maxPool             = tpe.getMaximumPoolSize();
+        int queueCapacity       = biometricVerifyExecutor.getQueueCapacity();
+
+        if (queueSize >= BIOMETRIC_QUEUE_REJECT_THRESHOLD) {
+            log.warn("[FaceAI][OVERLOAD] biometricVerifyExecutor saturated: queue={}/{} active={}/{} — fast reject",
+                queueSize, queueCapacity, activeCount, maxPool);
+            return true;
+        }
+        if (queueSize >= BIOMETRIC_QUEUE_WARN_THRESHOLD) {
+            log.warn("[FaceAI][PRESSURE] biometricVerifyExecutor under pressure: queue={}/{} active={}/{} — accepting",
+                queueSize, queueCapacity, activeCount, maxPool);
+        }
+        return false;
+    }
 
     @Override
     public Transaction execute(Transaction tx) {
-        System.out.println("THỰC THI CHIẾN THUẬT: ADVANCED_FACE_ACTION (HIGH)");
+        log.info("[FaceStrategy][EXECUTE] tx={} riskLevel=HIGH → PENDING_PIN_HIGH", tx.getId());
         
         User user = tx.getFromAccount().getUser();
-        String registeredImage = user.getBase64FaceImage(); 
-        if (registeredImage == null || registeredImage.trim().isEmpty()) {
-            throw new BusinessLogicException("ERR_NO_FACE_SETUP", "Giao dịch rủi ro cao. Bạn chưa cài đặt FaceID, vui lòng thiết lập trước khi thực hiện!");
+        // MỚI: Dùng helper mới để kiểm tra face data
+        if (!user.hasFaceEmbedding() && !user.hasLegacyFaceImage()) {
+            throw new BusinessLogicException("ERR_NO_FACE_SETUP",
+                "Giao dịch rủi ro cao. Bạn chưa cài đặt FaceID, vui lòng thiết lập trước khi thực hiện!");
         }
 
         tx.setRiskLevel("HIGH");
@@ -54,23 +80,27 @@ public class AdvancedFaceActionStrategy implements RiskActionStrategy {
     }
     
     public boolean validateFaceAndEmotion(Transaction tx, List<String> liveImageFrames) {
+        if (isBiometricExecutorOverloaded()) {
+            log.error("[FaceAI][OVERLOAD] tx={} biometricVerifyExecutor at capacity — fast reject (REST path)", tx.getId());
+            return false;
+        }
+
         if (liveImageFrames == null || liveImageFrames.isEmpty()) {
-            System.err.println("❌ Lỗi: Frontend không gửi frame ảnh nào!");
+            log.error("[FaceAI][SYNC] No frames provided for tx={}", tx.getId());
             return false;
         }
 
         User user = tx.getFromAccount().getUser();
-        String registeredImage = user.getBase64FaceImage(); 
-
-        if (registeredImage == null || registeredImage.isEmpty()) {
-            System.err.println("❌ Lỗi: Người dùng chưa đăng ký khuôn mặt gốc!");
+        // MỚI: Dùng helper mới và truyền user object
+        if (!user.hasFaceEmbedding() && !user.hasLegacyFaceImage()) {
+            log.error("[FaceAI][SYNC] No face data for tx={}", tx.getId());
             return false;
         }
 
-        System.out.println("🚀 ĐANG GỌI SONG SONG AI...");
+        log.info("[FaceAI][SYNC-START] tx={} frames={} submitting parallel AI tasks", tx.getId(), liveImageFrames.size());
 
-        CompletableFuture<FaceAIResponse> identityTask = 
-            riskEvaluationService.verifyIdentityAsync(liveImageFrames.get(0), registeredImage);
+        CompletableFuture<FaceAIResponse> identityTask =
+            riskEvaluationService.verifyIdentityAsync(liveImageFrames, user); // Truyền user object
             
         CompletableFuture<EmotionAIResponse> emotionTask = 
             emotionEvaluator.evaluateSequenceAsync(liveImageFrames);
@@ -84,11 +114,25 @@ public class AdvancedFaceActionStrategy implements RiskActionStrategy {
             String emotion = (emotionResult != null && emotionResult.getEmotion() != null)
                              ? emotionResult.getEmotion().toUpperCase() : "UNKNOWN";
 
-            System.out.println("🔍 KẾT QUẢ AI: Identity=" +
-                (idResult != null && idResult.isMatched()) + " | Aggregate Emotion=" + emotion);
+            log.info("[FaceAI][SYNC-RESULT] tx={} matched={} distance={} band={} emotion={}",
+                tx.getId(),
+                idResult != null && idResult.isMatched(),
+                idResult != null ? String.format("%.4f", idResult.getSimilarityDistance()) : "N/A",
+                idResult != null ? idResult.getConfidenceBand() : "N/A",
+                emotion);
+
+            if (idResult != null) {
+                log.info("[FaceAI][LIVENESS] tx={} liveness_pass={} liveness_score={} spoof_detected={}",
+                    tx.getId(),
+                    idResult.getLivenessPass(),
+                    idResult.getLivenessScore() != null ? String.format("%.4f", idResult.getLivenessScore()) : "N/A",
+                    Boolean.TRUE.equals(idResult.getSpoofDetected()));
+                if (Boolean.TRUE.equals(idResult.getSpoofDetected())) {
+                    log.warn("[FaceAI][SPOOF-DETECTED] tx={} — presentation attack in identity result", tx.getId());
+                }
+            }
 
             transactionRepository.updateEmotionSignal(tx.getId(), emotion);
-
             tx.setEmotionSignal(emotion);
 
             if (emotionResult != null) {
@@ -100,17 +144,11 @@ public class AdvancedFaceActionStrategy implements RiskActionStrategy {
             }
 
             if ("FEAR".equals(emotion) || "STRESS".equals(emotion) || "ANGRY".equals(emotion)) {
-                System.out.println("🚨 PHÁT HIỆN TÂM LÝ BẤT THƯỜNG - ĐÓNG BĂNG GIAO DỊCH NGAY LẬP TỨC!");
-
-
+                log.warn("[FaceAI][SYNC-COERCION] tx={} emotion={} — setting UNDER_REVIEW", tx.getId(), emotion);
                 tx.setStatus("UNDER_REVIEW");
-
-
                 String currentDesc = tx.getDescription() != null ? tx.getDescription() : "";
                 tx.setDescription("[CẢNH BÁO BẢO MẬT: AI PHÁT HIỆN " + emotion + "] " + currentDesc);
-
                 transactionRepository.save(tx);
-
                 return false;
             }
 
@@ -119,16 +157,108 @@ public class AdvancedFaceActionStrategy implements RiskActionStrategy {
         } catch (TimeoutException e) {
             identityTask.cancel(true);
             emotionTask.cancel(true);
-            System.err.println("⏰ [FaceAI] Chờ AI vượt quá " + AI_PARALLEL_TIMEOUT_SECONDS
-                    + "s cho tx=" + tx.getId() + " — giải phóng luồng.");
+            log.error("[FaceAI][SYNC-TIMEOUT] tx={} exceeded {}s — tasks cancelled", tx.getId(), AI_PARALLEL_TIMEOUT_SECONDS);
             return false;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            System.err.println("⚠️ [FaceAI] Luồng bị ngắt khi chờ AI cho tx=" + tx.getId());
+            log.warn("[FaceAI][SYNC-INTERRUPTED] tx={}", tx.getId());
             return false;
         } catch (Exception e) {
-            System.err.println("Lỗi xử lý AI song song: " + e.getMessage());
+            log.error("[FaceAI][SYNC-ERROR] tx={} error={}", tx.getId(), e.getMessage());
             return false;
         }
+    }
+
+    public CompletableFuture<Boolean> validateFaceAndEmotionAsync(Transaction tx, List<String> liveImageFrames) {
+        long startMs = System.currentTimeMillis();
+
+        if (isBiometricExecutorOverloaded()) {
+            log.error("[FaceAI][ASYNC-OVERLOAD] tx={} biometricVerifyExecutor at capacity — fast reject (WS path)", tx.getId());
+            return CompletableFuture.completedFuture(false);
+        }
+
+        if (liveImageFrames == null || liveImageFrames.isEmpty()) {
+            log.error("[FaceAI][ASYNC] No frames for tx={}", tx.getId());
+            return CompletableFuture.completedFuture(false);
+        }
+
+        // MỚI: Dùng helper mới và truyền user object
+        User userAsync = tx.getFromAccount().getUser();
+        if (!userAsync.hasFaceEmbedding() && !userAsync.hasLegacyFaceImage()) {
+            log.error("[FaceAI][ASYNC] No face data for tx={}", tx.getId());
+            return CompletableFuture.completedFuture(false);
+        }
+
+        log.info("[FaceAI][ASYNC-START] tx={} frames={}", tx.getId(), liveImageFrames.size());
+
+        CompletableFuture<FaceAIResponse> identityTask =
+            riskEvaluationService.verifyIdentityAsync(liveImageFrames, userAsync); // Truyền user object
+        CompletableFuture<EmotionAIResponse> emotionTask =
+            emotionEvaluator.evaluateSequenceAsync(liveImageFrames);
+
+        return CompletableFuture.allOf(identityTask, emotionTask)
+            .orTimeout(AI_PARALLEL_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .thenApply(v -> {
+                long elapsed = System.currentTimeMillis() - startMs;
+                FaceAIResponse    idResult      = identityTask.getNow(null);
+                EmotionAIResponse emotionResult = emotionTask.getNow(null);
+
+                String emotion = (emotionResult != null && emotionResult.getEmotion() != null)
+                                 ? emotionResult.getEmotion().toUpperCase() : "UNKNOWN";
+
+                log.info("[FaceAI][ASYNC-RESULT] tx={} elapsed={}ms matched={} distance={} band={} emotion={}",
+                    tx.getId(), elapsed,
+                    idResult != null && idResult.isMatched(),
+                    idResult != null ? String.format("%.4f", idResult.getSimilarityDistance()) : "N/A",
+                    idResult != null ? idResult.getConfidenceBand() : "N/A",
+                    emotion);
+
+                if (idResult != null) {
+                    log.info("[FaceAI][LIVENESS] tx={} liveness_pass={} liveness_score={} spoof_detected={}",
+                        tx.getId(),
+                        idResult.getLivenessPass(),
+                        idResult.getLivenessScore() != null ? String.format("%.4f", idResult.getLivenessScore()) : "N/A",
+                        Boolean.TRUE.equals(idResult.getSpoofDetected()));
+                }
+
+                transactionRepository.updateEmotionSignal(tx.getId(), emotion);
+                tx.setEmotionSignal(emotion);
+
+                if (emotionResult != null) {
+                    aiAuditService.logEmotionScan(tx, emotionResult);
+                }
+
+                if (idResult == null || !idResult.isMatched()) {
+                    log.warn("[FaceAI][ASYNC-REJECT] tx={} elapsed={}ms — identity not matched", tx.getId(), elapsed);
+                    return false;
+                }
+
+                if ("FEAR".equals(emotion) || "STRESS".equals(emotion) || "ANGRY".equals(emotion)) {
+                    log.warn("[FaceAI][ASYNC-COERCION] tx={} elapsed={}ms emotion={} — setting UNDER_REVIEW", tx.getId(), elapsed, emotion);
+                    tx.setStatus("UNDER_REVIEW");
+                    String desc = tx.getDescription() != null ? tx.getDescription() : "";
+                    tx.setDescription("[CẢNH BÁO BẢO MẬT: AI PHÁT HIỆN " + emotion + "] " + desc);
+                    transactionRepository.save(tx);
+                    return false;
+                }
+
+                log.info("[FaceAI][ASYNC-PASS] tx={} elapsed={}ms — identity + emotion OK", tx.getId(), elapsed);
+                return true;
+            })
+            .exceptionally(ex -> {
+                long elapsed = System.currentTimeMillis() - startMs;
+                Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
+                if (cause instanceof TimeoutException) {
+                    identityTask.cancel(true);
+                    emotionTask.cancel(true);
+                    log.error("[FaceAI][ASYNC-TIMEOUT] tx={} exceeded {}s at {}ms — tasks cancelled", tx.getId(), AI_PARALLEL_TIMEOUT_SECONDS, elapsed);
+                } else if (cause instanceof InterruptedException) {
+                    Thread.currentThread().interrupt();
+                    log.warn("[FaceAI][ASYNC-INTERRUPTED] tx={} at {}ms", tx.getId(), elapsed);
+                } else {
+                    log.error("[FaceAI][ASYNC-ERROR] tx={} at {}ms: {}", tx.getId(), elapsed, cause.getMessage());
+                }
+                return false;
+            });
     }
 }

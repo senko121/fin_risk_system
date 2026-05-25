@@ -10,9 +10,11 @@ import com.datn.finrisk.core.repository.UserRepository;
 import com.datn.finrisk.core.repository.AccountRepository; 
 import com.datn.finrisk.core.security.JwtUtils;
 import com.datn.finrisk.core.services.AuthService;
+import com.datn.finrisk.core.services.JwtBlocklistService;
 import com.datn.finrisk.core.services.RateLimitService;
 import com.datn.finrisk.core.services.AuditLogService;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.Map;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
@@ -41,6 +44,9 @@ public class AuthController {
 
     @Autowired
     private AuditLogService auditLogService;
+
+    @Autowired
+    private JwtBlocklistService jwtBlocklistService;
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest, HttpServletRequest request) {
@@ -71,7 +77,7 @@ public class AuthController {
             if (user.getLastLoginIp() != null && user.getLastLoginDevice() != null) {
                 if (!user.getLastLoginIp().equals(currentIp) || !user.getLastLoginDevice().equals(currentDevice)) {
                     isSuspicious = true;
-                    System.err.println("🚨 CẢNH BÁO: User " + username + " đăng nhập từ thiết bị/IP lạ!");
+                    log.warn("[AUTH] Suspicious login detected user={} ip={}", username, currentIp);
                     auditLogService.logAction(username, "SUSPICIOUS_LOGIN", "Phát hiện đăng nhập từ môi trường lạ. IP: " + currentIp);
                 }
             }
@@ -95,9 +101,9 @@ public class AuthController {
             if (userAccount != null) {
                 userSafeData.setAccountNumber(userAccount.getAccountNumber());
                 userSafeData.setBalance(userAccount.getBalance());
-                System.out.println("✅ Đã móc thành công tài khoản: " + userAccount.getAccountNumber());
+                log.debug("[AUTH] Account linked user={} account={}", username, userAccount.getAccountNumber());
             } else {
-                System.out.println("❌ CẢNH BÁO: User này chưa có tài khoản ngân hàng dưới DB!");
+                log.warn("[AUTH] No bank account found for user={}", username);
             }
  
 
@@ -119,6 +125,24 @@ public class AuthController {
         }
     }
 
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout(HttpServletRequest request) {
+        String headerAuth = request.getHeader("Authorization");
+        if (headerAuth != null && headerAuth.startsWith("Bearer ")) {
+            String jwt = headerAuth.substring(7);
+            if (jwtUtils.validateJwtToken(jwt)) {
+                String username = jwtUtils.getUserNameFromJwtToken(jwt);
+                jwtBlocklistService.block(jwt, jwtUtils.getExpirationFromToken(jwt));
+                userRepository.findByUsername(username).ifPresent(user -> {
+                    user.setCurrentRefreshToken(null);
+                    userRepository.save(user);
+                });
+                auditLogService.logAction(username, "LOGOUT", "Đăng xuất thành công.");
+            }
+        }
+        return ResponseEntity.ok("Đăng xuất thành công.");
+    }
+
     @PostMapping("/refresh-token")
     public ResponseEntity<?> refreshToken(@RequestBody Map<String, String> request) {
         String requestRefreshToken = request.get("refreshToken");
@@ -131,7 +155,7 @@ public class AuthController {
             if (!requestRefreshToken.equals(user.getCurrentRefreshToken())) {
                 user.setCurrentRefreshToken(null); 
                 userRepository.save(user);
-                System.err.println("🚨 BÁO ĐỘNG: Phát hiện Token bị đánh cắp của user: " + username);
+                log.error("[AUTH][SECURITY] Refresh token theft detected — rotating token for user={}", username);
                 auditLogService.logAction(username, "SECURITY_BREACH_DETECTED", "Hệ thống Theft Detection phát hiện Refresh Token bất thường.");
                 return ResponseEntity.status(403).body("Cảnh báo bảo mật: Token bất thường. Vui lòng đăng nhập lại ngay lập tức!");
             }

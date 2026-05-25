@@ -12,23 +12,24 @@ import com.datn.finrisk.core.strategies.AdvancedFaceActionStrategy;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
-import com.datn.finrisk.core.services.AuditLogService; //   IMPORT THƯ KÝ
+import com.datn.finrisk.core.services.AuditLogService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.client.RestTemplate;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.web.multipart.MultipartFile;
  import org.springframework.data.domain.Page;
  import org.springframework.data.domain.PageRequest;
  import org.springframework.data.domain.Pageable;
  import org.springframework.data.domain.Sort;
  import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
+import java.util.UUID; 
+import com.datn.finrisk.core.entities.BiometricSession;
+import com.datn.finrisk.core.repository.BiometricSessionRepository;
 import com.datn.finrisk.core.repository.TransactionLedgerRepository;
 import com.datn.finrisk.core.entities.TransactionLedger;
 import com.datn.finrisk.core.entities.UserSecurity;
@@ -41,6 +42,7 @@ import com.datn.finrisk.core.services.RiskEvaluationService;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.time.LocalDateTime;
 
@@ -79,7 +81,10 @@ public class TransactionController {
     private RiskEvaluationService riskEvaluationService;
 
     @Autowired
-    private RestTemplate restTemplate;
+    private BiometricSessionRepository biometricSessionRepository;
+
+    @Value("${ai.timeout.parallel-seconds:20}")
+    private int aiParallelTimeoutSeconds;
 
     //Transaction B1: Nhan yêu cầu khởi tạo giao dịch -> Transaction B2: Gọi AccountRepository
     @PostMapping("/process")
@@ -125,270 +130,332 @@ public class TransactionController {
 
 //Transaction B1 Phase2: Thực hiện xác thực mã pin -> Transaction B5: TransactionRepository
     @PostMapping("/verify")
-    public ResponseEntity<?> verifyAndExecute(@Valid @RequestBody AuthVerifyRequest request) throws Exception {
-        String authType = request.getAuthType();
-
-        boolean requiresAuthCode = "PIN".equals(authType)
-                                || "OTP".equals(authType)
-                                || "VOICE_OTP".equals(authType);
-
-        if (requiresAuthCode) {
-            if (request.getAuthCode() == null || request.getAuthCode().trim().isEmpty()) {
-                return ResponseEntity.badRequest().body(Map.of(
-                    "errorCode", "ERR_VALIDATION_FAILED",
-                    "message", "Dữ liệu đầu vào không hợp lệ!",
-                    "details", Map.of("authCode", "Mã xác thực không được để trống")
-                ));
-            }
-        }
- 
-        if ("FACE_STATIC".equals(authType)) {
-            if (request.getFaceImageBase64() == null || request.getFaceImageBase64().trim().isEmpty()) {
-                return ResponseEntity.badRequest().body(Map.of(
-                    "errorCode", "ERR_VALIDATION_FAILED",
-                    "message", "Dữ liệu đầu vào không hợp lệ!",
-                    "details", Map.of("faceImageBase64", "Ảnh khuôn mặt tĩnh không được để trống")
-                ));
-            }
-        } else if ("FACE_AI".equals(authType)) {
- 
-            if (request.getFaceFrameSequence() == null || request.getFaceFrameSequence().isEmpty()) {
-                return ResponseEntity.badRequest().body(Map.of(
-                    "errorCode", "ERR_VALIDATION_FAILED",
-                    "message", "Dữ liệu đầu vào không hợp lệ!",
-                    "details", Map.of("faceFrameSequence", "Chuỗi ảnh khuôn mặt AI không được để trống")
-                ));
-            }
+    public CompletableFuture<ResponseEntity<?>> verifyAndExecute(@Valid @RequestBody AuthVerifyRequest request) throws Exception {
+        log.info("🚨 [BẪY DEBUG] Nhận request verify cho TxID: {} - Lúc: {}", request.getTransactionId(), System.currentTimeMillis());
+        Optional<ResponseEntity<?>> inputError = validateVerifyInput(request);
+        if (inputError.isPresent()) {
+            return CompletableFuture.completedFuture(inputError.get());
         }
 
         Transaction tx = transactionRepository.findByIdWithUserSecurity(request.getTransactionId())
-                    .orElseThrow(() -> new RuntimeException("Giao dịch không tồn tại!"));
+                .orElseThrow(() -> new RuntimeException("Giao dịch không tồn tại!"));
 
         String username = tx.getFromAccount().getUser().getUsername();
         String principalUsername = SecurityContextHolder.getContext().getAuthentication().getName();
         if (!username.equals(principalUsername)) {
-            return ResponseEntity.status(403).body(Map.of(
+            return CompletableFuture.completedFuture(ResponseEntity.status(403).body(Map.of(
                 "status", "FORBIDDEN",
                 "message", "Không có quyền xác thực giao dịch này."
-            ));
+            )));
         }
-        String currentStatus = tx.getStatus();
 
- 
- 
-        Set<String> terminalStatuses = Set.of("SUCCESS", "FAILED", "BLOCKED", "REVERSED");
-        if (terminalStatuses.contains(currentStatus)) {
-            auditLogService.logAction(username, "ILLEGAL_ACCESS", "Cố gắng xác thực giao dịch đã đóng: " + tx.getId());
-            return ResponseEntity.status(400).body(Map.of(
-                "status", "ERROR", 
-                "message", "Giao dịch đã kết thúc (Trạng thái: " + currentStatus + "). Không thể thao tác thêm."
-            ));
+        Optional<ResponseEntity<?>> statusError = guardTransactionStatus(tx, username);
+        if (statusError.isPresent()) {
+            return CompletableFuture.completedFuture(statusError.get());
         }
- 
- 
-        if ("UNDER_REVIEW".equals(currentStatus)) {
-            return ResponseEntity.status(403).body(Map.of(
-                "status", "FROZEN", 
-                "message", "Giao dịch đang được tạm giữ để kiểm duyệt an toàn. Vui lòng chờ hệ thống xử lý."
-            ));
+
+        return switch (request.getAuthType()) {
+            case "PIN"         -> handlePin(tx, username, request);
+            case "OTP"         -> handleOtp(tx, username, request);
+            case "FACE_STATIC" -> handleFaceStatic(tx, username, request);
+            case "FACE_AI"     -> handleFaceAi(tx, username, request);
+            default            -> CompletableFuture.completedFuture(
+                    ResponseEntity.badRequest().body("Luồng xác thực bị gián đoạn hoặc không hợp lệ!"));
+        };
+    }
+
+    private Optional<ResponseEntity<?>> validateVerifyInput(AuthVerifyRequest request) {
+        String authType = request.getAuthType();
+        boolean requiresAuthCode = "PIN".equals(authType) || "OTP".equals(authType) || "VOICE_OTP".equals(authType);
+        if (requiresAuthCode && (request.getAuthCode() == null || request.getAuthCode().trim().isEmpty())) {
+            return Optional.of(ResponseEntity.badRequest().body(Map.of(
+                "errorCode", "ERR_VALIDATION_FAILED",
+                "message", "Dữ liệu đầu vào không hợp lệ!",
+                "details", Map.of("authCode", "Mã xác thực không được để trống")
+            )));
+        }
+        if ("FACE_STATIC".equals(authType) && (request.getFaceImageBase64() == null || request.getFaceImageBase64().trim().isEmpty())) {
+            return Optional.of(ResponseEntity.badRequest().body(Map.of(
+                "errorCode", "ERR_VALIDATION_FAILED",
+                "message", "Dữ liệu đầu vào không hợp lệ!",
+                "details", Map.of("faceImageBase64", "Ảnh khuôn mặt tĩnh không được để trống")
+            )));
+        }
+        if ("FACE_AI".equals(authType) && (request.getFaceFrameSequence() == null || request.getFaceFrameSequence().isEmpty())) {
+            return Optional.of(ResponseEntity.badRequest().body(Map.of(
+                "errorCode", "ERR_VALIDATION_FAILED",
+                "message", "Dữ liệu đầu vào không hợp lệ!",
+                "details", Map.of("faceFrameSequence", "Chuỗi ảnh khuôn mặt AI không được để trống")
+            )));
+        }
+        return Optional.empty();
+    }
+
+private Optional<ResponseEntity<?>> guardTransactionStatus(Transaction tx, String username) {
+        String status = tx.getStatus();
+        
+        // 🚀 ĐÃ VÁ: Chuyển tất cả lỗi trạng thái về HTTP 400 (Bad Request) để Spring Security không đánh tráo thành 401
+        if (Set.of("SUCCESS", "FAILED", "BLOCKED", "REVERSED").contains(status)) {
+            log.warn("⚠️ [SECURITY-GUARD] Từ chối xử lý. Giao dịch {} đã đóng với trạng thái: {}", tx.getId(), status);
+            auditLogService.logAction(username, "ILLEGAL_ACCESS", "Cố gắng xác thực giao dịch đã đóng: " + tx.getId());
+            return Optional.of(ResponseEntity.badRequest().body(Map.of(
+                "status", "ALREADY_PROCESSED",
+                "errorCode", "ERR_TRANSACTION_CLOSED",
+                "message", "Giao dịch này đã kết thúc xử lý thành công trước đó (Trạng thái: " + status + ")."
+            )));
         }
         
-        if ("PROCESSING".equals(currentStatus)) {
-            return ResponseEntity.status(409).body(Map.of(
-                "status", "CONFLICT", 
+        if ("UNDER_REVIEW".equals(status)) {
+            log.info("🛡️ [SECURITY-GUARD] Giao dịch {} đang ở trạng thái đóng băng để kiểm duyệt.", tx.getId());
+            return Optional.of(ResponseEntity.badRequest().body(Map.of(
+                "status", "FROZEN",
+                "errorCode", "ERR_TRANSACTION_FROZEN",
+                "message", "Giao dịch đang được tạm giữ để kiểm duyệt an toàn. Vui lòng chờ hệ thống xử lý."
+            )));
+        }
+        
+        if ("PROCESSING".equals(status)) {
+            log.warn("⚠️ [SECURITY-GUARD] Phát hiện thao tác đúp. Giao dịch {} đang trừ tiền nền.", tx.getId());
+            return Optional.of(ResponseEntity.badRequest().body(Map.of(
+                "status", "CONFLICT",
+                "errorCode", "ERR_TRANSACTION_PROCESSING",
                 "message", "Hệ thống đang xử lý trừ tiền, vui lòng không thao tác đúp."
-            ));
+            )));
         }
- 
- 
-        if (currentStatus == null || !currentStatus.startsWith("PENDING_")) {
-            return ResponseEntity.status(400).body(Map.of(
-                "status", "INVALID_STATE", 
-                "message", "Trạng thái giao dịch không hợp lệ để xác thực."
-            ));
+        
+        if (status == null || !status.startsWith("PENDING_")) {
+            log.error("❌ [SECURITY-GUARD] Trạng thái không hợp lệ txId={} status={}", tx.getId(), status);
+            return Optional.of(ResponseEntity.badRequest().body(Map.of(
+                "status", "INVALID_STATE",
+                "errorCode", "ERR_INVALID_STATE",
+                "message", "Trạng thái giao dịch không hợp lệ để thực hiện xác thực PIN."
+            )));
         }
- 
+        
+        return Optional.empty();
+    }
 
-        if ("PIN".equals(authType)) {
-            User txUser = tx.getFromAccount().getUser();
-            UserSecurity security = txUser.getUserSecurity();
+private CompletableFuture<ResponseEntity<?>> handlePin(Transaction tx, String username, AuthVerifyRequest request) {
+        String currentStatus = tx.getStatus();
+        UserSecurity security = tx.getFromAccount().getUser().getUserSecurity();
+        if (security == null) {
+            throw new RuntimeException("Hồ sơ bảo mật không tồn tại!");
+        }
+
+        // -------------------------------------------------------------------------
+        // LUỒNG 1: PENDING_PIN (Chuyển tiền ngay khi khớp PIN)
+        // -------------------------------------------------------------------------
+        if ("PENDING_PIN".equals(currentStatus)) {
+            pinService.verifyPin(security, request.getAuthCode());
+            Transaction completedTx = transactionService.executeTransactionCore(tx);
+            auditLogService.logAction(username, "TX_SUCCESS", "Chuyển tiền thành công (1 lớp PIN).");
             
-            if (security == null) {
-                throw new RuntimeException("Hồ sơ bảo mật không tồn tại!");
-            }
+            Map<String, Object> flatData = new HashMap<>();
+            flatData.put("id", completedTx.getId());
+            flatData.put("status", "SUCCESS");
+            flatData.put("amount", completedTx.getAmount());
+            flatData.put("description", completedTx.getDescription() != null ? completedTx.getDescription() : "");
+            flatData.put("createdAt", completedTx.getCreatedAt().toString());
 
- 
-            if ("PENDING_PIN".equals(currentStatus)) { 
- 
-                pinService.verifyPin(security, request.getAuthCode());
-
- 
-                Transaction completedTx = transactionService.executeTransactionCore(tx);
-                auditLogService.logAction(username, "TX_SUCCESS", "Chuyển tiền thành công (1 lớp PIN).");
-                return ResponseEntity.ok(Map.of("status", "SUCCESS", "data", completedTx));
-            } 
-            else if ("PENDING_PIN_OTP".equals(currentStatus)) { 
- 
-                pinService.verifyPin(security, request.getAuthCode());
-                
-    
-                tx.setStatus("PENDING_OTP");
-                transactionRepository.save(tx);
- 
-                otpService.generateAndSendOtpAsync(tx);
-                return ResponseEntity.ok(Map.of("status", "NEXT_STEP", "nextAuthType", "OTP", "message", "Mã PIN đúng. Vui lòng nhập OTP vừa được gửi."));
-            }
-            else if ("PENDING_PIN_FACE".equals(currentStatus)) { 
- 
-                pinService.verifyPin(security, request.getAuthCode());
-
- 
-                tx.setStatus("PENDING_FACE_STATIC");
-                transactionRepository.save(tx);
-                return ResponseEntity.ok(Map.of("status", "NEXT_STEP", "nextAuthType", "FACE_STATIC", "message", "Mã PIN đúng. Vui lòng quét khuôn mặt bảo mật."));
-            }
-            else if ("PENDING_PIN_HIGH".equals(currentStatus)) { 
- 
-                pinService.verifyPin(security, request.getAuthCode());
- 
-                tx.setStatus("PENDING_ALL_IN_ONE");  
-                transactionRepository.save(tx);
-                
- 
-                String voiceCode = otpService.generateVoiceOtp(tx.getId()); 
-                
-                return ResponseEntity.ok(Map.of(
-                        "status", "NEXT_STEP", 
-                        "nextAuthType", "ALL_IN_ONE_BIOMETRIC",  
-                        "voiceCode", voiceCode,                
-                        "message", "Mã PIN đúng. Vui lòng chuẩn bị xác thực sinh trắc học kép."
-                ));
-            }
+            return CompletableFuture.completedFuture(ResponseEntity.ok(Map.of(
+                "status", "SUCCESS",
+                "message", "Xác thực mã PIN và thanh toán thành công!",
+                "data", flatData
+            )));
+        }
+        
+        // -------------------------------------------------------------------------
+        // LUỒNG 2: PENDING_PIN_OTP (Chuyển tiếp sang lớp OTP)
+        // -------------------------------------------------------------------------
+        if ("PENDING_PIN_OTP".equals(currentStatus)) {
+            pinService.verifyPin(security, request.getAuthCode());
+            tx.setStatus("PENDING_OTP");
+            transactionRepository.saveAndFlush(tx); // 🚀 Đã ép ghi xuống đĩa cứng
+            otpService.generateAndSendOtpAsync(tx);
+            return CompletableFuture.completedFuture(ResponseEntity.ok(Map.of(
+                "status", "NEXT_STEP", "nextAuthType", "OTP",
+                "message", "Mã PIN đúng. Vui lòng nhập OTP vừa được gửi."
+            )));
+        }
+        
+        // -------------------------------------------------------------------------
+        // LUỒNG 3: PENDING_PIN_FACE (Chuyển tiếp sang Quét mặt tĩnh)
+        // -------------------------------------------------------------------------
+        if ("PENDING_PIN_FACE".equals(currentStatus)) {
+            pinService.verifyPin(security, request.getAuthCode());
+            tx.setStatus("PENDING_FACE_STATIC");
+            transactionRepository.saveAndFlush(tx); // 🚀 Đã ép ghi xuống đĩa cứng
+            return CompletableFuture.completedFuture(ResponseEntity.ok(Map.of(
+                "status", "NEXT_STEP", "nextAuthType", "FACE_STATIC",
+                "message", "Mã PIN đúng. Vui lòng quét khuôn mặt bảo mật."
+            )));
+        }
+        
+        // -------------------------------------------------------------------------
+        // LUỒNG 4: PENDING_PIN_HIGH (Chuyển tiếp sang Sinh trắc học kép AI - QUAN TRỌNG)
+        // -------------------------------------------------------------------------
+        if ("PENDING_PIN_HIGH".equals(currentStatus)) {
+            pinService.verifyPin(security, request.getAuthCode());
+            tx.setStatus("PENDING_ALL_IN_ONE");
+            transactionRepository.saveAndFlush(tx); // 🚀 Đã ép ghi trạng thái giao dịch mới
             
- 
+            String biometricToken = UUID.randomUUID().toString();
+            BiometricSession biometricSession = BiometricSession.builder()
+                    .sessionToken(biometricToken)
+                    .transaction(tx)
+                    .user(tx.getFromAccount().getUser())
+                    .createdAt(LocalDateTime.now())
+                    .expiresAt(LocalDateTime.now().plusMinutes(5))
+                    .used(false)
+                    .build();
+            
+            // 🚀 VÁ ĐIỂM CHẾT: Đổi từ .save() sang .saveAndFlush() để đẩy trực tiếp dữ liệu token 
+            // xuống DB vật lý ngay lập tức, luồng WebSocket bắn lên sau đó vài mili-giây chắc chắn sẽ SELECT thấy!
+            biometricSessionRepository.saveAndFlush(biometricSession);
+
+            String voiceCode = otpService.generateVoiceOtp(tx.getId());
+            return CompletableFuture.completedFuture(ResponseEntity.ok(Map.of(
+                "status", "NEXT_STEP",
+                "nextAuthType", "ALL_IN_ONE_BIOMETRIC",
+                "voiceCode", voiceCode,
+                "biometricSessionToken", biometricToken,
+                "message", "Mã PIN đúng. Vui lòng chuẩn bị xác thực sinh trắc học kép."
+            )));
         }
-
- 
-         
-        else if ("OTP".equals(authType)) {
-            boolean isValid = otpService.verifyOtp(tx.getId(), request.getAuthCode());
-            if (!isValid) {
-                auditLogService.logAction(username, "OTP_FAILED", "Sai OTP giao dịch " + tx.getId());
-                return ResponseEntity.badRequest().body("OTP sai hoặc đã hết hạn!");
-            }
-
-            if ("PENDING_OTP".equals(currentStatus)) { 
- 
-                Transaction completedTx = transactionService.executeTransactionCore(tx);
-                auditLogService.logAction(username, "TX_SUCCESS", "Chuyển tiền thành công (PIN + OTP).");
-                return ResponseEntity.ok(Map.of("status", "SUCCESS", "data", completedTx));
-            }
+        
+        return CompletableFuture.completedFuture(
+                ResponseEntity.badRequest().body("Luồng xác thực bị gián đoạn hoặc không hợp lệ!"));
+    }
+   
+   
+   
+   
+    private CompletableFuture<ResponseEntity<?>> handleOtp(Transaction tx, String username, AuthVerifyRequest request) {
+        boolean isValid = otpService.verifyOtp(tx.getId(), request.getAuthCode());
+        if (!isValid) {
+            auditLogService.logAction(username, "OTP_FAILED", "Sai OTP giao dịch " + tx.getId());
+            return CompletableFuture.completedFuture(ResponseEntity.badRequest().body("OTP sai hoặc đã hết hạn!"));
         }
+        if ("PENDING_OTP".equals(tx.getStatus())) {
+            Transaction completedTx = transactionService.executeTransactionCore(tx);
+            auditLogService.logAction(username, "TX_SUCCESS", "Chuyển tiền thành công (PIN + OTP).");
+            return CompletableFuture.completedFuture(ResponseEntity.ok(Map.of("status", "SUCCESS", "data", completedTx)));
+        }
+        return CompletableFuture.completedFuture(
+                ResponseEntity.badRequest().body("Luồng xác thực bị gián đoạn hoặc không hợp lệ!"));
+    }
 
- 
-        else if ("FACE_STATIC".equals(authType)) {
-            if ("PENDING_FACE_STATIC".equals(currentStatus)) {
- 
-                String savedFaceBase64 = tx.getFromAccount().getUser().getBase64FaceImage();
-                if (savedFaceBase64 == null || savedFaceBase64.isEmpty()) {
-                    return ResponseEntity.badRequest().body("Lỗi: Người dùng chưa thiết lập FaceID gốc!");
-                }
- 
-                String capturedFaceBase64 = request.getFaceImageBase64();
- 
-                boolean isMatch = verifyFaceWithAI(savedFaceBase64, capturedFaceBase64);
- 
+    private CompletableFuture<ResponseEntity<?>> handleFaceStatic(Transaction tx, String username, AuthVerifyRequest request) {
+        if (!"PENDING_FACE_STATIC".equals(tx.getStatus())) {
+            return CompletableFuture.completedFuture(
+                    ResponseEntity.badRequest().body("Luồng xác thực bị gián đoạn hoặc không hợp lệ!"));
+        }
+    User txUser = tx.getFromAccount().getUser();
+        if (!txUser.hasFaceEmbedding() && !txUser.hasLegacyFaceImage()) {
+            return CompletableFuture.completedFuture(
+                ResponseEntity.badRequest().body("Lỗi: Người dùng chưa thiết lập FaceID gốc!"));
+        }
+        return riskEvaluationService.verifyFaceStaticAsync(txUser, request.getFaceImageBase64())
+            .orTimeout(aiParallelTimeoutSeconds, TimeUnit.SECONDS)
+            .thenApply(aiResult -> {
+                boolean isMatch = aiResult != null && aiResult.isMatched();
                 if (!isMatch) {
-                    // Defensive guard: protect UNDER_REVIEW from being overwritten.
-                    // verifyFaceWithAI() does not set UNDER_REVIEW today, but this guard
-                    // prevents a silent overwrite if that ever changes.
+                    // Defensive guard: verifyFaceStaticAsync does not set UNDER_REVIEW today,
+                    // but this guard prevents a silent overwrite if that ever changes.
                     if ("UNDER_REVIEW".equals(tx.getStatus())) {
                         auditLogService.logAction(username, "FACE_STATIC_FROZEN",
                             "Trạng thái UNDER_REVIEW được bảo vệ — giao dịch " + tx.getId() + " không bị ghi đè.");
-                        return ResponseEntity.status(403).body(Map.of(
+                        return (ResponseEntity<?>) ResponseEntity.status(403).body(Map.of(
                             "status", "FROZEN",
                             "message", "Giao dịch đang được tạm giữ để kiểm duyệt an toàn. Vui lòng chờ hệ thống xử lý."
                         ));
                     }
-
-                    int currentAttempts = tx.getFailedAiAttempts() != null ? tx.getFailedAiAttempts() : 0;
-                    currentAttempts++;
-                    tx.setFailedAiAttempts(currentAttempts);
-
-                    if (currentAttempts >= 3) {
- 
+                    int attempts = (tx.getFailedAiAttempts() != null ? tx.getFailedAiAttempts() : 0) + 1;
+                    tx.setFailedAiAttempts(attempts);
+                    if (attempts >= 3) {
                         tx.setStatus("BLOCKED");
                         transactionRepository.save(tx);
                         auditLogService.logAction(username, "FACE_REJECT_MAX_RETRIES", "Khóa giao dịch: Xác thực khuôn mặt tĩnh sai quá 3 lần.");
-                        return ResponseEntity.status(403).body("Giao dịch bị hủy do xác thực khuôn mặt sai quá 3 lần!");
-                    } else {
- 
-                        transactionRepository.save(tx);
-                        int remaining = 3 - currentAttempts;
-                        auditLogService.logAction(username, "FACE_REJECT_RETRY", "Quét khuôn mặt sai lần " + currentAttempts);
-                        return ResponseEntity.badRequest().body("Khuôn mặt không khớp với cơ sở dữ liệu. Bạn còn " + remaining + " lần thử.");
+                        return (ResponseEntity<?>) ResponseEntity.status(403).body("Giao dịch bị hủy do xác thực khuôn mặt sai quá 3 lần!");
                     }
+                    transactionRepository.save(tx);
+                    auditLogService.logAction(username, "FACE_REJECT_RETRY", "Quét khuôn mặt sai lần " + attempts);
+                    return (ResponseEntity<?>) ResponseEntity.badRequest().body("Khuôn mặt không khớp với cơ sở dữ liệu. Bạn còn " + (3 - attempts) + " lần thử.");
                 }
- 
-                tx.setFailedAiAttempts(0);  
-                Transaction completedTx = transactionService.executeTransactionCore(tx);
-                
-                auditLogService.logAction(username, "TX_SUCCESS", "Chuyển tiền thành công (PIN + Khuôn Mặt Tĩnh).");
-                return ResponseEntity.ok(Map.of("status", "SUCCESS", "data", completedTx));
-            }
+                tx.setFailedAiAttempts(0);
+                try {
+                    Transaction completedTx = transactionService.executeTransactionCore(tx);
+                    auditLogService.logAction(username, "TX_SUCCESS", "Chuyển tiền thành công (PIN + Khuôn Mặt Tĩnh).");
+                    return (ResponseEntity<?>) ResponseEntity.ok(Map.of("status", "SUCCESS", "data", completedTx));
+                } catch (Exception e) {
+                    log.error("[FACE_STATIC] tx={} executeTransactionCore failed: {}", tx.getId(), e.getMessage());
+                    return (ResponseEntity<?>) ResponseEntity.status(500).body(Map.of("status", "ERROR", "message", "Lỗi thực hiện giao dịch."));
+                }
+            })
+            .exceptionally(ex -> {
+                Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
+                if (cause instanceof java.util.concurrent.TimeoutException) {
+                    log.error("[FACE_STATIC][TIMEOUT] tx={} — AI service did not respond in {}s", tx.getId(), aiParallelTimeoutSeconds);
+                } else {
+                    log.error("[FACE_STATIC][ERROR] tx={} — {}", tx.getId(), cause.getMessage());
+                }
+                return ResponseEntity.status(503).body(Map.of(
+                    "status", "ERROR", "message", "Dịch vụ AI tạm thời không phản hồi. Vui lòng thử lại."
+                ));
+            });
+    }
+
+    private CompletableFuture<ResponseEntity<?>> handleFaceAi(Transaction tx, String username, AuthVerifyRequest request) {
+        String currentStatus = tx.getStatus();
+        if (!"PENDING_ALL_IN_ONE".equals(currentStatus) && !"PENDING_FACE_AI".equals(currentStatus)) {
+            return CompletableFuture.completedFuture(
+                    ResponseEntity.badRequest().body("Luồng xác thực bị gián đoạn hoặc không hợp lệ!"));
         }
- 
-         
-        else if ("FACE_AI".equals(authType)) {
-            if ("PENDING_ALL_IN_ONE".equals(currentStatus) || "PENDING_FACE_AI".equals(currentStatus)) {
-                boolean isSecure = faceScanActionStrategy.validateFaceAndEmotion(tx, request.getFaceFrameSequence());
-                
+        return faceScanActionStrategy.validateFaceAndEmotionAsync(tx, request.getFaceFrameSequence())
+            .thenApply(isSecure -> {
                 if (!isSecure) {
-                    // Guard: strategy may have set UNDER_REVIEW (coercion/fear signal).
-                    // The tx object is mutated in-place by validateFaceAndEmotion before it returns false.
+                    // Guard: strategy mutates tx to UNDER_REVIEW before returning false on coercion.
                     // Never overwrite that status with BLOCKED.
                     if ("UNDER_REVIEW".equals(tx.getStatus())) {
                         auditLogService.logAction(username, "AI_COERCION_FROZEN",
                             "Phát hiện tâm lý bất thường — giao dịch " + tx.getId() + " bị đóng băng để kiểm duyệt.");
-                        return ResponseEntity.status(403).body(Map.of(
+                        return (ResponseEntity<?>) ResponseEntity.status(403).body(Map.of(
                             "status", "FROZEN",
                             "message", "Giao dịch đang được tạm giữ để kiểm duyệt an toàn. Vui lòng chờ hệ thống xử lý."
                         ));
                     }
-
-                    int currentAttempts = tx.getFailedAiAttempts() != null ? tx.getFailedAiAttempts() : 0;
-                    currentAttempts++;
-                    tx.setFailedAiAttempts(currentAttempts);
-
-                    if (currentAttempts >= 3) {
- 
+                    int attempts = (tx.getFailedAiAttempts() != null ? tx.getFailedAiAttempts() : 0) + 1;
+                    tx.setFailedAiAttempts(attempts);
+                    if (attempts >= 3) {
                         tx.setStatus("BLOCKED");
                         transactionRepository.save(tx);
                         auditLogService.logAction(username, "AI_REJECT_MAX_RETRIES", "Khóa giao dịch: Xác thực khuôn mặt/cảm xúc sai 3 lần.");
-                        return ResponseEntity.status(403).body("Giao dịch bị hủy do xác thực sinh trắc học sai quá 3 lần!");
-                    } else {
- 
-                        transactionRepository.save(tx);
-                        int remaining = 3 - currentAttempts;
-                        auditLogService.logAction(username, "AI_REJECT_RETRY", "Quét AI sai lần " + currentAttempts);
-                        return ResponseEntity.badRequest().body("Khuôn mặt hoặc cảm xúc không khớp. Bạn còn " + remaining + " lần thử.");
+                        return (ResponseEntity<?>) ResponseEntity.status(403).body("Giao dịch bị hủy do xác thực sinh trắc học sai quá 3 lần!");
                     }
+                    transactionRepository.save(tx);
+                    auditLogService.logAction(username, "AI_REJECT_RETRY", "Quét AI sai lần " + attempts);
+                    return (ResponseEntity<?>) ResponseEntity.badRequest().body("Khuôn mặt hoặc cảm xúc không khớp. Bạn còn " + (3 - attempts) + " lần thử.");
                 }
-                
- 
-                tx.setFailedAiAttempts(0);  
+                tx.setFailedAiAttempts(0);
                 tx.setStatus("PENDING_VOICE_OTP");
                 transactionRepository.save(tx);
-
-                return ResponseEntity.ok(Map.of(
-                        "status", "NEXT_STEP", 
-                        "nextAuthType", "VOICE_OTP", 
-                        "message", "Xác thực AI thành công. Vui lòng đọc Voice OTP."
+                return (ResponseEntity<?>) ResponseEntity.ok(Map.of(
+                    "status", "NEXT_STEP",
+                    "nextAuthType", "VOICE_OTP",
+                    "message", "Xác thực AI thành công. Vui lòng đọc Voice OTP."
                 ));
-            }
-        }
-
-        return ResponseEntity.badRequest().body("Luồng xác thực bị gián đoạn hoặc không hợp lệ!");
+            })
+            .exceptionally(ex -> {
+                Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
+                if (cause instanceof java.util.concurrent.TimeoutException) {
+                    log.error("[FACE_AI][TIMEOUT] tx={} — AI service did not respond in {}s", tx.getId(), aiParallelTimeoutSeconds);
+                } else {
+                    log.error("[FACE_AI][ERROR] tx={} — {}", tx.getId(), cause.getMessage());
+                }
+                return ResponseEntity.status(503).body(Map.of(
+                    "status", "ERROR", "message", "Dịch vụ AI tạm thời không phản hồi. Vui lòng thử lại."
+                ));
+            });
     }
 
 
@@ -595,33 +662,4 @@ public class TransactionController {
         }
     }
 
-private boolean verifyFaceWithAI(String savedFaceBase64, String capturedFaceBase64) {
-    try {
- 
-        String URL_AI_SERVER = "http://localhost:5000/api/ai/verify-face";
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
- 
-        Map<String, String> body = new HashMap<>();
-        body.put("live_image_base64", capturedFaceBase64);      
-        body.put("registered_image_base64", savedFaceBase64);  
-
-        HttpEntity<Map<String, String>> request = new HttpEntity<>(body, headers);
- 
-        ResponseEntity<FaceAIResponse> response = restTemplate.postForEntity(
-                URL_AI_SERVER, request, FaceAIResponse.class);
-
-        if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-            boolean isMatched = response.getBody().isMatched();
-            log.info("🤖 AI Chốt hạ: {}", isMatched ? "KHỚP MẶT ✅" : "SAI MẶT ❌");
-            return isMatched;
-        }
-        return false;
-    } catch (Exception e) {
-        log.error("❌ KHÔNG KẾT NỐI ĐƯỢC AI (Port 5000): {}. Hãy chắc chắn đã chạy file Python!", e.getMessage());
- 
-        return false; 
-    }
-}
 }

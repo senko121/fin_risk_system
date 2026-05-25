@@ -94,4 +94,13 @@ public class JwtUtils {
                 .getPayload();
         return (String) claims.get("role");
     }
+
+    public Date getExpirationFromToken(String token) {
+        return Jwts.parser()
+                .verifyWith((javax.crypto.SecretKey) getSigningKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload()
+                .getExpiration();
+    }
 }

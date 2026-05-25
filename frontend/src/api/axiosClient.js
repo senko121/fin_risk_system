@@ -57,11 +57,6 @@ axiosClient.interceptors.response.use(
             }
         }
         
-        // Bắt luôn lỗi 403 (Forbidden) lỡ dính
-        if (error.response?.status === 403) {
-             return Promise.reject({ ...error, isSessionExpired: true });
-        }
-
         return Promise.reject(error);
     }
 );

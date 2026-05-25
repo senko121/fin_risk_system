@@ -19,9 +19,9 @@ public class BasicFaceActionStrategy implements RiskActionStrategy {
         System.out.println("🟠 THỰC THI: BASIC_FACE_ACTION (MEDIUM_2: PIN -> FACE)");
  
         User user = tx.getFromAccount().getUser();
-        String registeredImage = user.getBase64FaceImage(); 
-        if (registeredImage == null || registeredImage.trim().isEmpty()) {
-            throw new BusinessLogicException("ERR_NO_FACE_SETUP", "Giao dịch vượt hạn mức. Bạn chưa cài đặt FaceID, vui lòng thiết lập trước khi thực hiện!");
+        if (!user.hasFaceEmbedding() && !user.hasLegacyFaceImage()) {
+            throw new BusinessLogicException("ERR_NO_FACE_SETUP",
+                "Giao dịch vượt hạn mức. Bạn chưa cài đặt FaceID, vui lòng thiết lập trước khi thực hiện!");
         }
 
         tx.setRiskLevel("MEDIUM_2");

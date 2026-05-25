@@ -66,7 +66,7 @@ public class AuthService {
         response.setBalance(userAccount.getBalance());
         response.setMessage("Đăng nhập thành công!");
         
-        boolean hasFace = user.getBase64FaceImage() != null && !user.getBase64FaceImage().trim().isEmpty();
+        boolean hasFace = user.hasFaceEmbedding() || user.hasLegacyFaceImage();
         response.setFaceSetup(hasFace);
         
         boolean hasPin = security.getPinHash() != null && !security.getPinHash().trim().isEmpty();

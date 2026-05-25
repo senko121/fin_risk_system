@@ -78,19 +78,28 @@ export default function FaceRegister() {
   }, [isModelLoaded, faceLandmarker, isProcessing]);
 
   // 3. HÀM CHỤP VÀ GỬI LÊN SPRING BOOT
-  const captureAndRegister = useCallback(async () => {
-    if (!webcamRef.current) return;
-    setIsProcessing(true);
-    setStatus("Đang lưu trữ dữ liệu sinh trắc học...");
+const captureAndRegister = useCallback(async () => {
+  if (!webcamRef.current) return;
+  setIsProcessing(true);
+  setStatus("Đang lưu trữ dữ liệu sinh trắc học...");
 
-    // Chụp ảnh định dạng Base64
-    const base64Image = webcamRef.current.getScreenshot();
+  // Chụp ảnh và flip lại đúng chiều (bù mirror CSS)
+  const video = webcamRef.current.video;
+  const canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.translate(canvas.width, 0);
+  ctx.scale(-1, 1);
+  ctx.drawImage(video, 0, 0);
+  // Strip prefix, chỉ lấy data thuần
+  const base64Image = canvas.toDataURL('image/jpeg', 0.95).split(',')[1];
 
-    try {
-      await axiosClient.post('/users/register-face', {
-        userId: currentUser.id || currentUser.userId,
-        base64FaceImage: base64Image
-      });
+  try {
+    await axiosClient.post('/users/register-face', {
+      userId: currentUser.id || currentUser.userId,
+      base64FaceImage: base64Image   // ← clean, không có prefix
+    });
 
       // 🚀 ĐIỂM NÂNG CẤP TỐI THƯỢNG Ở ĐÂY:
       // Cập nhật lại cờ nhận thức trong LocalStorage ngay lập tức

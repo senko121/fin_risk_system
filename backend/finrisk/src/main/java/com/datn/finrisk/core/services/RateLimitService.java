@@ -1,12 +1,14 @@
 package com.datn.finrisk.core.services;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
-import java.util.Arrays; 
+import java.util.Arrays;
 
+@Slf4j
 @Service
 public class RateLimitService {
 
@@ -22,7 +24,7 @@ public class RateLimitService {
  
             return Boolean.TRUE.equals(redisTemplate.hasKey(lockKey));
         } catch (Exception e) {
-            System.err.println("⚠️ Lỗi kiểm tra Blocked, bypass tạm thời: " + e.getMessage());
+            log.error("[RATE-LIMIT] Redis isLoginBlocked check failed, bypassing: {}", e.getMessage());
             return false; 
         }
     }
@@ -35,7 +37,7 @@ public class RateLimitService {
             Long expire = redisTemplate.getExpire(lockKey);
             return (expire != null && expire > 0) ? expire : 0;
         } catch (Exception e) {
-            System.err.println("⚠️ Lỗi đếm thời gian, bypass tạm thời: " + e.getMessage());
+            log.error("[RATE-LIMIT] Redis getLockTimeRemaining failed, returning 0: {}", e.getMessage());
             return 0;
         }
     }
@@ -52,17 +54,15 @@ public class RateLimitService {
                 redisTemplate.expire(attemptKey, Duration.ofMinutes(LOCK_TIME_DURATION));
             }
 
-            System.out.println("⚠️ CẢNH BÁO: User " + username + " đăng nhập sai lần thứ " + attempts);
+            log.warn("[RATE-LIMIT] Failed login attempt user={} count={}", username, attempts);
 
- 
             if (attempts != null && attempts >= MAX_LOGIN_ATTEMPTS) {
                 redisTemplate.opsForValue().set(lockKey, "LOCKED", Duration.ofMinutes(LOCK_TIME_DURATION));
                 redisTemplate.delete(attemptKey);
-                System.err.println("🚨 RATE LIMIT: Đã khóa tạm thời tài khoản " + username + " do Spam Brute-force!");
+                log.error("[RATE-LIMIT] Account LOCKED user={} after {} failed attempts", username, MAX_LOGIN_ATTEMPTS);
             }
         } catch (Exception e) {
- 
-            System.err.println("⚠️ Lỗi ghi nhận failed login: " + e.getMessage());
+            log.error("[RATE-LIMIT] Redis recordFailedLogin failed user={}: {}", username, e.getMessage());
         }
     }
  
@@ -75,7 +75,7 @@ public class RateLimitService {
             redisTemplate.delete(Arrays.asList(attemptKey, lockKey)); 
         } catch (Exception e) {
  
-            System.err.println("⚠️ Lỗi xóa án tích: " + e.getMessage());
+            log.error("[RATE-LIMIT] Redis clearLoginAttempts failed user={}: {}", username, e.getMessage());
         }
     }
 }

@@ -1,5 +1,6 @@
 package com.datn.finrisk.infrastructure.config;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -10,25 +11,37 @@ import org.springframework.web.socket.server.standard.ServletServerContainerFact
 
 import com.datn.finrisk.web.websocket.*;
 
+@Slf4j
 @Configuration
 @EnableWebSocket
 public class WebSocketConfig implements WebSocketConfigurer {
 
     @Autowired
     private LiveEmotionWebSocketHandler liveEmotionWebSocketHandler;
+
+    @Autowired
+    private BiometricHandshakeInterceptor biometricHandshakeInterceptor;
     
     @Autowired
     private LiveVoiceWebSocketHandler liveVoiceWebSocketHandler;
 
         @Override
         public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-            System.out.println("🔌 [WS CONFIG] Đang đăng ký handler tại /ws/emotion-stream");
+            log.info("[WS-CONFIG] Registering handler at /ws/emotion-stream");
             registry.addHandler(liveEmotionWebSocketHandler, "/ws/emotion-stream")
-                    .setAllowedOriginPatterns("*");  
- 
-            System.out.println("🔌 [WS CONFIG] Đang đăng ký handler tại /ws/voice-stream");
+                    .addInterceptors(biometricHandshakeInterceptor)
+                    .setAllowedOriginPatterns(
+                        "http://localhost:3000",
+                        "http://localhost:5173"
+                    );
+
+            log.info("[WS-CONFIG] Registering handler at /ws/voice-stream");
             registry.addHandler(liveVoiceWebSocketHandler, "/ws/voice-stream")
-                    .setAllowedOriginPatterns("*");
+                    .addInterceptors(biometricHandshakeInterceptor)
+                    .setAllowedOriginPatterns(
+                        "http://localhost:3000",
+                        "http://localhost:5173"
+                    );
         }
         @Bean
         public ServletServerContainerFactoryBean createWebSocketContainer() {

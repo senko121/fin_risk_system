@@ -2,7 +2,7 @@
 package com.datn.finrisk.application.dtos;
 
 import com.datn.finrisk.core.entities.User;
-import lombok.Data;
+
 import java.math.BigDecimal;
 
 import jakarta.persistence.*;
@@ -32,6 +32,6 @@ public class UserDTO {
         this.phoneNumber = user.getPhoneNumber();
         this.email = user.getEmail();
         this.role = user.getRole().name();
-        this.isFaceSetup = user.getBase64FaceImage() != null && !user.getBase64FaceImage().trim().isEmpty();
+         this.isFaceSetup = user.hasFaceEmbedding() || user.hasLegacyFaceImage();
     }
 }

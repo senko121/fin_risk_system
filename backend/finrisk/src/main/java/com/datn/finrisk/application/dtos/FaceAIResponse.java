@@ -15,6 +15,20 @@ public class FaceAIResponse {
     @JsonProperty("threshold")
     private double threshold;
 
-    @JsonProperty("emotion")
-    private String emotion; 
+    @JsonProperty("backend_used")
+    private String backendUsed;
+
+    @JsonProperty("confidence_band")
+    private String confidenceBand;
+
+    // Liveness / anti-spoofing fields — present only when MiniFASNet models are loaded.
+    // Null-safe: Java callers must use Boolean.TRUE.equals() / null-check before using.
+    @JsonProperty("liveness_pass")
+    private Boolean livenessPass;
+
+    @JsonProperty("liveness_score")
+    private Double livenessScore;
+
+    @JsonProperty("spoof_detected")
+    private Boolean spoofDetected;
 }

@@ -131,13 +131,11 @@ public class AdminUserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy User!"));
 
-        String oldFaceData = user.getBase64FaceImage();
-
-        if (oldFaceData == null || oldFaceData.trim().isEmpty()) {
+    if (!user.hasFaceEmbedding() && !user.hasLegacyFaceImage()) {
             throw new RuntimeException("Người dùng này chưa đăng ký khuôn mặt!");
         }
- 
-        user.setBase64FaceImage(null);
+        user.setFaceEmbedding(null);           // xóa embedding mới
+        user.setBase64FaceImage(null);    
         user = userRepository.save(user);
 
  
@@ -174,7 +172,7 @@ public class AdminUserService {
         dto.setLastLoginDevice(user.getLastLoginDevice());
         dto.setCreatedAt(user.getCreatedAt());
  
-        boolean hasFace = user.getBase64FaceImage() != null && !user.getBase64FaceImage().trim().isEmpty();
+          boolean hasFace = user.hasFaceEmbedding() || user.hasLegacyFaceImage();
         dto.setHasFaceData(hasFace);
 
         return dto;

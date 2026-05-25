@@ -31,9 +31,9 @@ public class OtpService {
     @Value("${twilio.account.sid}") private String twilioAccountSid;
     @Value("${twilio.auth.token}") private String twilioAuthToken;
     @Value("${twilio.phone.number}") private String twilioPhoneNumber;
-    @Value("${app.test.phone.number}") private String userPhoneNumber;
 
     private static final int OTP_EXPIRE_SECONDS = 180;
+    private static final int MAX_OTP_ATTEMPTS = 5;
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
 
@@ -42,7 +42,7 @@ public class OtpService {
         try {
             Twilio.init(twilioAccountSid, twilioAuthToken);
         } catch (Exception e) {
-            System.err.println("Lỗi khởi tạo Twilio (Nếu test không cần SMS thì bỏ qua): " + e.getMessage());
+            log.warn("[OTP] Twilio init failed (SMS disabled): {}", e.getMessage());
         }
     }
 
@@ -50,101 +50,122 @@ public class OtpService {
     public CompletableFuture<Void> generateAndSendOtpAsync(Transaction tx) {
         String otp = String.format("%06d", SECURE_RANDOM.nextInt(1_000_000));
         this.saveOtp(tx.getId(), otp);
-        System.out.println("🚨 MÃ OTP TẠO MỚI LÀ: " + otp);
+
+        String phone = tx.getFromAccount().getUser().getPhoneNumber();
+        boolean phoneValid = phone != null && phone.matches("^\\+?[1-9]\\d{6,14}$");
+
+        if (phoneValid) {
+            try {
+                Message.creator(new PhoneNumber(phone), new PhoneNumber(twilioPhoneNumber),
+                        "FinRisk OTP: " + otp + " (Có hiệu lực 3 phút)").create();
+                return CompletableFuture.completedFuture(null);
+            } catch (Exception e) {
+                log.warn("[OtpService] SMS delivery failed for tx={} phone={}, falling back to email.",
+                        tx.getId(), phone);
+            }
+        } else {
+            log.warn("[OtpService] Invalid or missing phone for tx={} — skipping SMS, using email fallback.", tx.getId());
+        }
 
         try {
-            Message.creator(new PhoneNumber(userPhoneNumber), new PhoneNumber(twilioPhoneNumber), "FinRisk OTP: " + otp + " (Có hiệu lực 3 phút)").create();
-        } catch (Exception e) {
-            log.warn("[OtpService] SMS delivery failed for tx={}, falling back to email.", tx.getId());
-            try {
-                String userEmail = tx.getFromAccount().getUser().getEmail();
- 
-                if (userEmail != null && !userEmail.trim().isEmpty()) {
-                    emailService.sendOtpEmail(userEmail, otp);
-                } else {
-                    log.error("[OtpService] No email address for OTP fallback — user unreachable for tx={}.", tx.getId());
-                }
-                
-            } catch (Exception ex) {
-                log.error("[OtpService] OTP email fallback failed for tx={}: {}", tx.getId(), ex.getMessage(), ex);
+            String userEmail = tx.getFromAccount().getUser().getEmail();
+            if (userEmail != null && !userEmail.trim().isEmpty()) {
+                emailService.sendOtpEmail(userEmail, otp);
+            } else {
+                log.error("[OtpService] No email address for OTP fallback — user unreachable for tx={}.", tx.getId());
             }
+        } catch (Exception ex) {
+            log.error("[OtpService] OTP email fallback failed for tx={}: {}", tx.getId(), ex.getMessage(), ex);
         }
-        
+
         return CompletableFuture.completedFuture(null);
     }
 public void saveOtp(Long transactionId, String otp) {
-        String key = "otp_tx:" + transactionId;
-
+        String otpKey      = "otp_tx:" + transactionId;
+        String attemptsKey = "otp_attempts_tx:" + transactionId;
         try {
-            redisTemplate.opsForValue().set(key, otp, Duration.ofSeconds(OTP_EXPIRE_SECONDS));
-
-            System.out.println("🔥 REDIS SAVE KEY: " + key);
-            System.out.println("🔥 REDIS SAVE OTP: " + otp);
-
-            String stored = redisTemplate.opsForValue().get(key);
-            System.out.println("🔥 REDIS READ BACK: " + stored);
-
-            Long ttl = redisTemplate.getExpire(key);
-            System.out.println("🔥 REDIS TTL: " + ttl);
-
+            redisTemplate.opsForValue().set(otpKey, otp, Duration.ofSeconds(OTP_EXPIRE_SECONDS));
+            redisTemplate.delete(attemptsKey);
         } catch (Exception e) {
             log.error("[OtpService] Redis OTP save failed for tx={}: {}", transactionId, e.getMessage(), e);
         }
     }
- 
+
     public boolean verifyOtp(Long transactionId, String inputOtp) {
-        String key = "otp_tx:" + transactionId;
+        String otpKey      = "otp_tx:" + transactionId;
+        String attemptsKey = "otp_attempts_tx:" + transactionId;
 
         try {
-            String storedOtp = redisTemplate.opsForValue().get(key);
+            String raw = redisTemplate.opsForValue().get(attemptsKey);
+            int attempts = raw != null ? Integer.parseInt(raw) : 0;
+            if (attempts >= MAX_OTP_ATTEMPTS) {
+                log.warn("[OtpService] OTP locked — max attempts reached for tx={}", transactionId);
+                return false;
+            }
 
-            System.out.println("🔍 VERIFY KEY: " + key);
-            System.out.println("🔍 STORED OTP: " + storedOtp);
-            System.out.println("🔍 INPUT OTP: " + inputOtp);
-
+            String storedOtp = redisTemplate.opsForValue().get(otpKey);
             if (storedOtp == null) {
-                System.out.println("❌ OTP NULL (hết hạn hoặc chưa lưu)");
                 return false;
             }
 
             if (storedOtp.equals(inputOtp)) {
-                redisTemplate.delete(key);
-                System.out.println("✅ OTP MATCH");
+                redisTemplate.delete(otpKey);
+                redisTemplate.delete(attemptsKey);
                 return true;
             }
 
-            System.out.println("❌ OTP KHÔNG KHỚP");
+            Long newCount = redisTemplate.opsForValue().increment(attemptsKey);
+            if (newCount != null && newCount == 1) {
+                redisTemplate.expire(attemptsKey, Duration.ofSeconds(OTP_EXPIRE_SECONDS));
+            }
+            log.warn("[OtpService] Wrong OTP for tx={} attempt={}/{}", transactionId, newCount, MAX_OTP_ATTEMPTS);
             return false;
-
         } catch (Exception e) {
             log.error("[OtpService] Redis OTP verify failed for tx={}: {}", transactionId, e.getMessage(), e);
             return false;
         }
     }
- 
+
     public String generateVoiceOtp(Long transactionId) {
-        String otp = String.format("%06d", SECURE_RANDOM.nextInt(1_000_000));
-        String key = "voice_otp_tx:" + transactionId;
+        String otp         = String.format("%06d", SECURE_RANDOM.nextInt(1_000_000));
+        String otpKey      = "voice_otp_tx:" + transactionId;
+        String attemptsKey = "voice_otp_attempts_tx:" + transactionId;
         try {
-            redisTemplate.opsForValue().set(key, otp, Duration.ofSeconds(OTP_EXPIRE_SECONDS));
+            redisTemplate.opsForValue().set(otpKey, otp, Duration.ofSeconds(OTP_EXPIRE_SECONDS));
+            redisTemplate.delete(attemptsKey);
         } catch (Exception e) {
             log.error("[OtpService] Redis voice OTP save failed for tx={}: {}", transactionId, e.getMessage(), e);
         }
-        System.out.println("🎤 VOICE OTP TẠO MỚI LÀ: " + otp);
         return otp;
     }
 
     public boolean verifyVoiceOtp(Long transactionId, String inputOtp) {
-        String key = "voice_otp_tx:" + transactionId;
+        String otpKey      = "voice_otp_tx:" + transactionId;
+        String attemptsKey = "voice_otp_attempts_tx:" + transactionId;
         try {
-            String storedOtp = redisTemplate.opsForValue().get(key);
+            String raw = redisTemplate.opsForValue().get(attemptsKey);
+            int attempts = raw != null ? Integer.parseInt(raw) : 0;
+            if (attempts >= MAX_OTP_ATTEMPTS) {
+                log.warn("[OtpService] Voice OTP locked — max attempts reached for tx={}", transactionId);
+                return false;
+            }
+
+            String storedOtp = redisTemplate.opsForValue().get(otpKey);
             if (storedOtp == null) {
                 return false;
             }
+
             if (storedOtp.equals(inputOtp)) {
-                redisTemplate.delete(key);
+                redisTemplate.delete(otpKey);
+                redisTemplate.delete(attemptsKey);
                 return true;
             }
+
+            Long newCount = redisTemplate.opsForValue().increment(attemptsKey);
+            if (newCount != null && newCount == 1) {
+                redisTemplate.expire(attemptsKey, Duration.ofSeconds(OTP_EXPIRE_SECONDS));
+            }
+            log.warn("[OtpService] Wrong voice OTP for tx={} attempt={}/{}", transactionId, newCount, MAX_OTP_ATTEMPTS);
             return false;
         } catch (Exception e) {
             log.error("[OtpService] Redis voice OTP verify failed for tx={}: {}", transactionId, e.getMessage(), e);
