@@ -73,15 +73,19 @@ public class RiskEvaluationService {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final ExpressionParser parser = new SpelExpressionParser();
 
-    private static final double MAX_RULE_CAP    = 150.0;
-    private static final double AI_WEIGHT_MIN   = 0.10;
-    private static final double AI_WEIGHT_MAX   = 0.50;
-    private static final int    AI_MATURE_COUNT = 150;
-    private static final int    AI_ACTIVE_COUNT = 50;
-    private static final int    VETO_AI_THRESHOLD   = 85;
-    private static final int    VETO_RULE_THRESHOLD = 85;
-    private static final int    VETO_MIN_SCORE      = 75;
-    private static final int    VETO_RULE_MIN_SCORE = 80;
+    private static final int AI_MATURE_COUNT = 150;
+    private static final int AI_ACTIVE_COUNT = 50;
+    private static final double AI_SCORE_FACTOR = 0.35;
+
+    // Category caps: correlated signals trong cùng domain không thể inflate lẫn nhau
+    private static final Map<String, Integer> CATEGORY_CAPS = Map.of(
+        "DEVICE",      30,
+        "FINANCIAL",   40,
+        "BIOMETRIC",   55,
+        "VELOCITY",    30,
+        "CONTEXTUAL",  20,
+        "COMPOSITE",   40
+    );
 
     private static final Map<String, Integer> OVERRIDE_PRIORITY = Map.of(
         "MEDIUM_1", 1,
@@ -90,7 +94,7 @@ public class RiskEvaluationService {
     );
 
     // =========================================================================
-    // evaluateRisk — không thay đổi
+    // evaluateRisk — interaction-aware category scoring (v2)
     // =========================================================================
     public int evaluateRisk(Transaction transaction, boolean isNewRecipient,
                             List<RiskScore> pendingRiskLogs,
@@ -117,7 +121,8 @@ public class RiskEvaluationService {
         BigDecimal sumToday = transactionRepository.sumSuccessfulAmountToday(
                 transaction.getFromAccount().getId(), startOfDay);
         double totalTransferredToday = (sumToday != null) ? sumToday.doubleValue() : 0.0;
-        double dailyTotalAmount = totalTransferredToday + transaction.getAmount().doubleValue();
+        // Chỉ tính lịch sử đã chuyển — giao dịch đang xét chưa committed
+        double dailyTotalAmount = totalTransferredToday;
 
         com.datn.finrisk.core.entities.UserBehaviorProfile profile =
                 profileRepository.findByUserId(sender.getId()).orElse(null);
@@ -149,35 +154,64 @@ public class RiskEvaluationService {
         context.setVariable("isNightTime", isNightTime);
         context.setVariable("dailyTotalAmount", dailyTotalAmount);
 
-        int rulePositive = 0;
-        int ruleNegative = 0;
+        // ── Phase 1: VETO sweep ────────────────────────────────────────────────
+        // VETO rules bypass scoring hoàn toàn — emergency signal (e.g. FEAR/coercion)
+        for (Rule rule : activeRules) {
+            if (!"VETO".equals(rule.getRuleType())) continue;
+            try {
+                String spel = rule.getSpelExpression();
+                if (spel == null || spel.isEmpty()) continue;
+                Boolean matched = parser.parseExpression(spel).getValue(context, Boolean.class);
+                if (Boolean.TRUE.equals(matched)) {
+                    log.warn("[RISK-ENGINE][VETO] tx={} rule='{}' — returning 100 immediately",
+                            transaction.getId(), rule.getRuleName());
+                    RiskScore riskLog = new RiskScore();
+                    riskLog.setRule(rule);
+                    riskLog.setAppliedScore(rule.getActionScore());
+                    pendingRiskLogs.add(riskLog);
+                    transaction.setPolicyOverride("HIGH");
+                    return 100;
+                }
+            } catch (SpelParseException | EvaluationException e) {
+                log.warn("SpEL error VETO rule [id={}, name='{}'] — skipped: {}",
+                        rule.getId(), rule.getRuleName(), e.getMessage());
+            } catch (Exception e) {
+                log.error("Unexpected error VETO rule [id={}, name='{}'] — skipped.",
+                        rule.getId(), rule.getRuleName(), e);
+            }
+        }
+
+        // ── Phase 2: Category bucket scoring ──────────────────────────────────
+        // Rules gom vào bucket theo category, mỗi bucket có cap riêng.
+        // Ngăn correlated signals (device + session) inflate lẫn nhau.
+        Map<String, Integer> categoryTotals = new HashMap<>();
         String activeOverride = null;
 
         for (Rule rule : activeRules) {
+            if ("VETO".equals(rule.getRuleType())) continue;
             try {
-                String spelExpression = rule.getSpelExpression();
-                if (spelExpression != null && !spelExpression.isEmpty()) {
-                    Boolean isMatched = parser.parseExpression(spelExpression)
-                            .getValue(context, Boolean.class);
-                    if (Boolean.TRUE.equals(isMatched)) {
-                        int score = rule.getActionScore();
-                        if (score > 0) rulePositive += score;
-                        else           ruleNegative += Math.abs(score);
+                String spel = rule.getSpelExpression();
+                if (spel == null || spel.isEmpty()) continue;
+                Boolean matched = parser.parseExpression(spel).getValue(context, Boolean.class);
+                if (Boolean.TRUE.equals(matched)) {
+                    int score = rule.getActionScore();
+                    String cat = (rule.getCategory() != null && !rule.getCategory().isBlank())
+                            ? rule.getCategory() : "CONTEXTUAL";
+                    categoryTotals.merge(cat, score, Integer::sum);
 
-                        String override = rule.getMinPolicyOverride();
-                        if (override != null && !override.isBlank()) {
-                            if (activeOverride == null ||
-                                OVERRIDE_PRIORITY.getOrDefault(override, 0) >
-                                OVERRIDE_PRIORITY.getOrDefault(activeOverride, 0)) {
-                                activeOverride = override;
-                            }
+                    String override = rule.getMinPolicyOverride();
+                    if (override != null && !override.isBlank()) {
+                        if (activeOverride == null ||
+                            OVERRIDE_PRIORITY.getOrDefault(override, 0) >
+                            OVERRIDE_PRIORITY.getOrDefault(activeOverride, 0)) {
+                            activeOverride = override;
                         }
-                        if (score != 0) {
-                            RiskScore riskLog = new RiskScore();
-                            riskLog.setRule(rule);
-                            riskLog.setAppliedScore(score);
-                            pendingRiskLogs.add(riskLog);
-                        }
+                    }
+                    if (score != 0) {
+                        RiskScore riskLog = new RiskScore();
+                        riskLog.setRule(rule);
+                        riskLog.setAppliedScore(score);
+                        pendingRiskLogs.add(riskLog);
                     }
                 }
             } catch (SpelParseException | EvaluationException e) {
@@ -189,9 +223,16 @@ public class RiskEvaluationService {
             }
         }
 
-        int rawRuleScore = Math.max(0, rulePositive - ruleNegative);
-        int normalizedRuleScore = (int) Math.min((rawRuleScore / MAX_RULE_CAP) * 100.0, 100.0);
+        // Áp dụng category cap — tổng mỗi bucket không vượt giới hạn domain
+        int catTotal = 0;
+        for (Map.Entry<String, Integer> entry : categoryTotals.entrySet()) {
+            int cap     = CATEGORY_CAPS.getOrDefault(entry.getKey(), 20);
+            int clamped = Math.max(0, Math.min(entry.getValue(), cap));
+            catTotal += clamped;
+        }
 
+        // ── Phase 3: AI behavioral contribution ───────────────────────────────
+        // AI đóng góp dạng additive (max 35 pts), scale theo độ trưởng thành profile
         double aiReliability;
         if (txCount < AI_ACTIVE_COUNT) {
             aiReliability = 0.0;
@@ -200,28 +241,19 @@ public class RiskEvaluationService {
         } else {
             aiReliability = (double)(txCount - AI_ACTIVE_COUNT) / (AI_MATURE_COUNT - AI_ACTIVE_COUNT);
         }
+        int aiContribution = (int) Math.round(behavioralScore * AI_SCORE_FACTOR * aiReliability);
 
-        double aiWeight   = AI_WEIGHT_MIN + (AI_WEIGHT_MAX - AI_WEIGHT_MIN) * aiReliability;
-        double ruleWeight = 1.0 - aiWeight;
+        // ── Phase 4: Final score ───────────────────────────────────────────────
+        int finalRiskScore = Math.min(100, catTotal + aiContribution);
 
-        double blendedScore = (behavioralScore * aiWeight) + (normalizedRuleScore * ruleWeight);
-        int finalRiskScore  = (int) Math.round(blendedScore);
-
-        boolean aiVetoTriggered   = behavioralScore >= VETO_AI_THRESHOLD && txCount >= AI_ACTIVE_COUNT;
-        boolean ruleVetoTriggered = normalizedRuleScore >= VETO_RULE_THRESHOLD;
-
-        if (aiVetoTriggered)   finalRiskScore = Math.max(finalRiskScore, VETO_MIN_SCORE);
-        if (ruleVetoTriggered) finalRiskScore = Math.max(finalRiskScore, VETO_RULE_MIN_SCORE);
-
-        finalRiskScore = Math.max(0, Math.min(finalRiskScore, 100));
-
+        // ── Phase 5: Policy override floors ───────────────────────────────────
         if (activeOverride != null) {
             transaction.setPolicyOverride(activeOverride);
         }
 
-        log.info("[RISK-ENGINE][RESULT] tx={} final_score={} override={}",
-                transaction.getId(), finalRiskScore,
-                activeOverride != null ? activeOverride : "NONE");
+        log.info("[RISK-ENGINE][RESULT] tx={} final={} cat_total={} ai={} cats={} override={}",
+                transaction.getId(), finalRiskScore, catTotal, aiContribution,
+                categoryTotals, activeOverride != null ? activeOverride : "NONE");
         return finalRiskScore;
     }
 

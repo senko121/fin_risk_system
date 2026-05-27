@@ -40,8 +40,10 @@ public class RuleService {
             String oldJson = objectMapper.writeValueAsString(existingRule);
  
             existingRule.setRuleName(ruleData.getRuleName());
-            existingRule.setConditions(ruleData.getConditions());  
+            existingRule.setConditions(ruleData.getConditions());
             existingRule.setActionScore(ruleData.getActionScore());
+            existingRule.setCategory(ruleData.getCategory());
+            if (ruleData.getRuleType() != null) existingRule.setRuleType(ruleData.getRuleType());
  
             try {
                 com.fasterxml.jackson.databind.JsonNode node = objectMapper.readTree(ruleData.getConditions());
@@ -112,7 +114,9 @@ public class RuleService {
             newRule.setRuleName(ruleData.getRuleName());
             newRule.setConditions(ruleData.getConditions());
             newRule.setActionScore(ruleData.getActionScore());
-            newRule.setIsActive(true);  
+            newRule.setIsActive(true);
+            newRule.setCategory(ruleData.getCategory());
+            newRule.setRuleType(ruleData.getRuleType() != null ? ruleData.getRuleType() : "ADDITIVE");  
 
  
             try {

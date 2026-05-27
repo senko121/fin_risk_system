@@ -30,5 +30,10 @@ public class Rule {
  
     @Column(name = "min_policy_override", length = 20)
     private String minPolicyOverride;
- 
+
+    @Column(name = "category", length = 20)
+    private String category;
+
+    @Column(name = "rule_type", length = 20)
+    private String ruleType = "ADDITIVE";
 }
