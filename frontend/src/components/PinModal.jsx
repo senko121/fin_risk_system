@@ -169,9 +169,8 @@ export default function PinModal({ isOpen, onClose, transactionId, formData, rec
                 )}
             </div>
 
-            <button 
-              type="button" 
-              onClick={handleVerifyPin}
+            <button
+              type="submit"
               disabled={isLoading || pin.length !== 6}
               className={`w-full py-4 rounded-xl text-white font-bold text-lg shadow-lg transition-all ${(isLoading || pin.length !== 6) ? 'bg-slate-200 shadow-none cursor-not-allowed' : 'bg-emerald-500 hover:bg-emerald-600 active:scale-95 shadow-emerald-200'}`}
             >

@@ -5,7 +5,9 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "user_devices")
+@Table(name = "user_devices", uniqueConstraints = {
+    @UniqueConstraint(columnNames = {"user_id", "device_fingerprint"})
+})
 @Data
 public class UserDevice {
     @Id

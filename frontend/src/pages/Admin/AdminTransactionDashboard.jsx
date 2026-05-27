@@ -62,7 +62,7 @@ export default function AdminTransactionDashboard() {
       toast.error("Không thể tải danh sách giao dịch!");
       console.error(error);
     } finally {
-      loading && setLoading(false);
+      setLoading(false);
       setIsLoadingMore(false);
     }
   };

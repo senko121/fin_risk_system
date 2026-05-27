@@ -137,11 +137,13 @@ export default function FaceVerification() {
               }
             }
           } else {
-            framesBuffer.current = [];
-            globalBlinkFlag.current = false;
-            setIsLivenessPassed(false);
-            setIsFaceDetected(false);
-            if (!isProcessing) setStatus("Vui lòng đưa khuôn mặt vào giữa khung hình.");
+            if (!isProcessing) {
+              framesBuffer.current = [];
+              globalBlinkFlag.current = false;
+              setIsLivenessPassed(false);
+              setIsFaceDetected(false);
+              setStatus("Vui lòng đưa khuôn mặt vào giữa khung hình.");
+            }
           }
         }
       }

@@ -4,7 +4,9 @@ package com.datn.finrisk.core.services;
 
 import com.datn.finrisk.application.dtos.AdminTransactionDTO;
 import com.datn.finrisk.application.dtos.TransactionRiskDetailDTO;
+import com.datn.finrisk.application.dtos.TransactionRiskDetailDTO.CategoryBreakdownDTO;
 import com.datn.finrisk.core.entities.RiskScore;
+import com.datn.finrisk.core.utils.RiskEngineConstants;
 import com.datn.finrisk.core.entities.Transaction;
 import com.datn.finrisk.core.entities.TransactionAiInsight;
 import com.datn.finrisk.core.entities.UserBehaviorProfile;
@@ -105,11 +107,33 @@ public class AdminTransactionService {
 
  
         List<RiskScore> scores = riskScoreRepository.findByTransactionIdInWithRule(List.of(txId));
-        
-        int totalRuleScore = scores.stream()
-            .mapToInt(rs -> Math.max(rs.getAppliedScore(), 0))
-            .sum();
-        detailDTO.setRuleScore(totalRuleScore);
+
+        // Group by category, apply caps → categoryBreakdown
+        Map<String, List<RiskScore>> byCategory = scores.stream()
+            .collect(Collectors.groupingBy(rs -> {
+                String cat = rs.getRule() != null ? rs.getRule().getCategory() : null;
+                return (cat != null && !cat.isBlank()) ? cat : "CONTEXTUAL";
+            }));
+
+        Map<String, CategoryBreakdownDTO> breakdown = new LinkedHashMap<>();
+        for (Map.Entry<String, List<RiskScore>> entry : byCategory.entrySet()) {
+            String cat    = entry.getKey();
+            int raw       = entry.getValue().stream().mapToInt(rs -> Math.max(rs.getAppliedScore(), 0)).sum();
+            int cap       = RiskEngineConstants.CATEGORY_CAPS.getOrDefault(cat, 20);
+            int effective = Math.min(raw, cap);
+            int ruleCount = (int) entry.getValue().stream().filter(rs -> rs.getAppliedScore() != 0).count();
+
+            CategoryBreakdownDTO dto = new CategoryBreakdownDTO();
+            dto.setRaw(raw); dto.setCap(cap); dto.setEffective(effective); dto.setRuleCount(ruleCount);
+            breakdown.put(cat, dto);
+        }
+        detailDTO.setCategoryBreakdown(breakdown);
+
+        int effectiveCatTotal = breakdown.values().stream().mapToInt(CategoryBreakdownDTO::getEffective).sum();
+        detailDTO.setRuleScore(effectiveCatTotal);
+
+        int aiContrib = Math.max(0, (t.getTotalRiskScore() != null ? t.getTotalRiskScore() : 0) - effectiveCatTotal);
+        detailDTO.setAiContribution(Math.min(aiContrib, RiskEngineConstants.AI_MAX_CONTRIBUTION));
 
         detailDTO.setViolatedRules(
             scores.stream()

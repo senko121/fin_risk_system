@@ -138,10 +138,16 @@ export default function AdminTransactionDetailModal({ isOpen, onClose, transacti
               </div>
             </div>
 
+            {/* Category breakdown */}
+            <CategoryBreakdown
+              breakdown={transaction.categoryBreakdown}
+              aiContribution={transaction.aiContribution}
+            />
+
             <div>
               <h5 className="text-xs font-black text-slate-700 uppercase tracking-widest mb-3 flex items-center gap-2">
-                <span className="w-1.5 h-1.5 bg-amber-500 rounded-full" /> 
-                Luật tĩnh vi phạm ({ruleScore}đ)
+                <span className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
+                Luật tĩnh vi phạm
               </h5>
               {transaction.violatedRules?.length > 0 ? (
                 <ul className="space-y-2 max-h-[200px] overflow-y-auto hide-sb pr-1">
@@ -169,7 +175,7 @@ export default function AdminTransactionDetailModal({ isOpen, onClose, transacti
                 Giao Dịch Hiện Tại vs Thói Quen Gốc
               </h5>
               <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-lg">
-                Độ bất thường AI: {behaviorScore}/100
+                Lệch thói quen: {behaviorScore}%
               </span>
             </div>
 
@@ -313,6 +319,90 @@ function InsightRow({ insight }) {
         <span className={`font-bold text-sm ${text} leading-relaxed`}>{insight.text}</span>
       </div>
     </li>
+  );
+}
+
+const CATEGORY_META = {
+  DEVICE:     { label: 'Thiết bị',  color: '#3b82f6' },
+  FINANCIAL:  { label: 'Tài chính', color: '#f59e0b' },
+  BIOMETRIC:  { label: 'Sinh trắc', color: '#10b981' },
+  VELOCITY:   { label: 'Tần suất',  color: '#ef4444' },
+  CONTEXTUAL: { label: 'Bối cảnh',  color: '#8b5cf6' },
+  COMPOSITE:  { label: 'Tổng hợp',  color: '#06b6d4' },
+};
+const AI_COLOR = '#ec4899';
+
+function CategoryBreakdown({ breakdown, aiContribution }) {
+  if (!breakdown || Object.keys(breakdown).length === 0) return null;
+
+  const ai = aiContribution ?? 0;
+
+  // Build segments, sort descending by value — AI always after categories
+  const catSegments = Object.entries(breakdown)
+    .filter(([, d]) => d.effective > 0)
+    .map(([cat, d]) => ({
+      key: cat,
+      label: CATEGORY_META[cat]?.label ?? cat,
+      color: CATEGORY_META[cat]?.color ?? '#94a3b8',
+      value: d.effective,
+    }))
+    .sort((a, b) => b.value - a.value);
+
+  const segments = ai > 0
+    ? [...catSegments, { key: 'AI', label: 'AI hành vi', color: AI_COLOR, value: ai }]
+    : catSegments;
+
+  const total = segments.reduce((s, seg) => s + seg.value, 0);
+  const safe  = Math.max(0, 100 - total);
+
+  return (
+    <div>
+      <h5 className="text-xs font-black text-slate-700 uppercase tracking-widest mb-3 flex items-center gap-2">
+        <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full" />
+        Cấu thành điểm rủi ro
+      </h5>
+
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-3">
+        {/* Stacked bar */}
+        <div className="flex h-5 rounded-full overflow-hidden gap-px">
+          {segments.map(seg => (
+            <div
+              key={seg.key}
+              title={`${seg.label}: ${seg.value}đ`}
+              style={{ width: `${seg.value}%`, backgroundColor: seg.color }}
+            />
+          ))}
+          {safe > 0 && (
+            <div style={{ width: `${safe}%` }} className="bg-slate-100" />
+          )}
+        </div>
+
+        {/* Score label below bar */}
+        <div className="flex justify-between text-[10px] font-bold text-slate-500">
+          <span>0</span>
+          <span className="text-slate-800">{total}<span className="text-slate-400">/100đ rủi ro</span></span>
+          <span>100</span>
+        </div>
+
+        {/* Legend */}
+        <div className="flex flex-wrap gap-x-3 gap-y-1.5 pt-1 border-t border-slate-100">
+          {segments.map(seg => (
+            <div key={seg.key} className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: seg.color }} />
+              <span className="text-[11px] font-bold text-slate-600">
+                {seg.label} <span className="font-mono text-slate-400">{seg.value}đ</span>
+              </span>
+            </div>
+          ))}
+          {safe > 0 && (
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-sm bg-slate-100 border border-slate-200 flex-shrink-0" />
+              <span className="text-[11px] font-bold text-slate-400">An toàn {safe}đ</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 

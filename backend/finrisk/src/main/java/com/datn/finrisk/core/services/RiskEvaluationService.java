@@ -490,8 +490,7 @@ public class RiskEvaluationService {
     private boolean resolveDeviceTrusted(Transaction transaction, User sender) {
         String fingerprint = transaction.getDeviceFingerprint();
         if (fingerprint == null || fingerprint.isBlank()) return false;
-        return userDeviceRepository.findByDeviceFingerprint(fingerprint)
-                .filter(d -> d.getUser().getId().equals(sender.getId()))
+        return userDeviceRepository.findByUserIdAndDeviceFingerprint(sender.getId(), fingerprint)
                 .map(d -> Boolean.TRUE.equals(d.getIsTrusted()))
                 .orElse(false);
     }

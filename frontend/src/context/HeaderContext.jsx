@@ -1,9 +1,8 @@
-import React, { createContext, useContext, useState, useLayoutEffect } from 'react';
+import React, { createContext, useContext, useState, useLayoutEffect, useRef } from 'react';
 
 export const HeaderContext = createContext();
 
 export function HeaderProvider({ children }) {
-  // Thay vì headerConfig, mình gọi nó là headerOverride
   const [headerOverride, setHeaderOverride] = useState(null);
 
   return (
@@ -13,17 +12,15 @@ export function HeaderProvider({ children }) {
   );
 }
 
-// 🎙️ ĐỔI TÊN HOOK THÀNH useHeaderOverride
 export function useHeaderOverride(title, subtitle, onBack) {
   const { setHeaderOverride } = useContext(HeaderContext);
 
-  useLayoutEffect(() => {
-    // Nếu có truyền vào title/onBack thì ghi đè
-    setHeaderOverride({ title, subtitle, onBack });
+  // Giữ onBack mới nhất trong ref mà không trigger effect
+  const onBackRef = useRef(onBack);
+  onBackRef.current = onBack;
 
-    // Khi rời khỏi trang thì dọn dẹp (trả Navbar về mặc định)
+  useLayoutEffect(() => {
+    setHeaderOverride({ title, subtitle, onBack: (...args) => onBackRef.current?.(...args) });
     return () => setHeaderOverride(null);
-    
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, subtitle, setHeaderOverride]); 
+  }, [title, subtitle, setHeaderOverride]);
 }

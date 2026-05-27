@@ -41,7 +41,7 @@ export default function TransactionDetailModal({ isOpen, onClose, transaction, f
           <div className="space-y-4 text-sm">
             <div className="flex justify-between border-b border-gray-50 pb-3">
               <span className="text-gray-500">Mã giao dịch</span>
-              <span className="font-mono font-bold text-gray-800">#{transaction.id * 10203}</span>
+              <span className="font-mono font-bold text-gray-800">#{transaction.id}</span>
             </div>
             {/* THÊM TÀI KHOẢN NGƯỜI NHẬN */}
             {/* 🚀 HIỂN THỊ TÊN NGƯỜI GỬI / NHẬN (Sử dụng relatedName từ Backend) */}

@@ -4,6 +4,7 @@ package com.datn.finrisk.application.dtos;
 
 import lombok.Data;
 import java.util.List;
+import java.util.Map;
 
 @Data
 public class TransactionRiskDetailDTO {
@@ -15,11 +16,20 @@ public class TransactionRiskDetailDTO {
     private Integer ruleScore;
     private List<String> violatedRules;
     private List<AiInsightDTO> aiInsights;
+    private Map<String, CategoryBreakdownDTO> categoryBreakdown;
+    private int aiContribution;
 
- 
     private ProfileBaselineDTO profileBaseline;
 
  
+    @Data
+    public static class CategoryBreakdownDTO {
+        private int raw;
+        private int cap;
+        private int effective;
+        private int ruleCount;
+    }
+
     @Data
     public static class AiInsightDTO {
         private String feature;
