@@ -9,6 +9,7 @@ import com.google.zxing.qrcode.QRCodeWriter;
 import java.io.ByteArrayOutputStream;
 import java.util.Base64;
 
+import com.datn.finrisk.application.dtos.FaceRegisterBatchRequest;
 import com.datn.finrisk.application.dtos.FaceRegisterRequest;
 import com.datn.finrisk.core.entities.User;
 import com.datn.finrisk.core.repository.UserRepository;
@@ -66,6 +67,50 @@ public class UserController {
             return ResponseEntity.ok(Map.of(
                 "status", "SUCCESS",
                 "message", "Đăng ký dữ liệu khuôn mặt thành công!"
+            ));
+
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Lỗi: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Đăng ký khuôn mặt nhiều góc (front, left, right, up, down).
+     * Gọi Python /enroll-face-batch → nhận list embeddings → lưu vào face_embeddings.
+     * Nên dùng endpoint này thay cho /register-face để verify ổn định hơn.
+     */
+    @PostMapping("/register-face-batch")
+    public ResponseEntity<?> registerFaceBatch(@RequestBody FaceRegisterBatchRequest request) {
+        try {
+            if (request.getUserId() == null) {
+                return ResponseEntity.badRequest().body("userId không được để trống!");
+            }
+            if (request.getImagesBase64() == null || request.getImagesBase64().isEmpty()) {
+                return ResponseEntity.badRequest().body("Danh sách ảnh không hợp lệ!");
+            }
+            if (request.getImagesBase64().size() < 2) {
+                return ResponseEntity.badRequest().body(
+                        "Cần ít nhất 2 ảnh (front + 1 góc khác) để đăng ký multi-angle!");
+            }
+
+            User user = userRepository.findById(request.getUserId())
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng!"));
+
+            String embeddingsJson = faceEnrollService.enrollFaceBatch(
+                    user.getId(), request.getImagesBase64());
+
+            if (embeddingsJson == null) {
+                return ResponseEntity.badRequest().body(
+                        "Không thể nhận diện khuôn mặt trong các ảnh. Vui lòng chụp lại rõ hơn!");
+            }
+
+            user.setFaceEmbeddings(embeddingsJson);
+            userRepository.save(user);
+
+            return ResponseEntity.ok(Map.of(
+                    "status", "SUCCESS",
+                    "message", "Đăng ký dữ liệu khuôn mặt đa góc thành công!",
+                    "angles_accepted", request.getImagesBase64().size()
             ));
 
         } catch (Exception e) {
@@ -165,8 +210,14 @@ public class UserController {
 
             Map<String, Object> status = new java.util.HashMap<>();
             status.put("isPinSetup", security.getIsPinSetup());
-            // isFaceSetup = true nếu có embedding MỚI hoặc ảnh cũ (backward compat)
-            status.put("isFaceSetup", user.hasFaceEmbedding() || user.hasLegacyFaceImage());
+            boolean faceSetup = user.hasFaceEmbeddings()
+                    || user.hasFaceEmbedding()
+                    || user.hasLegacyFaceImage();
+            status.put("isFaceSetup", faceSetup);
+            status.put("faceMode", user.hasFaceEmbeddings() ? "MULTI_ANGLE"
+                    : user.hasFaceEmbedding()    ? "SINGLE"
+                    : user.hasLegacyFaceImage()  ? "LEGACY_IMAGE"
+                    : "NONE");
 
             return ResponseEntity.ok(status);
         } catch (Exception e) {

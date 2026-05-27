@@ -2,7 +2,8 @@ import React, { useRef, useState, useEffect, useLayoutEffect, useCallback } from
 import Webcam from 'react-webcam';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
-import { toast } from 'react-toastify'; 
+import { toast } from 'react-toastify';
+import axiosClient from '../../api/axiosClient';
 
 export default function HighRiskVerification() {
   const webcamRef = useRef(null);
@@ -38,7 +39,8 @@ useLayoutEffect(() => {
   // 🚀 WEBSOCKET REFS (TÁCH LÀM 2 ỐNG)
   const wsFaceRef = useRef(null);
   const wsVoiceRef = useRef(null);
-  const [liveEmotion, setLiveEmotion] = useState("NEUTRAL"); 
+  const ackTimerRef = useRef(null); // cleared when WS FINAL_RESULT arrives
+  const [liveEmotion, setLiveEmotion] = useState("NEUTRAL");
 
   const [isLivenessPassed, setIsLivenessPassed] = useState(false);
   const globalBlinkFlag = useRef(false);
@@ -179,6 +181,47 @@ useLayoutEffect(() => {
   }, [isModelLoaded, faceLandmarker, isProcessing, isLivenessPassed]);
 
 
+  // 3a. POLLING FALLBACK — gọi khi FINAL_RESULT WS không đến sau 20s
+  const pollVerificationStatus = useCallback(async () => {
+    let attempts = 0;
+    const MAX_ATTEMPTS = 6;
+
+    const poll = async () => {
+      if (attempts >= MAX_ATTEMPTS) {
+        setIsProcessing(false);
+        setStatus("⚠️ Không nhận được phản hồi. Kiểm tra lại lịch sử giao dịch.");
+        toast.warning("Không thể xác nhận kết quả qua WebSocket. Vui lòng kiểm tra lịch sử giao dịch.");
+        return;
+      }
+      attempts++;
+      try {
+        const res = await axiosClient.get(`/transactions/${transactionId}/verification-status`);
+        const txStatus = res.data?.status;
+
+        if (txStatus === 'SUCCESS') {
+          setIsProcessing(false);
+          toast.success("🎉 Xác thực thành công! Kiểm tra lịch sử để xem chi tiết.");
+          navigate('/dashboard');
+        } else if (txStatus === 'BLOCKED') {
+          setIsProcessing(false);
+          setIsFrozen(true);
+          setStatus("🚫 Giao dịch bị khóa do xác thực sai quá 3 lần.");
+          toast.error("🚫 Giao dịch bị khóa.");
+        } else if (txStatus === 'UNDER_REVIEW') {
+          setIsFrozen(true);
+          setStatus("⏳ Giao dịch đang được xem xét bảo mật...");
+          toast.info("Hệ thống đang xử lý...", { autoClose: false, theme: "colored" });
+        } else {
+          setTimeout(poll, 3000);
+        }
+      } catch (_err) {
+        setTimeout(poll, 3000);
+      }
+    };
+
+    poll();
+  }, [transactionId, navigate]);
+
   // 3. KHỞI TẠO 2 ỐNG WEBSOCKET ĐỘC LẬP (Sửa dependency & sử dụng staticTokenRef)
   useEffect(() => {
     const currentToken = staticTokenRef.current;
@@ -198,6 +241,11 @@ useLayoutEffect(() => {
     if (data.type === "LIVE_RESULT" && data.status === "SUCCESS") {
       setLiveEmotion(data.emotion);
     } else if (data.type === "FINAL_RESULT") {
+      // WS delivered — cancel the REST polling fallback
+      if (ackTimerRef.current) {
+        clearTimeout(ackTimerRef.current);
+        ackTimerRef.current = null;
+      }
       
       // Nếu là SUCCESS hoặc BLOCKED mới đóng, RETRY thì giữ nguyên
       if (data.status === "SUCCESS" || data.status === "BLOCKED") {
@@ -217,12 +265,19 @@ useLayoutEffect(() => {
           toast.info("Hệ thống đang xử lý...", { autoClose: false, theme: "colored" });
       }
       else if (data.status === "BLOCKED") {
+          if (wsFaceRef.current) wsFaceRef.current.close();
           setIsProcessing(false);
           setIsFrozen(true);
           setStatus("🚫 " + data.message);
           toast.error("🚫 " + data.message);
+          setTimeout(() => navigate('/dashboard'), 4000);
       }
       else if (data.status === "RETRY") {
+          // Python closed its WS after each recognition — the Java↔Python bridge is dead.
+          // Close the React↔Java voice WS so ensureVoiceSocketOpen creates a fresh bridge on the next attempt.
+          if (wsVoiceRef.current && wsVoiceRef.current.readyState !== WebSocket.CLOSED) {
+              wsVoiceRef.current.close();
+          }
           // RESET UI để thử lại
           setIsProcessing(false);
           setIsRecording(false);
@@ -248,10 +303,14 @@ useLayoutEffect(() => {
     voiceSocket.onopen = () => console.log('✅ Đã kết nối Socket Voice (Binary)!');
     wsVoiceRef.current = voiceSocket;
 
-    return () => { 
+    return () => {
       console.log('🧹 [WS-CLEANUP] Đóng các kết nối Socket cũ');
-      if (wsFaceRef.current) wsFaceRef.current.close(); 
-      if (wsVoiceRef.current) wsVoiceRef.current.close(); 
+      if (wsFaceRef.current) wsFaceRef.current.close();
+      if (wsVoiceRef.current) wsVoiceRef.current.close();
+      if (ackTimerRef.current) {
+        clearTimeout(ackTimerRef.current);
+        ackTimerRef.current = null;
+      }
       sessionStorage.removeItem('bsToken');
     };
   }, []); // ← [] hoàn toàn, vì đã dùng ref cho token
@@ -389,15 +448,22 @@ useLayoutEffect(() => {
             setStatus("🤖 AI đang tổng hợp Khuôn mặt + Giọng nói...");
 
             if (wsFaceRef.current?.readyState === WebSocket.OPEN) {
-                wsFaceRef.current.send(JSON.stringify({ 
-                    action: "FINALIZE", 
+                wsFaceRef.current.send(JSON.stringify({
+                    action: "FINALIZE",
                     transactionId: transactionId
                 }));
             }
-            
+
             if (wsVoiceRef.current?.readyState === WebSocket.OPEN) {
                 wsVoiceRef.current.send(new Int16Array(0).buffer);
             }
+
+            // Start ACK timer — if WS FINAL_RESULT doesn't arrive within 20s after FINALIZE,
+            // fall back to REST polling so a dropped socket never leaves the UI stuck.
+            ackTimerRef.current = setTimeout(() => {
+                ackTimerRef.current = null;
+                pollVerificationStatus();
+            }, 20000);
 
         }, 10000); 
 
@@ -408,7 +474,7 @@ useLayoutEffect(() => {
         setIsRecording(false);
     }
     
-  }, [transactionId, ensureVoiceSocketOpen]); // Thay biometricSessionToken bằng ensureVoiceSocketOpen vào dependency array
+  }, [transactionId, ensureVoiceSocketOpen, pollVerificationStatus]);
 
   return (
     <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4 relative overflow-hidden">

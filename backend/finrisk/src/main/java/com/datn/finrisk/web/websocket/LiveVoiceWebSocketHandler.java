@@ -17,6 +17,7 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import org.slf4j.MDC;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -29,6 +30,7 @@ public class LiveVoiceWebSocketHandler extends BinaryWebSocketHandler {
     @Autowired private OtpService otpService;
     @Autowired private TransactionRepository transactionRepository;
     @Autowired private WsConnectionGuard wsConnectionGuard;
+    @Autowired private FaceSessionRegistry faceSessionRegistry;
     @Autowired private ObjectMapper mapper;
 
     private final Map<String, WebSocketSession> pythonSessions = new ConcurrentHashMap<>();
@@ -71,6 +73,10 @@ public class LiveVoiceWebSocketHandler extends BinaryWebSocketHandler {
                 reactSession.getId(), ip, authenticatedUser, txId);
 
         StandardWebSocketClient client = new StandardWebSocketClient();
+        // Scoped per-connection: true once Python sends VERIFICATION_COMPLETE.
+        // Used in afterConnectionClosed to distinguish normal lifecycle close from crash.
+        java.util.concurrent.atomic.AtomicBoolean verificationCompleted = new java.util.concurrent.atomic.AtomicBoolean(false);
+
         var pythonConnectFuture = client.execute(new TextWebSocketHandler() {
             @Override
             protected void handleTextMessage(WebSocketSession pySession, TextMessage message) throws Exception {
@@ -85,13 +91,17 @@ public class LiveVoiceWebSocketHandler extends BinaryWebSocketHandler {
                         log.info("[WS-VOICE][PYTHON] received VERIFICATION_COMPLETE txKey={} authCode_length={}",
                                 txKey, authCode.length());
 
+                        // Mark before calling updateVoiceResult so afterConnectionClosed
+                        // (which fires almost immediately after Python sends its result) sees true.
+                        verificationCompleted.set(true);
+
                         Transaction tx = transactionRepository.findByIdWithUserSecurity(txId).orElse(null);
                         String username = (tx != null) ? tx.getFromAccount().getUser().getUsername() : "unknown";
 
                         boolean isMatch = otpService.verifyVoiceOtp(txId, authCode);
                         log.info("[WS-VOICE] voice OTP match={} txId={}", isMatch, txId);
 
-                        syncManager.updateVoiceResult(txKey, isMatch, username, txId, reactSession);
+                        syncManager.updateVoiceResult(txKey, isMatch, username, txId);
                     }
                 } finally {
                     MDC.clear();
@@ -100,10 +110,30 @@ public class LiveVoiceWebSocketHandler extends BinaryWebSocketHandler {
 
             @Override
             public void afterConnectionClosed(WebSocketSession pySession, CloseStatus status) throws Exception {
-                log.info("[WS-VOICE][PYTHON] Python voice service disconnected status={} — closing react session", status.getCode());
-                if (reactSession.isOpen()) {
-                    reactSession.close();
+                if (verificationCompleted.get()) {
+                    // Normal lifecycle: Python finished and closed cleanly — nothing to do.
+                    log.info("[WS-VOICE][PYTHON] normal close after VERIFICATION_COMPLETE status={} txKey={}",
+                            status.getCode(), txKey);
+                    return;
                 }
+                // Abnormal: Python died before sending a result — notify user to retry.
+                log.warn("[WS-VOICE][PYTHON] abnormal disconnect before result status={} txKey={} — sending RETRY via face channel",
+                        status.getCode(), txKey);
+                faceSessionRegistry.get(txKey).ifPresent(faceSession -> {
+                    try {
+                        Map<String, Object> retryMsg = new HashMap<>();
+                        retryMsg.put("type", "FINAL_RESULT");
+                        retryMsg.put("status", "RETRY");
+                        retryMsg.put("message", "Dịch vụ giọng nói bị gián đoạn. Vui lòng thực hiện lại xác thực!");
+                        synchronized (faceSession) {
+                            if (faceSession.isOpen()) {
+                                faceSession.sendMessage(new TextMessage(mapper.writeValueAsString(retryMsg)));
+                            }
+                        }
+                    } catch (Exception e) {
+                        log.error("[WS-VOICE][PYTHON] failed to forward RETRY to face session: {}", e.getMessage());
+                    }
+                });
             }
         }, "ws://localhost:5003/ws/recognize");
 

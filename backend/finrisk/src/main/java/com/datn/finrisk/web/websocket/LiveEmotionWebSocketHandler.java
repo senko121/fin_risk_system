@@ -40,6 +40,7 @@ public class LiveEmotionWebSocketHandler extends AbstractWebSocketHandler {
     @Autowired private AdvancedFaceActionStrategy faceActionStrategy;
     @Autowired private VerificationSyncManager verificationSyncManager;
     @Autowired private WsConnectionGuard wsConnectionGuard;
+    @Autowired private FaceSessionRegistry faceSessionRegistry;
     @Autowired private ObjectMapper mapper;
 
     // Binary frame validation bounds
@@ -61,12 +62,23 @@ public class LiveEmotionWebSocketHandler extends AbstractWebSocketHandler {
         String corrId = "WS-" + session.getId().replace("-", "").substring(0, 8);
         session.getAttributes().put("correlationId", corrId);
         log.info("[WS-FACE] connected session={} ip={}", session.getId(), ip);
+
+        BiometricSession bs = (BiometricSession) session.getAttributes().get("biometricSession");
+        if (bs != null) {
+            faceSessionRegistry.register(bs.getSessionToken(), session);
+        }
     }
 
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws Exception {
         String ip = clientIp(session);
         wsConnectionGuard.release(ip);
+
+        BiometricSession bs = (BiometricSession) session.getAttributes().get("biometricSession");
+        if (bs != null) {
+            faceSessionRegistry.unregisterIfOwner(bs.getSessionToken(), session);
+        }
+
         String txKey = sessionToTxKey.remove(session.getId());
         if (txKey != null) {
             if (session.getId().equals(txKeyToSessionId.get(txKey))) {
@@ -354,7 +366,7 @@ public class LiveEmotionWebSocketHandler extends AbstractWebSocketHandler {
                                 boolean result = Boolean.TRUE.equals(isFaceSecure);
                                 log.info("[WS-FACE][FINALIZE][ASYNC-DONE] txKey={} elapsed={}ms result={}", txKey, elapsed, result);
                                 verificationSyncManager.updateFaceResult(
-                                        biometricSession.getSessionToken(), result, authenticatedUser, transactionId, session);
+                                        biometricSession.getSessionToken(), result, authenticatedUser, transactionId);
                             });
                 } catch (Exception submitEx) {
                     finalizeInFlight.remove(txKey);

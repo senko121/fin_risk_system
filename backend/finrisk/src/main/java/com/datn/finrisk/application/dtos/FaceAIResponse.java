@@ -31,4 +31,8 @@ public class FaceAIResponse {
 
     @JsonProperty("spoof_detected")
     private Boolean spoofDetected;
+
+    /** Số lượng registered embeddings được dùng để verify (multi-angle). */
+    @JsonProperty("registered_count")
+    private Integer registeredCount;
 }

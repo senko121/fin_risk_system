@@ -131,11 +131,12 @@ public class AdminUserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy User!"));
 
-    if (!user.hasFaceEmbedding() && !user.hasLegacyFaceImage()) {
+    if (!user.hasFaceEmbeddings() && !user.hasFaceEmbedding() && !user.hasLegacyFaceImage()) {
             throw new RuntimeException("Người dùng này chưa đăng ký khuôn mặt!");
         }
-        user.setFaceEmbedding(null);           // xóa embedding mới
-        user.setBase64FaceImage(null);    
+        user.setFaceEmbeddings(null);          // xóa multi-angle embeddings
+        user.setFaceEmbedding(null);           // xóa single embedding
+        user.setBase64FaceImage(null);
         user = userRepository.save(user);
 
  
@@ -172,7 +173,7 @@ public class AdminUserService {
         dto.setLastLoginDevice(user.getLastLoginDevice());
         dto.setCreatedAt(user.getCreatedAt());
  
-          boolean hasFace = user.hasFaceEmbedding() || user.hasLegacyFaceImage();
+        boolean hasFace = user.hasFaceEmbeddings() || user.hasFaceEmbedding() || user.hasLegacyFaceImage();
         dto.setHasFaceData(hasFace);
 
         return dto;

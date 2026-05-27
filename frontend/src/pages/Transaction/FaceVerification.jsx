@@ -23,6 +23,7 @@ export default function FaceVerification() {
   // 🚀 THÊM STATE VÀ REF CHO LIVENESS
   const [isLivenessPassed, setIsLivenessPassed] = useState(false);
   const [isFaceDetected, setIsFaceDetected] = useState(false);
+  const [isFrozen, setIsFrozen] = useState(false);
   const globalBlinkFlag = useRef(false);
   const framesBuffer = useRef([]);
   const MAX_FRAMES = 30; // Bộ đệm 0.5 giây
@@ -181,13 +182,26 @@ const captureAndVerify = useCallback(async () => {
         });
       }
     } catch (error) {
-      const errorMsg = error.response?.data?.message || "Xác thực khuôn mặt thất bại!";
-      setStatus("❌ TỪ CHỐI: " + errorMsg);
-      toast.error("🚨 Lỗi: " + errorMsg); 
-      setIsProcessing(false);
-      setIsLivenessPassed(false);
-      globalBlinkFlag.current = false;
-      framesBuffer.current = [];
+      const resData = error.response?.data;
+      const resStatus = resData?.status;
+      const errorMsg = resData?.message
+          || (typeof resData === 'string' ? resData : null)
+          || "Xác thực khuôn mặt thất bại!";
+
+      if (resStatus === 'BLOCKED') {
+          setIsFrozen(true);
+          setIsProcessing(false);
+          setStatus("🚫 " + errorMsg);
+          toast.error("🚫 " + errorMsg);
+          setTimeout(() => navigate('/dashboard'), 3000);
+      } else {
+          setIsProcessing(false);
+          setIsLivenessPassed(false);
+          globalBlinkFlag.current = false;
+          framesBuffer.current = [];
+          setStatus("❌ TỪ CHỐI: " + errorMsg);
+          toast.error("🚨 Lỗi: " + errorMsg);
+      }
     }
   }, [webcamRef, transactionId, formData, recipientName, navigate]);
 
@@ -290,7 +304,7 @@ return (
       {/* BUTTON */}
       <button
         onClick={captureAndVerify}
-        disabled={!isModelLoaded || !isLivenessPassed || isProcessing}
+        disabled={!isModelLoaded || !isLivenessPassed || isProcessing || isFrozen}
         className={`w-full py-5 rounded-2xl font-black text-white text-lg transition-all shadow-xl ${
           !isModelLoaded || !isLivenessPassed || isProcessing
             ? "bg-slate-300 cursor-not-allowed shadow-none text-slate-500"

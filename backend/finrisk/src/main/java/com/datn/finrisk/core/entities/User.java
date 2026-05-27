@@ -56,6 +56,17 @@ public class User {
     @Column(name = "face_embedding", columnDefinition = "LONGTEXT")
     private String faceEmbedding;
 
+    /**
+     * Multi-angle InsightFace embeddings — JSON array of 512-dim vectors.
+     * Ví dụ: "[[0.02, -0.18, ...], [0.05, 0.11, ...], ...]"
+     * Tạo ra bởi Python /api/ai/enroll-face-batch (front, left, right, up, down).
+     * Ưu tiên hơn faceEmbedding khi verify vì min-distance qua nhiều góc.
+     * Không bao giờ expose ra ngoài API.
+     */
+    @JsonIgnore
+    @Column(name = "face_embeddings", columnDefinition = "LONGTEXT")
+    private String faceEmbeddings;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role = Role.USER;
@@ -84,16 +95,17 @@ public class User {
 
     // ── Helper methods ────────────────────────────────────────────────────────
 
-    /**
-     * Kiểm tra user đã có embedding chưa (đã enroll theo kiến trúc mới).
-     */
+    /** Multi-angle embeddings (InsightFace buffalo_l) — đường verify tốt nhất. */
+    public boolean hasFaceEmbeddings() {
+        return faceEmbeddings != null && !faceEmbeddings.isBlank();
+    }
+
+    /** Single embedding (ArcFace legacy, một góc mặt). */
     public boolean hasFaceEmbedding() {
         return faceEmbedding != null && !faceEmbedding.isBlank();
     }
 
-    /**
-     * Kiểm tra user vẫn còn dùng ảnh cũ (chưa migrate).
-     */
+    /** Kiểm tra user vẫn còn dùng ảnh cũ (chưa migrate). */
     public boolean hasLegacyFaceImage() {
         return base64FaceImage != null && !base64FaceImage.isBlank();
     }

@@ -17,7 +17,7 @@ export default function SecuritySettings() {
   }, []);
 
   // 2. Trích xuất cờ FaceID (Check cả 2 vị trí cho chắc ăn theo cục JSON bro gửi)
-  const isFaceSetup = userData?.faceSetup || userData?.user?.faceSetup || false;
+  const isFaceSetup = userData?.isFaceSetup || userData?.faceSetup || false;
 
   // 3. Xử lý click nút FaceID
   const handleFaceIdClick = () => {

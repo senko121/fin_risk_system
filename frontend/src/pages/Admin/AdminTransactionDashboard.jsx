@@ -23,7 +23,12 @@ export default function AdminTransactionDashboard() {
   
   // State quản lý Giao dịch được chọn và hiệu ứng chờ tải dữ liệu AI chi tiết
   const [selectedTransaction, setSelectedTransaction] = useState(null);
-  const [isDetailLoading, setIsDetailLoading] = useState(false); 
+  const [isDetailLoading, setIsDetailLoading] = useState(false);
+
+  // State quản lý FEAR Alert Panel
+  const [fearTransactions, setFearTransactions] = useState([]);
+  const [fearLoading, setFearLoading] = useState(false);
+  const [fearActionLoading, setFearActionLoading] = useState(new Set());
 
   // Hàm gọi API lấy danh sách giao dịch
   const fetchTransactions = async (pageNumber, isReset = false) => {
@@ -62,6 +67,52 @@ export default function AdminTransactionDashboard() {
     }
   };
 
+  // Lấy danh sách giao dịch đang bị đóng băng do cảm xúc bất thường
+  const fetchFearTransactions = async () => {
+    setFearLoading(true);
+    try {
+      const res = await axiosClient.get('/admin/transactions', {
+        params: { status: 'UNDER_REVIEW', page: 0, size: 50 }
+      });
+      setFearTransactions(res.data.content || res.data || []);
+    } catch {
+      // panel phụ — không cần toast khi lỗi
+    } finally {
+      setFearLoading(false);
+    }
+  };
+
+  // Xử lý Admin duyệt hoặc từ chối giao dịch UNDER_REVIEW
+  const handleResolveReview = async (txId, action) => {
+    setFearActionLoading(prev => new Set([...prev, txId]));
+    try {
+      await axiosClient.post(`/admin/transactions/${txId}/resolve-review`, null, {
+        params: {
+          action,
+          adminNotes: action === 'APPROVE'
+            ? 'Admin duyệt — đã xem xét tín hiệu cảm xúc bất thường'
+            : 'Admin từ chối — nghi ngờ gian lận hoặc ép buộc'
+        }
+      });
+      toast.success(action === 'APPROVE'
+        ? `Đã duyệt giao dịch #${txId}`
+        : `Đã từ chối giao dịch #${txId}`
+      );
+      setFearTransactions(prev => prev.filter(t => t.id !== txId));
+      if (selectedTransaction?.id === txId) setSelectedTransaction(null);
+      fetchTransactions(0, true);
+    } catch (error) {
+      if (error.response?.status === 409) {
+        toast.warn(`Giao dịch #${txId} vừa được xử lý đồng thời bởi admin khác.`);
+        setFearTransactions(prev => prev.filter(t => t.id !== txId));
+      } else {
+        toast.error('Không thể xử lý giao dịch. Vui lòng thử lại!');
+      }
+    } finally {
+      setFearActionLoading(prev => { const s = new Set(prev); s.delete(txId); return s; });
+    }
+  };
+
   // 🚀 LUỒNG XỬ LÝ LAZY LOAD: Kéo dữ liệu rủi ro từ bảng phụ khi click nút chi tiết
   const handleFetchRiskDetails = async (summaryTx) => {
     setIsDetailLoading(true);
@@ -90,6 +141,11 @@ export default function AdminTransactionDashboard() {
     setHasMore(true);
     fetchTransactions(0, true);
   }, [status, riskLevel]);
+
+  // Load FEAR panel một lần khi mount
+  useEffect(() => {
+    fetchFearTransactions();
+  }, []);
 
   // Xử lý khi bấm nút "Lọc" cho ô tìm kiếm
   const handleSearchSubmit = (e) => {
@@ -152,6 +208,98 @@ export default function AdminTransactionDashboard() {
             Quay lại Dashboard
           </Link>
         </div>
+
+        {/* FEAR ALERT PANEL */}
+        {(fearLoading || fearTransactions.length > 0) && (
+          <div className="bg-rose-50 border border-rose-200 rounded-3xl p-5 mb-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-9 h-9 bg-rose-500 rounded-2xl flex items-center justify-center shadow-lg shadow-rose-500/30">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h2 className="font-black text-rose-900 text-sm uppercase tracking-tight flex items-center gap-2">
+                  Cảnh báo cảm xúc bất thường
+                  {!fearLoading && fearTransactions.length > 0 && (
+                    <span className="bg-rose-500 text-white text-[10px] px-2 py-0.5 rounded-full font-black animate-pulse">
+                      {fearTransactions.length} cần duyệt
+                    </span>
+                  )}
+                </h2>
+                <p className="text-xs text-rose-600 font-medium mt-0.5">
+                  AI phát hiện FEAR / STRESS / ANGRY — giao dịch đang bị đóng băng chờ xét duyệt thủ công
+                </p>
+              </div>
+              <button
+                onClick={fetchFearTransactions}
+                className="p-2 rounded-xl bg-rose-100 hover:bg-rose-200 transition-colors"
+                title="Làm mới danh sách"
+              >
+                <svg className="w-4 h-4 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
+            </div>
+
+            {fearLoading ? (
+              <p className="text-center text-rose-400 font-bold text-sm py-4 animate-pulse">
+                Đang quét giao dịch bất thường...
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {fearTransactions.map(t => (
+                  <div
+                    key={t.id}
+                    className="bg-white rounded-2xl border border-rose-100 px-5 py-4 flex flex-wrap items-center justify-between gap-3 shadow-sm hover:shadow-md transition-shadow"
+                  >
+                    <div className="flex flex-wrap items-center gap-3 min-w-0">
+                      <span className="text-sm font-mono font-black text-slate-500">#{t.id}</span>
+                      <span className="font-black text-slate-900 text-sm">{formatMoney(t.amount)}</span>
+                      <div className="flex flex-col">
+                        <span className="font-bold text-slate-700 text-xs">{t.senderFullName}</span>
+                        <span className="font-mono text-[10px] text-slate-400">{t.senderAccountNumber}</span>
+                      </div>
+                      <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border ${
+                        t.emotionSignal === 'FEAR'   ? 'bg-red-100 text-red-700 border-red-200' :
+                        t.emotionSignal === 'STRESS' ? 'bg-orange-100 text-orange-700 border-orange-200' :
+                                                       'bg-amber-100 text-amber-700 border-amber-200'
+                      }`}>
+                        {t.emotionSignal || 'UNDER_REVIEW'}
+                      </span>
+                      <span className="text-[10px] font-mono text-slate-400">
+                        {new Date(t.createdAt).toLocaleString('vi-VN')}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <button
+                        onClick={() => handleFetchRiskDetails(t)}
+                        className="px-3 py-2 rounded-xl text-xs font-black text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors border border-slate-200"
+                      >
+                        Chi tiết
+                      </button>
+                      <button
+                        onClick={() => handleResolveReview(t.id, 'APPROVE')}
+                        disabled={fearActionLoading.has(t.id)}
+                        className="px-4 py-2 rounded-xl text-xs font-black text-white bg-emerald-500 hover:bg-emerald-600 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {fearActionLoading.has(t.id) ? '...' : '✓ Duyệt'}
+                      </button>
+                      <button
+                        onClick={() => handleResolveReview(t.id, 'REJECT_FRAUD')}
+                        disabled={fearActionLoading.has(t.id)}
+                        className="px-4 py-2 rounded-xl text-xs font-black text-white bg-rose-500 hover:bg-rose-600 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {fearActionLoading.has(t.id) ? '...' : '✗ Từ chối'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* BỘ LỌC (FILTERS) */}
         <div className="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 mb-6 flex flex-wrap gap-4 items-end">
@@ -330,11 +478,13 @@ export default function AdminTransactionDashboard() {
       </div>
       
       {/* ── MODAL CHI TIẾT GIAO DỊCH ──────────────────────── */}
-      <AdminTransactionDetailModal 
-        isOpen={!!selectedTransaction} 
-        onClose={() => setSelectedTransaction(null)} 
-        transaction={selectedTransaction} 
-        formatMoney={formatMoney} 
+      <AdminTransactionDetailModal
+        isOpen={!!selectedTransaction}
+        onClose={() => setSelectedTransaction(null)}
+        transaction={selectedTransaction}
+        formatMoney={formatMoney}
+        onResolve={handleResolveReview}
+        isResolving={selectedTransaction ? fearActionLoading.has(selectedTransaction.id) : false}
       />
     </div>
   );

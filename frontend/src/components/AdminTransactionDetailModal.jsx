@@ -3,7 +3,7 @@
 import React, { useMemo } from 'react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip as ChartTooltip, Legend } from 'recharts';
 
-export default function AdminTransactionDetailModal({ isOpen, onClose, transaction, formatMoney }) {
+export default function AdminTransactionDetailModal({ isOpen, onClose, transaction, formatMoney, onResolve = null, isResolving = false }) {
   if (!isOpen || !transaction) return null;
 
   // ── Lấy điểm từ data thật ──────────────
@@ -256,7 +256,27 @@ export default function AdminTransactionDetailModal({ isOpen, onClose, transacti
         </div>
 
         {/* ── FOOTER ─────────────────────────────────────── */}
-        <div className="flex-shrink-0 px-6 py-5 bg-white border-t border-slate-100 flex justify-end">
+        <div className="flex-shrink-0 px-6 py-5 bg-white border-t border-slate-100 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            {transaction.status === 'UNDER_REVIEW' && onResolve && (
+              <>
+                <button
+                  onClick={() => onResolve(transaction.id, 'APPROVE')}
+                  disabled={isResolving}
+                  className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-black rounded-xl transition-all shadow-lg text-sm uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isResolving ? 'Đang xử lý...' : '✓ Duyệt Giao Dịch'}
+                </button>
+                <button
+                  onClick={() => onResolve(transaction.id, 'REJECT_FRAUD')}
+                  disabled={isResolving}
+                  className="px-6 py-3 bg-rose-500 hover:bg-rose-600 text-white font-black rounded-xl transition-all shadow-lg text-sm uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isResolving ? 'Đang xử lý...' : '✗ Từ Chối — Gian Lận'}
+                </button>
+              </>
+            )}
+          </div>
           <button onClick={onClose} className="px-10 py-3 bg-slate-900 hover:bg-black text-white font-black rounded-xl transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 text-sm uppercase tracking-widest">
             Đóng bảng phân tích
           </button>

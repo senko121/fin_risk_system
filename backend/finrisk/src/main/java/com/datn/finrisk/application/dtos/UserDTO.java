@@ -32,6 +32,6 @@ public class UserDTO {
         this.phoneNumber = user.getPhoneNumber();
         this.email = user.getEmail();
         this.role = user.getRole().name();
-         this.isFaceSetup = user.hasFaceEmbedding() || user.hasLegacyFaceImage();
+         this.isFaceSetup = user.hasFaceEmbeddings() || user.hasFaceEmbedding() || user.hasLegacyFaceImage();
     }
 }

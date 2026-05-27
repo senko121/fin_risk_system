@@ -41,7 +41,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.List;
-import java.util.ArrayList;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -240,31 +239,46 @@ public class RiskEvaluationService {
     }
 
     /**
-     * OVERLOAD MỚI — Tự động chọn embedding hoặc ảnh tùy theo trạng thái user.
-     * Dùng cái này thay thế cho verifyIdentityAsync(liveFrames, regBase64).
+     * OVERLOAD MỚI — Tự động chọn theo priority:
+     *   1. faceEmbeddings (multi-angle InsightFace) → registered_embeddings
+     *   2. faceEmbedding  (single ArcFace legacy)   → registered_embedding
+     *   3. base64FaceImage (ảnh raw cũ)              → registered_image_base64
      */
     @Async("biometricVerifyExecutor")
     public CompletableFuture<FaceAIResponse> verifyIdentityAsync(
             List<String> liveFrames, User user) {
 
-        if (user.hasFaceEmbedding()) {
-            // ĐƯỜNG MỚI: parse embedding → truyền registered_embedding
-            List<Double> embedding = faceEnrollService.parseEmbedding(user.getFaceEmbedding());
-            if (embedding != null) {
-                log.info("[FACE-ID][MODE] userId={} using pre-computed embedding", user.getId());
-                return verifyIdentityWithEmbeddingAsync(liveFrames, embedding);
+        // ĐƯỜNG TỐT NHẤT: multi-angle embeddings → registered_embeddings
+        if (user.hasFaceEmbeddings()) {
+            List<List<Double>> embeddings = faceEnrollService.parseEmbeddings(user.getFaceEmbeddings());
+            if (embeddings != null && !embeddings.isEmpty()) {
+                log.info("[FACE-ID][MODE] userId={} using multi-angle embeddings count={}",
+                        user.getId(), embeddings.size());
+                return verifyIdentityWithEmbeddingsAsync(liveFrames, embeddings);
             }
-            log.warn("[FACE-ID][FALLBACK] userId={} embedding parse failed → falling back to legacy image",
+            log.warn("[FACE-ID][FALLBACK] userId={} multi-angle parse failed → trying single embedding",
                     user.getId());
         }
 
-        // ĐƯỜNG CŨ: fallback sang ảnh nếu chưa migrate hoặc parse lỗi
+        // ĐƯỜNG CŨ: single embedding → registered_embedding
+        if (user.hasFaceEmbedding()) {
+            List<Double> embedding = faceEnrollService.parseEmbedding(user.getFaceEmbedding());
+            if (embedding != null) {
+                log.info("[FACE-ID][MODE] userId={} using single embedding", user.getId());
+                return verifyIdentityWithEmbeddingAsync(liveFrames, embedding);
+            }
+            log.warn("[FACE-ID][FALLBACK] userId={} single embedding parse failed → legacy image",
+                    user.getId());
+        }
+
+        // ĐƯỜNG CŨ NHẤT: ảnh raw
         if (user.hasLegacyFaceImage()) {
-            log.info("[FACE-ID][MODE] userId={} using legacy base64 image (not yet migrated)", user.getId());
+            log.info("[FACE-ID][MODE] userId={} using legacy base64 image (not yet migrated)",
+                    user.getId());
             return verifyIdentityWithImageAsync(liveFrames, user.getBase64FaceImage());
         }
 
-        log.error("[FACE-ID][NO-DATA] userId={} has neither embedding nor legacy image", user.getId());
+        log.error("[FACE-ID][NO-DATA] userId={} has no face data", user.getId());
         return CompletableFuture.completedFuture(null);
     }
 
@@ -279,19 +293,30 @@ public class RiskEvaluationService {
     }
 
     /**
-     * OVERLOAD MỚI — Nhận User thay vì ảnh, tự chọn embedding hoặc ảnh.
+     * OVERLOAD MỚI — Priority: multi-angle → single → legacy image.
      */
     @Async("biometricVerifyExecutor")
     public CompletableFuture<FaceAIResponse> verifyFaceStaticAsync(
             User user, String capturedBase64) {
 
+        if (user.hasFaceEmbeddings()) {
+            List<List<Double>> embeddings = faceEnrollService.parseEmbeddings(user.getFaceEmbeddings());
+            if (embeddings != null && !embeddings.isEmpty()) {
+                log.info("[FACE-STATIC][MODE] userId={} using multi-angle embeddings count={}",
+                        user.getId(), embeddings.size());
+                return doVerifyFaceStaticWithEmbeddings(embeddings, capturedBase64);
+            }
+            log.warn("[FACE-STATIC][FALLBACK] userId={} multi-angle parse failed → single",
+                    user.getId());
+        }
+
         if (user.hasFaceEmbedding()) {
             List<Double> embedding = faceEnrollService.parseEmbedding(user.getFaceEmbedding());
             if (embedding != null) {
-                log.info("[FACE-STATIC][MODE] userId={} using pre-computed embedding", user.getId());
+                log.info("[FACE-STATIC][MODE] userId={} using single embedding", user.getId());
                 return doVerifyFaceStaticWithEmbedding(embedding, capturedBase64);
             }
-            log.warn("[FACE-STATIC][FALLBACK] userId={} embedding parse failed → falling back to legacy",
+            log.warn("[FACE-STATIC][FALLBACK] userId={} single embedding parse failed → legacy",
                     user.getId());
         }
 
@@ -311,6 +336,23 @@ public class RiskEvaluationService {
         try {
             Map<String, Object> requestMap = buildLiveFrameMap(liveFrames);
             requestMap.put("registered_image_base64", regBase64);
+            return doCallFaceApi(requestMap, startMs, "FACE-ID");
+        } catch (Exception e) {
+            log.error("[FACE-ID][ERROR] elapsed={}ms error={}",
+                    System.currentTimeMillis() - startMs, e.getMessage());
+            return CompletableFuture.completedFuture(null);
+        }
+    }
+
+    /** Gọi Python verify với registered_embeddings (multi-angle — đường tốt nhất). */
+    private CompletableFuture<FaceAIResponse> verifyIdentityWithEmbeddingsAsync(
+            List<String> liveFrames, List<List<Double>> embeddings) {
+        long startMs = System.currentTimeMillis();
+        log.info("[FACE-ID][START] mode=MULTI_EMBEDDING frames={} registered={}",
+                liveFrames != null ? liveFrames.size() : 0, embeddings.size());
+        try {
+            Map<String, Object> requestMap = buildLiveFrameMap(liveFrames);
+            requestMap.put("registered_embeddings", embeddings);
             return doCallFaceApi(requestMap, startMs, "FACE-ID");
         } catch (Exception e) {
             log.error("[FACE-ID][ERROR] elapsed={}ms error={}",
@@ -345,6 +387,24 @@ public class RiskEvaluationService {
             Map<String, Object> body = new HashMap<>();
             body.put("live_image_base64", capturedBase64);
             body.put("registered_image_base64", savedBase64);
+            return doCallFaceApi(body, startMs, "FACE-STATIC");
+        } catch (Exception e) {
+            log.error("[FACE-STATIC][ERROR] elapsed={}ms error={}",
+                    System.currentTimeMillis() - startMs, e.getMessage());
+            return CompletableFuture.completedFuture(null);
+        }
+    }
+
+    /** Gọi Python verify-face static với multi-angle embeddings (đường tốt nhất). */
+    private CompletableFuture<FaceAIResponse> doVerifyFaceStaticWithEmbeddings(
+            List<List<Double>> embeddings, String capturedBase64) {
+        long startMs = System.currentTimeMillis();
+        log.info("[FACE-STATIC][START] mode=MULTI_EMBEDDING registered={}",
+                embeddings.size());
+        try {
+            Map<String, Object> body = new HashMap<>();
+            body.put("live_image_base64", capturedBase64);
+            body.put("registered_embeddings", embeddings);
             return doCallFaceApi(body, startMs, "FACE-STATIC");
         } catch (Exception e) {
             log.error("[FACE-STATIC][ERROR] elapsed={}ms error={}",

@@ -351,7 +351,7 @@ private CompletableFuture<ResponseEntity<?>> handlePin(Transaction tx, String us
                     ResponseEntity.badRequest().body("Luồng xác thực bị gián đoạn hoặc không hợp lệ!"));
         }
     User txUser = tx.getFromAccount().getUser();
-        if (!txUser.hasFaceEmbedding() && !txUser.hasLegacyFaceImage()) {
+        if (!txUser.hasFaceEmbeddings() && !txUser.hasFaceEmbedding() && !txUser.hasLegacyFaceImage()) {
             return CompletableFuture.completedFuture(
                 ResponseEntity.badRequest().body("Lỗi: Người dùng chưa thiết lập FaceID gốc!"));
         }
@@ -376,11 +376,17 @@ private CompletableFuture<ResponseEntity<?>> handlePin(Transaction tx, String us
                         tx.setStatus("BLOCKED");
                         transactionRepository.save(tx);
                         auditLogService.logAction(username, "FACE_REJECT_MAX_RETRIES", "Khóa giao dịch: Xác thực khuôn mặt tĩnh sai quá 3 lần.");
-                        return (ResponseEntity<?>) ResponseEntity.status(403).body("Giao dịch bị hủy do xác thực khuôn mặt sai quá 3 lần!");
+                        return (ResponseEntity<?>) ResponseEntity.status(403).body(Map.of(
+                            "status", "BLOCKED",
+                            "message", "Giao dịch bị hủy do xác thực khuôn mặt sai quá 3 lần!"
+                        ));
                     }
                     transactionRepository.save(tx);
                     auditLogService.logAction(username, "FACE_REJECT_RETRY", "Quét khuôn mặt sai lần " + attempts);
-                    return (ResponseEntity<?>) ResponseEntity.badRequest().body("Khuôn mặt không khớp với cơ sở dữ liệu. Bạn còn " + (3 - attempts) + " lần thử.");
+                    return (ResponseEntity<?>) ResponseEntity.badRequest().body(Map.of(
+                        "status", "RETRY",
+                        "message", "Khuôn mặt không khớp với cơ sở dữ liệu. Bạn còn " + (3 - attempts) + " lần thử."
+                    ));
                 }
                 tx.setFailedAiAttempts(0);
                 try {
@@ -659,6 +665,29 @@ private CompletableFuture<ResponseEntity<?>> handlePin(Transaction tx, String us
 
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Lỗi lấy dữ liệu Analytics: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Polling fallback: frontend calls this when the WebSocket FINAL_RESULT
+     * is not received within the expected window (e.g. session dropped after commit).
+     * Returns the current transaction status from the DB so the UI can recover.
+     */
+    @GetMapping("/{id}/verification-status")
+    public ResponseEntity<?> getVerificationStatus(@PathVariable Long id) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        try {
+            Transaction tx = transactionRepository.findByIdWithUserSecurity(id).orElse(null);
+            if (tx == null) return ResponseEntity.notFound().build();
+
+            String owner = tx.getFromAccount().getUser().getUsername();
+            if (!username.equals(owner)) return ResponseEntity.status(403).build();
+
+            Map<String, Object> res = new HashMap<>();
+            res.put("status", tx.getStatus());
+            return ResponseEntity.ok(res);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Lỗi truy vấn trạng thái: " + e.getMessage());
         }
     }
 
