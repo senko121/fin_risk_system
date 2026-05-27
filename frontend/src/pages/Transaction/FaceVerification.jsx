@@ -156,22 +156,30 @@ const captureAndVerify = useCallback(async () => {
   if (!webcamRef.current) return;
   setIsProcessing(true);
 
-  // Flip giống enroll để embedding khớp nhau
-  const video = webcamRef.current.video;
-  const canvas = document.createElement('canvas');
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-  const ctx = canvas.getContext('2d');
-  ctx.translate(canvas.width, 0);
-  ctx.scale(-1, 1);
-  ctx.drawImage(video, 0, 0);
-  const base64Image = canvas.toDataURL('image/jpeg', 0.95).split(',')[1];
+  const captureFlippedFrame = () => {
+    const video = webcamRef.current.video;
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.translate(canvas.width, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(video, 0, 0);
+    return canvas.toDataURL('image/jpeg', 0.82).split(',')[1];
+  };
+
+  const f1 = captureFlippedFrame();
+  await new Promise(r => setTimeout(r, 250));
+  const f2 = captureFlippedFrame();
+  await new Promise(r => setTimeout(r, 250));
+  const f3 = captureFlippedFrame();
 
   try {
     const response = await axiosClient.post('/transactions/verify', {
       transactionId: transactionId,
       authType: "FACE_STATIC",
-      faceImageBase64: base64Image   // ← clean, không có prefix
+      faceImageBase64: f1,
+      faceFrameSequence: [f1, f2, f3]
     });
 
       const resData = response.data;

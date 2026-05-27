@@ -131,23 +131,18 @@ public class AdminUserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy User!"));
 
-    if (!user.hasFaceEmbeddings() && !user.hasFaceEmbedding() && !user.hasLegacyFaceImage()) {
+        if (!user.hasFaceEmbeddings()) {
             throw new RuntimeException("Người dùng này chưa đăng ký khuôn mặt!");
         }
-        user.setFaceEmbeddings(null);          // xóa multi-angle embeddings
-        user.setFaceEmbedding(null);           // xóa single embedding
-        user.setBase64FaceImage(null);
+        user.setFaceEmbeddings(null);
         user = userRepository.save(user);
 
- 
-        auditLogService.logAction(adminUsername, "RESET_FACE_DATA", 
+        auditLogService.logAction(adminUsername, "RESET_FACE_DATA",
             "Hủy vĩnh viễn dữ liệu sinh trắc học khuôn mặt của tài khoản [" + user.getUsername() + "]");
 
- 
         try {
- 
-            String oldJson = objectMapper.writeValueAsString(Map.of("base64FaceImage", "[DỮ_LIỆU_ẢNH_ĐÃ_BỊ_HỦY]"));
-            String newJson = objectMapper.writeValueAsString(Map.of("base64FaceImage", "null"));
+            String oldJson = objectMapper.writeValueAsString(Map.of("faceEmbeddings", "[ĐÃ_BỊ_HỦY]"));
+            String newJson = objectMapper.writeValueAsString(Map.of("faceEmbeddings", "null"));
             
             SystemConfigLog configLog = new SystemConfigLog(adminUsername, "RESET_FACE_DATA", "users", id, oldJson, newJson);
             configLogRepository.save(configLog);
@@ -173,8 +168,7 @@ public class AdminUserService {
         dto.setLastLoginDevice(user.getLastLoginDevice());
         dto.setCreatedAt(user.getCreatedAt());
  
-        boolean hasFace = user.hasFaceEmbeddings() || user.hasFaceEmbedding() || user.hasLegacyFaceImage();
-        dto.setHasFaceData(hasFace);
+        dto.setHasFaceData(user.hasFaceEmbeddings());
 
         return dto;
     }

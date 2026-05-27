@@ -13493,3 +13493,4 @@
 2026-05-27 13:13:16,566 | INFO     | [emotion-service] Inference executor ready: max_workers=4
 2026-05-27 13:13:16,809 | INFO     | [emotion-service] Worker boot  pid=25848 inference_workers=4 max_concurrent=12
 2026-05-27 13:13:16,810 | INFO     | [emotion-service] pid=25848 warm-up: running dummy predict ...
+2026-05-27 13:13:25,414 | INFO     | [emotion-service] pid=25848 warm-up complete

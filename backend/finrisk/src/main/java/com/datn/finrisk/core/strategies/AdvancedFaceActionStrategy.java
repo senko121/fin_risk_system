@@ -68,8 +68,7 @@ public class AdvancedFaceActionStrategy implements RiskActionStrategy {
         log.info("[FaceStrategy][EXECUTE] tx={} riskLevel=HIGH → PENDING_PIN_HIGH", tx.getId());
         
         User user = tx.getFromAccount().getUser();
-        // MỚI: Dùng helper mới để kiểm tra face data
-        if (!user.hasFaceEmbeddings() && !user.hasFaceEmbedding() && !user.hasLegacyFaceImage()) {
+        if (!user.hasFaceEmbeddings()) {
             throw new BusinessLogicException("ERR_NO_FACE_SETUP",
                 "Giao dịch rủi ro cao. Bạn chưa cài đặt FaceID, vui lòng thiết lập trước khi thực hiện!");
         }
@@ -91,8 +90,7 @@ public class AdvancedFaceActionStrategy implements RiskActionStrategy {
         }
 
         User user = tx.getFromAccount().getUser();
-        // MỚI: Dùng helper mới và truyền user object
-        if (!user.hasFaceEmbeddings() && !user.hasFaceEmbedding() && !user.hasLegacyFaceImage()) {
+        if (!user.hasFaceEmbeddings()) {
             log.error("[FaceAI][SYNC] No face data for tx={}", tx.getId());
             return false;
         }
@@ -182,9 +180,8 @@ public class AdvancedFaceActionStrategy implements RiskActionStrategy {
             return CompletableFuture.completedFuture(false);
         }
 
-        // MỚI: Dùng helper mới và truyền user object
         User userAsync = tx.getFromAccount().getUser();
-        if (!userAsync.hasFaceEmbeddings() && !userAsync.hasFaceEmbedding() && !userAsync.hasLegacyFaceImage()) {
+        if (!userAsync.hasFaceEmbeddings()) {
             log.error("[FaceAI][ASYNC] No face data for tx={}", tx.getId());
             return CompletableFuture.completedFuture(false);
         }

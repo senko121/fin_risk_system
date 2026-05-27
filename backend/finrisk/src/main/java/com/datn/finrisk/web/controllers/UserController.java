@@ -10,7 +10,6 @@ import java.io.ByteArrayOutputStream;
 import java.util.Base64;
 
 import com.datn.finrisk.application.dtos.FaceRegisterBatchRequest;
-import com.datn.finrisk.application.dtos.FaceRegisterRequest;
 import com.datn.finrisk.core.entities.User;
 import com.datn.finrisk.core.repository.UserRepository;
 import com.datn.finrisk.core.services.UserService;
@@ -35,44 +34,6 @@ public class UserController {
     @Autowired private PinService pinService;
     @Autowired private UserSecurityRepository userSecurityRepository;
     @Autowired private FaceEnrollService faceEnrollService;  // ← SERVICE MỚI
-
-    /**
-     * Đăng ký khuôn mặt.
-     * Gọi Python /enroll-face → nhận embedding vector → lưu vào face_embedding.
-     * KHÔNG còn lưu ảnh raw vào base64FaceImage nữa.
-     */
-    @PostMapping("/register-face")
-    public ResponseEntity<?> registerFace(@RequestBody FaceRegisterRequest request) {
-        try {
-            User user = userRepository.findById(request.getUserId())
-                    .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng!"));
-
-            if (request.getBase64FaceImage() == null || request.getBase64FaceImage().isEmpty()) {
-                return ResponseEntity.badRequest().body("Dữ liệu ảnh không hợp lệ!");
-            }
-
-            // Gọi Python để extract embedding
-            String embeddingJson = faceEnrollService.enrollFace(
-                    user.getId(), request.getBase64FaceImage());
-
-            if (embeddingJson == null) {
-                return ResponseEntity.badRequest().body(
-                    "Không thể nhận diện khuôn mặt trong ảnh. Vui lòng chụp lại rõ hơn!");
-            }
-
-            // Lưu embedding vào DB, KHÔNG lưu ảnh raw
-            user.setFaceEmbedding(embeddingJson);
-            userRepository.save(user);
-
-            return ResponseEntity.ok(Map.of(
-                "status", "SUCCESS",
-                "message", "Đăng ký dữ liệu khuôn mặt thành công!"
-            ));
-
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Lỗi: " + e.getMessage());
-        }
-    }
 
     /**
      * Đăng ký khuôn mặt nhiều góc (front, left, right, up, down).
@@ -113,36 +74,6 @@ public class UserController {
                     "angles_accepted", request.getImagesBase64().size()
             ));
 
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Lỗi: " + e.getMessage());
-        }
-    }
-
-    /**
-     * @deprecated Endpoint cũ trả về ảnh raw — giữ lại để backward compat.
-     * Sau khi tất cả user migrate xong thì xóa.
-     */
-    @Deprecated
-    @GetMapping("/{userId}/face-image")
-    public ResponseEntity<?> getFaceImage(@PathVariable Long userId) {
-        try {
-            User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng!"));
-
-            // Ưu tiên trả về thông tin embedding (không trả ảnh raw vì lý do bảo mật)
-            if (user.hasFaceEmbedding()) {
-                return ResponseEntity.ok(Map.of(
-                    "status", "EMBEDDING",
-                    "message", "Người dùng đã đăng ký khuôn mặt (embedding mode)"
-                ));
-            }
-
-            // Fallback: user cũ chưa migrate
-            if (user.hasLegacyFaceImage()) {
-                return ResponseEntity.ok(user.getBase64FaceImage());
-            }
-
-            return ResponseEntity.badRequest().body("Người dùng chưa đăng ký khuôn mặt!");
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Lỗi: " + e.getMessage());
         }
@@ -210,14 +141,8 @@ public class UserController {
 
             Map<String, Object> status = new java.util.HashMap<>();
             status.put("isPinSetup", security.getIsPinSetup());
-            boolean faceSetup = user.hasFaceEmbeddings()
-                    || user.hasFaceEmbedding()
-                    || user.hasLegacyFaceImage();
-            status.put("isFaceSetup", faceSetup);
-            status.put("faceMode", user.hasFaceEmbeddings() ? "MULTI_ANGLE"
-                    : user.hasFaceEmbedding()    ? "SINGLE"
-                    : user.hasLegacyFaceImage()  ? "LEGACY_IMAGE"
-                    : "NONE");
+            status.put("isFaceSetup", user.hasFaceEmbeddings());
+            status.put("faceMode", user.hasFaceEmbeddings() ? "MULTI_ANGLE" : "NONE");
 
             return ResponseEntity.ok(status);
         } catch (Exception e) {

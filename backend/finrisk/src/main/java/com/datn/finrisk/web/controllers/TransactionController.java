@@ -174,12 +174,16 @@ public class TransactionController {
                 "details", Map.of("authCode", "Mã xác thực không được để trống")
             )));
         }
-        if ("FACE_STATIC".equals(authType) && (request.getFaceImageBase64() == null || request.getFaceImageBase64().trim().isEmpty())) {
-            return Optional.of(ResponseEntity.badRequest().body(Map.of(
-                "errorCode", "ERR_VALIDATION_FAILED",
-                "message", "Dữ liệu đầu vào không hợp lệ!",
-                "details", Map.of("faceImageBase64", "Ảnh khuôn mặt tĩnh không được để trống")
-            )));
+        if ("FACE_STATIC".equals(authType)) {
+            boolean hasImage  = request.getFaceImageBase64() != null && !request.getFaceImageBase64().trim().isEmpty();
+            boolean hasFrames = request.getFaceFrameSequence() != null && !request.getFaceFrameSequence().isEmpty();
+            if (!hasImage && !hasFrames) {
+                return Optional.of(ResponseEntity.badRequest().body(Map.of(
+                    "errorCode", "ERR_VALIDATION_FAILED",
+                    "message", "Dữ liệu đầu vào không hợp lệ!",
+                    "details", Map.of("faceImageBase64", "Ảnh khuôn mặt tĩnh không được để trống")
+                )));
+            }
         }
         if ("FACE_AI".equals(authType) && (request.getFaceFrameSequence() == null || request.getFaceFrameSequence().isEmpty())) {
             return Optional.of(ResponseEntity.badRequest().body(Map.of(
@@ -350,12 +354,16 @@ private CompletableFuture<ResponseEntity<?>> handlePin(Transaction tx, String us
             return CompletableFuture.completedFuture(
                     ResponseEntity.badRequest().body("Luồng xác thực bị gián đoạn hoặc không hợp lệ!"));
         }
-    User txUser = tx.getFromAccount().getUser();
-        if (!txUser.hasFaceEmbeddings() && !txUser.hasFaceEmbedding() && !txUser.hasLegacyFaceImage()) {
+        User txUser = tx.getFromAccount().getUser();
+        if (!txUser.hasFaceEmbeddings()) {
             return CompletableFuture.completedFuture(
                 ResponseEntity.badRequest().body("Lỗi: Người dùng chưa thiết lập FaceID gốc!"));
         }
-        return riskEvaluationService.verifyFaceStaticAsync(txUser, request.getFaceImageBase64())
+        List<String> frames = request.getFaceFrameSequence();
+        if (frames == null || frames.isEmpty()) {
+            frames = List.of(request.getFaceImageBase64());
+        }
+        return riskEvaluationService.verifyFaceStaticAsync(txUser, frames)
             .orTimeout(aiParallelTimeoutSeconds, TimeUnit.SECONDS)
             .thenApply(aiResult -> {
                 boolean isMatch = aiResult != null && aiResult.isMatched();
