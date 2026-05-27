@@ -2,23 +2,27 @@
 package com.datn.finrisk.web.controllers;
 
 import com.datn.finrisk.application.dtos.LoginRequest;
-import com.datn.finrisk.application.dtos.LoginResponse;  
-import com.datn.finrisk.application.dtos.UserDTO; 
+import com.datn.finrisk.application.dtos.LoginResponse;
+import com.datn.finrisk.application.dtos.UserDTO;
+import com.datn.finrisk.core.entities.Account;
 import com.datn.finrisk.core.entities.User;
-import com.datn.finrisk.core.entities.Account; 
+import com.datn.finrisk.core.entities.UserDevice;
+import com.datn.finrisk.core.repository.AccountRepository;
+import com.datn.finrisk.core.repository.UserDeviceRepository;
 import com.datn.finrisk.core.repository.UserRepository;
-import com.datn.finrisk.core.repository.AccountRepository; 
 import com.datn.finrisk.core.security.JwtUtils;
+import com.datn.finrisk.core.services.AuditLogService;
 import com.datn.finrisk.core.services.AuthService;
 import com.datn.finrisk.core.services.JwtBlocklistService;
 import com.datn.finrisk.core.services.RateLimitService;
-import com.datn.finrisk.core.services.AuditLogService;
+import com.datn.finrisk.core.utils.DeviceFingerprintUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -48,6 +52,9 @@ public class AuthController {
     @Autowired
     private JwtBlocklistService jwtBlocklistService;
 
+    @Autowired
+    private UserDeviceRepository userDeviceRepository;
+
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest, HttpServletRequest request) {
         String username = loginRequest.getUsername();
@@ -66,26 +73,24 @@ public class AuthController {
             rateLimitService.clearLoginAttempts(username);
 
             String currentIp = request.getRemoteAddr();
-            String currentDevice = request.getHeader("User-Agent");
-            
-            if (currentDevice != null && currentDevice.length() > 250) {
-                currentDevice = currentDevice.substring(0, 250);
-            }
+            String fingerprint = DeviceFingerprintUtil.resolve(
+                    request.getHeader("User-Agent"),
+                    request.getHeader("X-Device-Fingerprint"));
 
-            boolean isSuspicious = false;
+            // Suspicious = device has never been seen for this user before
+            boolean isSuspicious = userDeviceRepository
+                    .findByUserIdAndDeviceFingerprint(user.getId(), fingerprint)
+                    .isEmpty();
 
-            if (user.getLastLoginIp() != null && user.getLastLoginDevice() != null) {
-                if (!user.getLastLoginIp().equals(currentIp) || !user.getLastLoginDevice().equals(currentDevice)) {
-                    isSuspicious = true;
-                    log.warn("[AUTH] Suspicious login detected user={} ip={}", username, currentIp);
-                    auditLogService.logAction(username, "SUSPICIOUS_LOGIN", "Phát hiện đăng nhập từ môi trường lạ. IP: " + currentIp);
-                }
+            if (isSuspicious) {
+                log.warn("[AUTH] New device detected user={} fingerprint={} ip={}", username, fingerprint, currentIp);
+                auditLogService.logAction(username, "SUSPICIOUS_LOGIN",
+                        "Phát hiện đăng nhập từ thiết bị mới. Fingerprint: " + fingerprint + " IP: " + currentIp);
             }
 
             user.setSuspiciousSession(isSuspicious);
             user.setLastLoginIp(currentIp);
-            user.setLastLoginDevice(currentDevice);
- 
+            user.setLastLoginDevice(fingerprint);
 
             auditLogService.logAction(username, "LOGIN_SUCCESS", "Đăng nhập hệ thống thành công.");
 
@@ -94,6 +99,8 @@ public class AuthController {
 
             user.setCurrentRefreshToken(refreshToken);
             userRepository.save(user);
+
+            upsertUserDevice(user, fingerprint, currentIp);
  
             UserDTO userSafeData = new UserDTO(user);
             
@@ -176,6 +183,19 @@ public class AuthController {
         return ResponseEntity.status(403).body("Refresh Token không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại!");
     }
 
-
-    
+    private void upsertUserDevice(User user, String fingerprint, String ip) {
+        UserDevice device = userDeviceRepository
+                .findByUserIdAndDeviceFingerprint(user.getId(), fingerprint)
+                .orElseGet(() -> {
+                    UserDevice d = new UserDevice();
+                    d.setUser(user);
+                    d.setDeviceFingerprint(fingerprint);
+                    d.setDeviceName(fingerprint);
+                    d.setIsTrusted(true);
+                    return d;
+                });
+        device.setLastUsedIp(ip);
+        device.setLastUsedAt(LocalDateTime.now());
+        userDeviceRepository.save(device);
+    }
 }

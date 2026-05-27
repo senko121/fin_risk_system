@@ -8,6 +8,7 @@ import com.datn.finrisk.core.repository.TransactionRepository;
 import com.datn.finrisk.core.services.OtpService;
 import com.datn.finrisk.core.services.TransactionService;
 import com.datn.finrisk.core.strategies.AdvancedFaceActionStrategy;
+import com.datn.finrisk.core.utils.DeviceFingerprintUtil;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -91,11 +92,9 @@ public class TransactionController {
     public ResponseEntity<?> processTransaction(@Valid @RequestBody TransactionRequest request, HttpServletRequest httpRequest) throws Exception {
         
         String currentIp = httpRequest.getRemoteAddr();
-        String currentDevice = httpRequest.getHeader("User-Agent");
-        
-        if (currentDevice != null && currentDevice.length() > 250) {
-            currentDevice = currentDevice.substring(0, 250);
-        }
+        String currentDevice = DeviceFingerprintUtil.resolve(
+                httpRequest.getHeader("User-Agent"),
+                httpRequest.getHeader("X-Device-Fingerprint"));
 
         String principalUsername = SecurityContextHolder.getContext().getAuthentication().getName();
         Account senderAccount = accountRepository.findByIdWithUserAndSecurity(request.getFromAccountId()).orElse(null);
