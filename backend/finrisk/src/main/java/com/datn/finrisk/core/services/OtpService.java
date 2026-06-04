@@ -4,7 +4,6 @@
 
 package com.datn.finrisk.core.services;
 
-import com.datn.finrisk.core.entities.Transaction;
 import com.twilio.Twilio;
 import com.twilio.rest.api.v2010.account.Message;
 
@@ -47,11 +46,10 @@ public class OtpService {
     }
 
 @Async("aiTaskExecutor")
-    public CompletableFuture<Void> generateAndSendOtpAsync(Transaction tx) {
+    public CompletableFuture<Void> generateAndSendOtpAsync(Long txId, String phone, String email) {
         String otp = String.format("%06d", SECURE_RANDOM.nextInt(1_000_000));
-        this.saveOtp(tx.getId(), otp);
+        this.saveOtp(txId, otp);
 
-        String phone = tx.getFromAccount().getUser().getPhoneNumber();
         boolean phoneValid = phone != null && phone.matches("^\\+?[1-9]\\d{6,14}$");
 
         if (phoneValid) {
@@ -61,21 +59,20 @@ public class OtpService {
                 return CompletableFuture.completedFuture(null);
             } catch (Exception e) {
                 log.warn("[OtpService] SMS delivery failed for tx={} phone={}, falling back to email.",
-                        tx.getId(), phone);
+                        txId, phone);
             }
         } else {
-            log.warn("[OtpService] Invalid or missing phone for tx={} — skipping SMS, using email fallback.", tx.getId());
+            log.warn("[OtpService] Invalid or missing phone for tx={} — skipping SMS, using email fallback.", txId);
         }
 
         try {
-            String userEmail = tx.getFromAccount().getUser().getEmail();
-            if (userEmail != null && !userEmail.trim().isEmpty()) {
-                emailService.sendOtpEmail(userEmail, otp);
+            if (email != null && !email.trim().isEmpty()) {
+                emailService.sendOtpEmail(email, otp);
             } else {
-                log.error("[OtpService] No email address for OTP fallback — user unreachable for tx={}.", tx.getId());
+                log.error("[OtpService] No email address for OTP fallback — user unreachable for tx={}.", txId);
             }
         } catch (Exception ex) {
-            log.error("[OtpService] OTP email fallback failed for tx={}: {}", tx.getId(), ex.getMessage(), ex);
+            log.error("[OtpService] OTP email fallback failed for tx={}: {}", txId, ex.getMessage(), ex);
         }
 
         return CompletableFuture.completedFuture(null);

@@ -1,8 +1,5 @@
 package com.datn.finrisk.core.services;
 
-import com.datn.finrisk.core.entities.Account;
-import com.datn.finrisk.core.entities.Transaction;
-import com.datn.finrisk.core.entities.User;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -42,23 +39,11 @@ class OtpServiceTest {
     @InjectMocks
     private OtpService otpService;
 
-    // ========== SHARED TEST DATA ==========
-    private Transaction mockTx;
-
     @BeforeEach
     void setUp() {
-        // Inject @Value fields
         ReflectionTestUtils.setField(otpService, "twilioAccountSid",  "fake_sid");
         ReflectionTestUtils.setField(otpService, "twilioAuthToken",   "fake_token");
         ReflectionTestUtils.setField(otpService, "twilioPhoneNumber", "+1000000000");
-        ReflectionTestUtils.setField(otpService, "userPhoneNumber",   "+8400000000");
-
-        // Build mock transaction
-        User    mockUser    = new User();    mockUser.setEmail(USER_EMAIL);
-        Account mockAccount = new Account(); mockAccount.setUser(mockUser);
-        mockTx = new Transaction();
-        mockTx.setId(TX_ID);
-        mockTx.setFromAccount(mockAccount);
 
         lenient().when(redisTemplate.opsForValue()).thenReturn(valueOperations);
     }
@@ -145,7 +130,7 @@ class OtpServiceTest {
         void generateVoiceOtp_savesToRedis() {
             String otp = otpService.generateVoiceOtp(TX_ID);
 
-            verify(valueOperations).set(eq(REDIS_KEY), eq(otp), eq(Duration.ofSeconds(OTP_TTL_SEC)));
+            verify(valueOperations).set(eq("voice_otp_tx:" + TX_ID), eq(otp), eq(Duration.ofSeconds(OTP_TTL_SEC)));
         }
 
         @Test
@@ -184,7 +169,7 @@ class OtpServiceTest {
         void generateAndSendOtp_whenSmsFails_sendsEmailToCorrectAddress()
                 throws ExecutionException, InterruptedException {
             // Twilio chưa được init thật -> Message.creator() sẽ throw -> kích hoạt fallback email
-            CompletableFuture<Void> future = otpService.generateAndSendOtpAsync(mockTx);
+            CompletableFuture<Void> future = otpService.generateAndSendOtpAsync(TX_ID, null, USER_EMAIL);
             future.get(); // Chờ async hoàn thành
 
             verify(emailService, times(1)).sendOtpEmail(eq(USER_EMAIL), anyString());
@@ -196,7 +181,7 @@ class OtpServiceTest {
                 throws ExecutionException, InterruptedException {
             ArgumentCaptor<String> otpCaptor = ArgumentCaptor.forClass(String.class);
 
-            otpService.generateAndSendOtpAsync(mockTx).get();
+            otpService.generateAndSendOtpAsync(TX_ID, null, USER_EMAIL).get();
 
             verify(emailService).sendOtpEmail(anyString(), otpCaptor.capture());
             String sentOtp = otpCaptor.getValue();
@@ -215,7 +200,7 @@ class OtpServiceTest {
             ArgumentCaptor<String> redisCaptor = ArgumentCaptor.forClass(String.class);
             ArgumentCaptor<String> emailCaptor = ArgumentCaptor.forClass(String.class);
 
-            otpService.generateAndSendOtpAsync(mockTx).get();
+            otpService.generateAndSendOtpAsync(TX_ID, null, USER_EMAIL).get();
 
             // Lấy OTP đã lưu Redis
             verify(valueOperations).set(eq(REDIS_KEY), redisCaptor.capture(), any(Duration.class));
@@ -233,7 +218,7 @@ class OtpServiceTest {
             doThrow(new RuntimeException("SMTP server down"))
                     .when(emailService).sendOtpEmail(anyString(), anyString());
 
-            CompletableFuture<Void> future = otpService.generateAndSendOtpAsync(mockTx);
+            CompletableFuture<Void> future = otpService.generateAndSendOtpAsync(TX_ID, null, USER_EMAIL);
 
   
             assertDoesNotThrow(() -> future.get());
@@ -242,12 +227,10 @@ class OtpServiceTest {
         @Test
         @DisplayName("❌ Transaction có email null — Fallback email không crash hệ thống")
         void generateAndSendOtp_whenUserEmailIsNull_doesNotCrash() {
-            mockTx.getFromAccount().getUser().setEmail(null);
-
             // NullPointerException trong block catch không được lan ra ngoài
             assertDoesNotThrow(() -> {
                 try {
-                    otpService.generateAndSendOtpAsync(mockTx).get();
+                    otpService.generateAndSendOtpAsync(TX_ID, null, null).get();
                 } catch (ExecutionException e) {
                     fail("Không được throw ExecutionException: " + e.getCause());
                 }
@@ -261,7 +244,7 @@ class OtpServiceTest {
             // Dùng InOrder để kiểm tra thứ tự gọi
             var inOrder = inOrder(valueOperations, emailService);
 
-            otpService.generateAndSendOtpAsync(mockTx).get();
+            otpService.generateAndSendOtpAsync(TX_ID, null, USER_EMAIL).get();
 
             inOrder.verify(valueOperations).set(eq(REDIS_KEY), anyString(), any(Duration.class));
             inOrder.verify(emailService).sendOtpEmail(anyString(), anyString());
@@ -274,6 +257,13 @@ class OtpServiceTest {
     @Nested
     @DisplayName("Nhóm 4 — verifyOtp()")
     class VerifyOtpTests {
+
+        // verifyOtp() reads attemptsKey before otpKey; stub it so STRICT_STUBS does not
+        // raise PotentialStubbingProblem when a different stub exists for the otp key.
+        @BeforeEach
+        void stubAttempts() {
+            lenient().when(valueOperations.get("otp_attempts_tx:" + TX_ID)).thenReturn(null);
+        }
 
         @Test
         @DisplayName("✅ OTP khớp → true + XÓA key khỏi Redis ngay lập tức")

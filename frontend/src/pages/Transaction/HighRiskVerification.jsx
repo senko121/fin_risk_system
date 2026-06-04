@@ -200,8 +200,10 @@ useLayoutEffect(() => {
 
         if (txStatus === 'SUCCESS') {
           setIsProcessing(false);
-          toast.success("🎉 Xác thực thành công! Kiểm tra lịch sử để xem chi tiết.");
-          navigate('/dashboard');
+          toast.success("🎉 Xác thực thành công!");
+          navigate('/transaction-result', {
+            state: { result: res.data?.data, formData, recipientName }
+          });
         } else if (txStatus === 'BLOCKED') {
           setIsProcessing(false);
           setIsFrozen(true);
@@ -220,7 +222,7 @@ useLayoutEffect(() => {
     };
 
     poll();
-  }, [transactionId, navigate]);
+  }, [transactionId, navigate, formData, recipientName]);
 
   // 3. KHỞI TẠO 2 ỐNG WEBSOCKET ĐỘC LẬP (Sửa dependency & sử dụng staticTokenRef)
   useEffect(() => {

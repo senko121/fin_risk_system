@@ -142,17 +142,16 @@ class RuleServiceTest {
         }
 
         @Test
-        @DisplayName("Update field=history với value khác NEW_RECIPIENT: SpEL rỗng")
+        @DisplayName("Update field=history với value khác NEW_RECIPIENT: ném RuntimeException (validation bác bỏ)")
         void shouldGenerateEmptySpelForHistoryOtherValue() {
             String conditions = "{\"field\":\"history\",\"operator\":\"==\",\"value\":\"OLD_RECIPIENT\"}";
             Rule ruleData = buildRule(null, "History Rule 2", conditions, 10, true);
 
             when(ruleRepository.findById(1L)).thenReturn(Optional.of(existing));
-            when(ruleRepository.save(any(Rule.class))).thenAnswer(inv -> inv.getArgument(0));
 
-            Rule result = ruleService.updateRule(1L, ruleData, ADMIN);
-
-            assertThat(result.getSpelExpression()).isEmpty();
+            assertThatThrownBy(() -> ruleService.updateRule(1L, ruleData, ADMIN))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("OLD_RECIPIENT");
         }
 
         @Test
@@ -184,17 +183,16 @@ class RuleServiceTest {
         }
 
         @Test
-        @DisplayName("Update field không tồn tại trong switch: SpEL rỗng")
+        @DisplayName("Update field không tồn tại: ném RuntimeException (validation bác bỏ unknown field)")
         void shouldGenerateEmptySpelForUnknownField() {
             String conditions = "{\"field\":\"unknownField\",\"operator\":\">\",\"value\":\"99\"}";
             Rule ruleData = buildRule(null, "Unknown Rule", conditions, 5, true);
 
             when(ruleRepository.findById(1L)).thenReturn(Optional.of(existing));
-            when(ruleRepository.save(any(Rule.class))).thenAnswer(inv -> inv.getArgument(0));
 
-            Rule result = ruleService.updateRule(1L, ruleData, ADMIN);
-
-            assertThat(result.getSpelExpression()).isEmpty();
+            assertThatThrownBy(() -> ruleService.updateRule(1L, ruleData, ADMIN))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("unknownField");
         }
 
         // ── Ghi log ──────────────────────────────────────────────
@@ -490,30 +488,22 @@ class RuleServiceTest {
         // ── Error / Edge cases ───────────────────────────────────
 
         @Test
-        @DisplayName("JSON conditions rỗng '{}': SpEL rỗng, không ném exception")
+        @DisplayName("JSON conditions rỗng '{}': validateCondition ném exception vì thiếu field")
         void shouldHandleEmptyConditionsGracefully() {
             Rule data = buildRule(null, "Empty Cond", "{}", 10, true);
-            when(ruleRepository.save(any(Rule.class))).thenAnswer(inv -> {
-                Rule r = inv.getArgument(0); r.setId(21L); return r;
-            });
 
-            assertThatCode(() -> ruleService.createRule(data, ADMIN))
-                .doesNotThrowAnyException();
+            assertThatThrownBy(() -> ruleService.createRule(data, ADMIN))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("field");
         }
 
         @Test
         @DisplayName("conditions là null: ném RuntimeException (vì readTree(null) lỗi)")
         void shouldThrowWhenConditionsNull() {
             Rule data = buildRule(null, "Null Cond", null, 10, true);
-            // readTree(null) ném NullPointerException → bị bắt và wrap
-            when(ruleRepository.save(any(Rule.class))).thenAnswer(inv -> {
-                Rule r = inv.getArgument(0); r.setId(22L); return r;
-            });
 
-            // Lỗi xảy ra bên trong catch nội bộ, không rollback create
-            // Hành vi thực tế: rule vẫn được save với spelExpression = null/rỗng
-            assertThatCode(() -> ruleService.createRule(data, ADMIN))
-                .doesNotThrowAnyException();
+            assertThatThrownBy(() -> ruleService.createRule(data, ADMIN))
+                .isInstanceOf(RuntimeException.class);
         }
 
         @Test
@@ -580,31 +570,25 @@ class RuleServiceTest {
         }
 
         @Test
-        @DisplayName("Conditions JSON thiếu field 'field': SpEL rỗng")
+        @DisplayName("Conditions JSON thiếu field 'field': ném RuntimeException (validation yêu cầu 'field')")
         void shouldHandleMissingFieldKey() {
             String cond = "{\"operator\":\">\",\"value\":\"100\"}"; // thiếu "field"
             Rule data = buildRule(null, "Missing Field", cond, 5, true);
-            when(ruleRepository.save(any(Rule.class))).thenAnswer(inv -> {
-                Rule r = inv.getArgument(0); r.setId(32L); return r;
-            });
 
-            Rule result = ruleService.createRule(data, ADMIN);
-            assertThat(result.getSpelExpression()).isEmpty();
+            assertThatThrownBy(() -> ruleService.createRule(data, ADMIN))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("field");
         }
 
         @Test
-        @DisplayName("Conditions JSON thiếu 'operator' và 'value': SpEL có thể sinh ra nhưng không crash")
+        @DisplayName("Conditions JSON thiếu 'operator': validateCondition ném exception vì operator không hợp lệ")
         void shouldHandleMissingOperatorAndValue() {
             String cond = "{\"field\":\"amount\"}"; // thiếu operator và value
             Rule data = buildRule(null, "Missing Op", cond, 5, true);
-            when(ruleRepository.save(any(Rule.class))).thenAnswer(inv -> {
-                Rule r = inv.getArgument(0); r.setId(33L); return r;
-            });
 
-            assertThatCode(() -> ruleService.createRule(data, ADMIN))
-                .doesNotThrowAnyException();
-
-            // SpEL sinh ra dạng "#tx.amount  " (operator và value là chuỗi rỗng) – không crash
+            assertThatThrownBy(() -> ruleService.createRule(data, ADMIN))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("amount");
         }
     }
 }

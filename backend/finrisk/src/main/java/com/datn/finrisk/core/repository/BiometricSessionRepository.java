@@ -22,6 +22,8 @@ public interface BiometricSessionRepository extends JpaRepository<BiometricSessi
     // ← THÊM QUERY NÀY
     @Query("SELECT bs FROM BiometricSession bs " +
            "LEFT JOIN FETCH bs.user u " +
+           "LEFT JOIN FETCH u.behaviorProfile " +
+           "LEFT JOIN FETCH u.userSecurity " +
            "LEFT JOIN FETCH bs.transaction t " +
            "WHERE bs.sessionToken = :token")
     Optional<BiometricSession> findBySessionTokenEager(@Param("token") String token);

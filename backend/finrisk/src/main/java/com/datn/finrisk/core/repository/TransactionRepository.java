@@ -43,6 +43,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long>,
         LEFT JOIN FETCH t.fromAccount a
         LEFT JOIN FETCH a.user u
         LEFT JOIN FETCH u.userSecurity
+        LEFT JOIN FETCH u.behaviorProfile
         WHERE t.id = :id
     """)
     Optional<Transaction> findByIdWithUserSecurity(@Param("id") Long id);

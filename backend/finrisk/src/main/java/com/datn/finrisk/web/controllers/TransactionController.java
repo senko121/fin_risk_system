@@ -274,7 +274,8 @@ private CompletableFuture<ResponseEntity<?>> handlePin(Transaction tx, String us
             pinService.verifyPin(security, request.getAuthCode());
             tx.setStatus("PENDING_OTP");
             transactionRepository.saveAndFlush(tx); // 🚀 Đã ép ghi xuống đĩa cứng
-            otpService.generateAndSendOtpAsync(tx);
+            User otpUser = tx.getFromAccount().getUser();
+            otpService.generateAndSendOtpAsync(tx.getId(), otpUser.getPhoneNumber(), otpUser.getEmail());
             return CompletableFuture.completedFuture(ResponseEntity.ok(Map.of(
                 "status", "NEXT_STEP", "nextAuthType", "OTP",
                 "message", "Mã PIN đúng. Vui lòng nhập OTP vừa được gửi."
@@ -504,11 +505,8 @@ private CompletableFuture<ResponseEntity<?>> handlePin(Transaction tx, String us
  
             Map<String, String> accountNameDictionary = new HashMap<>();
             if (!targetAccountNumbers.isEmpty()) {
-                List<Account> targetAccounts = accountRepository.findByAccountNumberIn(targetAccountNumbers);
- 
-                for (Account acc : targetAccounts) {
-                    accountNameDictionary.put(acc.getAccountNumber(), acc.getUser().getFullName());
-                }
+                accountRepository.findAccountNumbersAndNames(targetAccountNumbers)
+                    .forEach(row -> accountNameDictionary.put((String) row[0], (String) row[1]));
             }
  
             org.springframework.data.domain.Page<Map<String, Object>> resultPage = ledgersPage.map(l -> {
@@ -564,10 +562,10 @@ private CompletableFuture<ResponseEntity<?>> handlePin(Transaction tx, String us
     @GetMapping("/lookup/{accountNumber}")
     public ResponseEntity<?> lookupAccountName(@PathVariable String accountNumber) {
         try {
-            Account account = accountRepository.findByAccountNumberWithUser(accountNumber)
+            String fullName = accountRepository.findFullNameByAccountNumber(accountNumber)
                     .orElseThrow(() -> new RuntimeException("Tài khoản không tồn tại trên hệ thống!"));
             Map<String, String> response = new HashMap<>();
-            response.put("fullName", account.getUser().getFullName()); 
+            response.put("fullName", fullName);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
@@ -590,14 +588,11 @@ private CompletableFuture<ResponseEntity<?>> handlePin(Transaction tx, String us
  
             Map<String, String> accountNameDictionary = new HashMap<>();
             if (!targetAccountNumbers.isEmpty()) {
- 
-                List<Account> targetAccounts = accountRepository.findByAccountNumberIn(new java.util.HashSet<>(targetAccountNumbers));
-                for (Account acc : targetAccounts) {
-                    accountNameDictionary.put(acc.getAccountNumber(), acc.getUser().getFullName());
-                }
+                accountRepository.findAccountNumbersAndNames(new java.util.HashSet<>(targetAccountNumbers))
+                    .forEach(row -> accountNameDictionary.put((String) row[0], (String) row[1]));
             }
 
- 
+
             List<Map<String, String>> recipients = targetAccountNumbers.stream().map(accNum -> {
                 Map<String, String> map = new HashMap<>();
                 map.put("accountNumber", accNum);
@@ -629,10 +624,8 @@ private CompletableFuture<ResponseEntity<?>> handlePin(Transaction tx, String us
 
             Map<String, String> accountNameDictionary = new HashMap<>();
             if (!targetAccountNumbers.isEmpty()) {
-                List<Account> targetAccounts = accountRepository.findByAccountNumberIn(targetAccountNumbers);
-                for (Account acc : targetAccounts) {
-                    accountNameDictionary.put(acc.getAccountNumber(), acc.getUser().getFullName());
-                }
+                accountRepository.findAccountNumbersAndNames(targetAccountNumbers)
+                    .forEach(row -> accountNameDictionary.put((String) row[0], (String) row[1]));
             }
  
             List<Map<String, Object>> result = rawLedgers.stream().map(l -> {
@@ -692,6 +685,9 @@ private CompletableFuture<ResponseEntity<?>> handlePin(Transaction tx, String us
 
             Map<String, Object> res = new HashMap<>();
             res.put("status", tx.getStatus());
+            if ("SUCCESS".equals(tx.getStatus())) {
+                res.put("data", tx);
+            }
             return ResponseEntity.ok(res);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Lỗi truy vấn trạng thái: " + e.getMessage());

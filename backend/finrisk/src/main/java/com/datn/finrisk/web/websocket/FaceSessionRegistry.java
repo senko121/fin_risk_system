@@ -21,8 +21,15 @@ public class FaceSessionRegistry {
     private final ConcurrentHashMap<String, WebSocketSession> registry = new ConcurrentHashMap<>();
 
     public void register(String bsToken, WebSocketSession session) {
-        registry.put(bsToken, session);
-        log.debug("[FACE-REGISTRY] registered bsToken={} session={}", bsToken, session.getId());
+        registry.compute(bsToken, (k, existing) -> {
+            if (existing != null && existing.isOpen()) {
+                log.warn("[FACE-REGISTRY] bsToken={} already has open session={}, ignoring duplicate session={}",
+                        bsToken, existing.getId(), session.getId());
+                return existing;
+            }
+            log.debug("[FACE-REGISTRY] registered bsToken={} session={}", bsToken, session.getId());
+            return session;
+        });
     }
 
     /** Only removes the entry if the caller's session is still the current owner. */

@@ -5,12 +5,6 @@ from tensorflow.keras.models import load_model
 # 1. Load cái model bro vừa train xong
 model = load_model("my_emotion_model.h5")
 
-loss, accuracy = model.evaluate(test_data)
-
-print(f"Test Loss: {loss:.4f}")
-print(f"Test Accuracy: {accuracy * 100:.2f}%")
-
-print("🔥 MODEL TRAIN XONG!")
 
 # 2. Danh sách nhãn khớp với các folder dataset
 emotion_labels = ['Angry', 'Disgust', 'Fear', 'Happy', 'Neutral', 'Sad', 'Surprise']

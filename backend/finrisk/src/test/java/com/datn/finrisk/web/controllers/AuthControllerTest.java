@@ -53,6 +53,8 @@ class AuthControllerTest {
     @MockBean private AccountRepository accountRepository;
     @MockBean private RateLimitService rateLimitService;
     @MockBean private AuditLogService auditLogService;
+    @MockBean private com.datn.finrisk.core.services.JwtBlocklistService jwtBlocklistService;
+    @MockBean private com.datn.finrisk.core.repository.UserDeviceRepository userDeviceRepository;
 
     private User mockUser;
     private LoginRequest validLoginReq;
@@ -262,13 +264,16 @@ void login_firstTimeLogin_notSuspicious() throws Exception {
     when(jwtUtils.generateJwtToken(any())).thenReturn("token");
     when(jwtUtils.generateRefreshToken(any())).thenReturn("refresh");
     when(accountRepository.findByUser(any())).thenReturn(Optional.empty());
+    // Device is already registered → isSuspicious = false → SUSPICIOUS_LOGIN must NOT be logged
+    when(userDeviceRepository.findByUserIdAndDeviceFingerprint(any(), anyString()))
+        .thenReturn(Optional.of(new com.datn.finrisk.core.entities.UserDevice()));
 
     mockMvc.perform(post("/api/auth/login")
             .contentType(MediaType.APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(validLoginReq)))
             .andExpect(status().isOk());
 
-    // Lần đầu login → KHÔNG được log SUSPICIOUS_LOGIN
+    // Device already registered → KHÔNG được log SUSPICIOUS_LOGIN
     verify(auditLogService, never())
         .logAction(anyString(), eq("SUSPICIOUS_LOGIN"), anyString());
 }

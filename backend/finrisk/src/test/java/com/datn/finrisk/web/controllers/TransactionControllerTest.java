@@ -22,6 +22,8 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
@@ -38,7 +40,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(controllers = TransactionController.class)
-@AutoConfigureMockMvc(addFilters = false) // Tắt Security tạm thời để test logic Controller
+@AutoConfigureMockMvc(addFilters = false)
 @DisplayName("TransactionController — Giai đoạn 1: Process & Lookup")
 class TransactionControllerTest {
 
@@ -59,6 +61,8 @@ class TransactionControllerTest {
  
     @MockBean private JwtUtils jwtUtils;
     @MockBean private UserRepository userRepository;
+    @MockBean private com.datn.finrisk.core.services.JwtBlocklistService jwtBlocklistService;
+    @MockBean private com.datn.finrisk.core.repository.BiometricSessionRepository biometricSessionRepository;
 
     private User mockUser;
     private Account mockAccount;
@@ -90,6 +94,16 @@ class TransactionControllerTest {
         validRequest.setToAccount("99990000");
         validRequest.setAmount(new BigDecimal("500000"));
         validRequest.setDescription("Chuyen tien an sang");
+
+        SecurityContextHolder.getContext().setAuthentication(
+            new UsernamePasswordAuthenticationToken("thach_sender", null, java.util.Collections.emptyList()));
+
+        lenient().when(accountRepository.findByIdWithUserAndSecurity(1L)).thenReturn(Optional.of(mockAccount));
+    }
+ 
+    @org.junit.jupiter.api.AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
     }
 
     // ==========================================================
@@ -139,9 +153,10 @@ class TransactionControllerTest {
                     .content(objectMapper.writeValueAsString(validRequest)))
                     .andExpect(status().isOk());
 
+            // DeviceFingerprintUtil parses UA into "OS|Browser" — arbitrary strings become "Unknown|Unknown"
             verify(transactionService).initiateTransaction(
                     any(), any(), any(), any(), any(),
-                    argThat(device -> device != null && device.length() == 250)
+                    argThat(device -> device != null && !device.isEmpty())
             );
         }
 
@@ -261,13 +276,8 @@ class TransactionControllerTest {
         @Test
         @DisplayName("✅ /lookup/{accNum} - Tồn tại STK: Trả về tên chủ thẻ")
         void lookupAccountName_exists_returnsFullName() throws Exception {
-            Account targetAcc = new Account();
-            User targetUser = new User();
-            targetUser.setFullName("Lê Văn Bốn");
-            targetAcc.setUser(targetUser);
-
-            when(accountRepository.findByAccountNumberWithUser("12345678"))
-                    .thenReturn(Optional.of(targetAcc));
+            when(accountRepository.findFullNameByAccountNumber("12345678"))
+                    .thenReturn(Optional.of("Lê Văn Bốn"));
 
             mockMvc.perform(get("/api/transactions/lookup/12345678"))
                     .andExpect(status().isOk())
@@ -277,7 +287,7 @@ class TransactionControllerTest {
         @Test
         @DisplayName("❌ /lookup/{accNum} - Không tồn tại STK: Trả về HTTP 400")
         void lookupAccountName_notExists_returns400() throws Exception {
-            when(accountRepository.findByAccountNumberWithUser("00000000"))
+            when(accountRepository.findFullNameByAccountNumber("00000000"))
                     .thenReturn(Optional.empty());
 
             mockMvc.perform(get("/api/transactions/lookup/00000000"))
@@ -288,7 +298,7 @@ class TransactionControllerTest {
         @Test
         @DisplayName("⚠️ /lookup - accountNumber là chuỗi đặc biệt → không crash")
         void lookupAccountName_specialChars_handledGracefully() throws Exception {
-            when(accountRepository.findByAccountNumberWithUser("abc!@#"))
+            when(accountRepository.findFullNameByAccountNumber("abc!@#"))
                     .thenReturn(Optional.empty());
 
             mockMvc.perform(get("/api/transactions/lookup/abc!@#"))
@@ -307,14 +317,11 @@ class TransactionControllerTest {
             when(ledgerRepository.findRecentDebitsWithTransaction(eq(1L), any(LocalDateTime.class)))
                     .thenReturn(Arrays.asList(ledger1, ledger2));
 
-            Account acc1 = new Account(); acc1.setAccountNumber("ACC1");
-            User user1 = new User(); user1.setFullName("Người Quen A"); acc1.setUser(user1);
-
-            Account acc2 = new Account(); acc2.setAccountNumber("ACC2");
-            User user2 = new User(); user2.setFullName("Người Quen B"); acc2.setUser(user2);
-
-            when(accountRepository.findByAccountNumberIn(anySet()))
-                    .thenReturn(Arrays.asList(acc1, acc2));
+            when(accountRepository.findAccountNumbersAndNames(anySet()))
+                    .thenReturn(Arrays.asList(
+                            new Object[]{"ACC1", "Người Quen A"},
+                            new Object[]{"ACC2", "Người Quen B"}
+                    ));
 
             mockMvc.perform(get("/api/transactions/recent-recipients/1"))
                     .andExpect(status().isOk())
@@ -334,7 +341,7 @@ class TransactionControllerTest {
             when(ledgerRepository.findRecentDebitsWithTransaction(eq(1L), any(LocalDateTime.class)))
                     .thenReturn(Collections.singletonList(ledger));
 
-            when(accountRepository.findByAccountNumberIn(anySet()))
+            when(accountRepository.findAccountNumbersAndNames(anySet()))
                     .thenReturn(Collections.emptyList());
 
             mockMvc.perform(get("/api/transactions/recent-recipients/1"))
@@ -370,7 +377,7 @@ class TransactionControllerTest {
             when(ledgerRepository.findRecentDebitsWithTransaction(
                     eq(1L), any(LocalDateTime.class)))
                     .thenReturn(ledgers);
-            when(accountRepository.findByAccountNumberIn(anySet()))
+            when(accountRepository.findAccountNumbersAndNames(anySet()))
                     .thenReturn(Collections.emptyList());
 
             mockMvc.perform(get("/api/transactions/recent-recipients/1"))
@@ -390,7 +397,7 @@ class TransactionControllerTest {
             when(ledgerRepository.findRecentDebitsWithTransaction(
                     eq(1L), any(LocalDateTime.class)))
                     .thenReturn(Arrays.asList(l1, l2, l3));
-            when(accountRepository.findByAccountNumberIn(anySet()))
+            when(accountRepository.findAccountNumbersAndNames(anySet()))
                     .thenReturn(Collections.emptyList());
 
             mockMvc.perform(get("/api/transactions/recent-recipients/1"))

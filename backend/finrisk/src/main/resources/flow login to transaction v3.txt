@@ -1,0 +1,1872 @@
+Hibernate:
+    select
+        bs1_0.id,
+        bs1_0.created_at,
+        bs1_0.error_message,
+        bs1_0.expires_at,
+        bs1_0.face_result,
+        bs1_0.finalized,
+        bs1_0.session_token,
+        bs1_0.transaction_id,
+        bs1_0.used,
+        bs1_0.user_id,
+        bs1_0.version,
+        bs1_0.voice_result
+    from
+        biometric_session bs1_0
+    where
+        bs1_0.expires_at<?
+2026-05-27T22:09:29.854+07:00  INFO 28760 --- [   scheduling-1] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.repository.BiometricSessionRepository.deleteByExpiresAtBefore() executed in 98 ms
+2026-05-27T22:09:29.854+07:00  INFO 28760 --- [   scheduling-1] d.f.w.w.BiometricSessionCleanupScheduler : [BIOMETRIC-SCHEDULER] Expired biometric sessions purged from DB
+2026-05-27T22:09:29.858+07:00  INFO 28760 --- [   scheduling-1] c.d.f.w.w.WebSocketMetricsLogger         : [WS-METRICS] active_sessions=0 total_buffered_frames=0 total_buffer_size={ Milan}MB
+Hibernate:
+    select
+        t1_0.id
+    from
+        transactions t1_0
+    where
+        t1_0.status='UNDER_REVIEW'
+        and t1_0.created_at<?
+2026-05-27T22:09:29.905+07:00  INFO 28760 --- [   scheduling-1] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.repository.TransactionRepository.findStaleUnderReviewIds() executed in 46 ms
+Hibernate:
+    select
+        t1_0.id
+    from
+        transactions t1_0
+    where
+        t1_0.status in ('PENDING_PIN', 'PENDING_OTP', 'PENDING_FACE_STATIC', 'PENDING_ALL_IN_ONE', 'PENDING_VOICE_OTP', 'PENDING_PIN_OTP', 'PENDING_PIN_FACE', 'PENDING_PIN_HIGH')
+        and t1_0.created_at<?
+2026-05-27T22:09:29.914+07:00  INFO 28760 --- [   scheduling-1] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.repository.TransactionRepository.findStalledTransactionIds() executed in 9 ms
+2026-05-27T22:09:37.282+07:00  INFO 28760 --- [nio-8081-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-05-27T22:09:37.282+07:00  INFO 28760 --- [nio-8081-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-05-27T22:09:37.283+07:00  INFO 28760 --- [nio-8081-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 1 ms
+2026-05-27T22:09:37.840+07:00  INFO 28760 --- [nio-8081-exec-2] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.RateLimitService.isLoginBlocked() executed in 427 ms
+2026-05-27T22:09:37.841+07:00  INFO 28760 --- [nio-8081-exec-2] c.d.finrisk.core.services.AuthService    : === B?T ??U X? L? LOGIN CHO USER: congnhan_b ===
+Hibernate:
+    select
+        u1_0.id,
+        u1_0.admin_flagged,
+        bp1_0.id,
+        bp1_0.covariance_matrix_c,
+        bp1_0.created_at,
+        bp1_0.ewma_mean_vector,
+        bp1_0.ewma_variance,
+        bp1_0.last_tx_timestamp,
+        bp1_0.mean_vector,
+        bp1_0.tx_count,
+        bp1_0.updated_at,
+        bp1_0.user_id,
+        bp1_0.version,
+        u1_0.created_at,
+        u1_0.current_refresh_token,
+        u1_0.email,
+        u1_0.face_embeddings,
+        u1_0.full_name,
+        u1_0.is_suspicious_session,
+        u1_0.last_login_device,
+        u1_0.last_login_ip,
+        u1_0.phone_number,
+        u1_0.role,
+        u1_0.status,
+        us1_0.id,
+        us1_0.created_at,
+        us1_0.failed_login_attempts,
+        us1_0.failed_pin_attempts,
+        us1_0.is_pin_setup,
+        us1_0.last_password_change,
+        us1_0.last_pin_change,
+        us1_0.lock_until,
+        us1_0.password_hash,
+        us1_0.pin_hash,
+        us1_0.two_factor_enabled,
+        us1_0.updated_at,
+        us1_0.user_id,
+        u1_0.username
+    from
+        users u1_0
+    left join
+        user_behavior_profiles bp1_0
+            on u1_0.id=bp1_0.user_id
+    left join
+        user_securities us1_0
+            on u1_0.id=us1_0.user_id
+    where
+        u1_0.username=?
+2026-05-27T22:09:37.892+07:00  INFO 28760 --- [nio-8081-exec-2] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.repository.UserRepository.findByUsername() executed in 49 ms
+2026-05-27T22:09:37.892+07:00  INFO 28760 --- [nio-8081-exec-2] c.d.finrisk.core.services.AuthService    : ? ?ANG SO S?NH M?T KH?U...
+Hibernate:
+    select
+        a1_0.id,
+        a1_0.account_number,
+        a1_0.balance,
+        a1_0.currency,
+        a1_0.status,
+        u1_0.id,
+        u1_0.admin_flagged,
+        u1_0.created_at,
+        u1_0.current_refresh_token,
+        u1_0.email,
+        u1_0.face_embeddings,
+        u1_0.full_name,
+        u1_0.is_suspicious_session,
+        u1_0.last_login_device,
+        u1_0.last_login_ip,
+        u1_0.phone_number,
+        u1_0.role,
+        u1_0.status,
+        us1_0.id,
+        us1_0.created_at,
+        us1_0.failed_login_attempts,
+        us1_0.failed_pin_attempts,
+        us1_0.is_pin_setup,
+        us1_0.last_password_change,
+        us1_0.last_pin_change,
+        us1_0.lock_until,
+        us1_0.password_hash,
+        us1_0.pin_hash,
+        us1_0.two_factor_enabled,
+        us1_0.updated_at,
+        us1_0.user_id,
+        u1_0.username,
+        a1_0.version
+    from
+        accounts a1_0
+    left join
+        users u1_0
+            on u1_0.id=a1_0.user_id
+    left join
+        user_securities us1_0
+            on u1_0.id=us1_0.user_id
+    where
+        u1_0.id=?
+2026-05-27T22:09:37.982+07:00  INFO 28760 --- [nio-8081-exec-2] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.repository.AccountRepository.findByUserId() executed in 13 ms
+2026-05-27T22:09:37.983+07:00  INFO 28760 --- [nio-8081-exec-2] c.d.finrisk.core.services.AuthService    : ? LOGIN TH?NH C?NG CHO USER: congnhan_b
+2026-05-27T22:09:37.983+07:00  INFO 28760 --- [nio-8081-exec-2] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.AuthService.login() executed in 142 ms
+2026-05-27T22:09:37.986+07:00  INFO 28760 --- [nio-8081-exec-2] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.RateLimitService.clearLoginAttempts() executed in 2 ms
+Hibernate:
+    select
+        ud1_0.id,
+        ud1_0.created_at,
+        ud1_0.device_fingerprint,
+        ud1_0.device_name,
+        ud1_0.is_trusted,
+        ud1_0.last_used_at,
+        ud1_0.last_used_ip,
+        ud1_0.user_id
+    from
+        user_devices ud1_0
+    left join
+        users u1_0
+            on u1_0.id=ud1_0.user_id
+    where
+        u1_0.id=?
+        and ud1_0.device_fingerprint=?
+2026-05-27T22:09:37.993+07:00  INFO 28760 --- [nio-8081-exec-2] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.repository.UserDeviceRepository.findByUserIdAndDeviceFingerprint() executed in 6 ms
+Hibernate:
+    insert
+    into
+        audit_logs
+        (action, details, timestamp, username)
+    values
+        (?, ?, ?, ?)
+2026-05-27T22:09:38.039+07:00  INFO 28760 --- [nio-8081-exec-2] c.d.f.core.services.AuditLogService      : [AUDIT] action=LOGIN_SUCCESS user=congnhan_b
+2026-05-27T22:09:38.039+07:00  INFO 28760 --- [nio-8081-exec-2] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.AuditLogService.logAction() executed in 45 ms
+Hibernate:
+    update
+        users
+    set
+        admin_flagged=?,
+        created_at=?,
+        current_refresh_token=?,
+        email=?,
+        face_embeddings=?,
+        full_name=?,
+        is_suspicious_session=?,
+        last_login_device=?,
+        last_login_ip=?,
+        phone_number=?,
+        role=?,
+        status=?,
+        username=?
+    where
+        id=?
+Hibernate:
+    select
+        ud1_0.id,
+        ud1_0.created_at,
+        ud1_0.device_fingerprint,
+        ud1_0.device_name,
+        ud1_0.is_trusted,
+        ud1_0.last_used_at,
+        ud1_0.last_used_ip,
+        ud1_0.user_id
+    from
+        user_devices ud1_0
+    left join
+        users u1_0
+            on u1_0.id=ud1_0.user_id
+    where
+        u1_0.id=?
+        and ud1_0.device_fingerprint=?
+2026-05-27T22:09:38.152+07:00  INFO 28760 --- [nio-8081-exec-2] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.repository.UserDeviceRepository.findByUserIdAndDeviceFingerprint() executed in 3 ms
+Hibernate:
+    update
+        user_devices
+    set
+        created_at=?,
+        device_fingerprint=?,
+        device_name=?,
+        is_trusted=?,
+        last_used_at=?,
+        last_used_ip=?,
+        user_id=?
+    where
+        id=?
+Hibernate:
+    select
+        a1_0.id,
+        a1_0.account_number,
+        a1_0.balance,
+        a1_0.currency,
+        a1_0.status,
+        a1_0.user_id,
+        a1_0.version
+    from
+        accounts a1_0
+    where
+        a1_0.user_id=?
+2026-05-27T22:09:38.165+07:00  INFO 28760 --- [nio-8081-exec-2] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.repository.AccountRepository.findByUser() executed in 7 ms
+2026-05-27T22:09:38.167+07:00  INFO 28760 --- [nio-8081-exec-2] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.web.controllers.AuthController.login() executed in 754 ms
+2026-05-27T22:09:39.779+07:00  INFO 28760 --- [nio-8081-exec-7] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.JwtBlocklistService.isBlocked() executed in 2 ms
+2026-05-27T22:09:39.779+07:00  INFO 28760 --- [nio-8081-exec-8] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.JwtBlocklistService.isBlocked() executed in 2 ms
+Hibernate:
+    select
+        tl1_0.id,
+        tl1_0.account_id,
+        tl1_0.amount,
+        tl1_0.balance_after,
+        tl1_0.created_at,
+        tl1_0.description,
+        tl1_0.entry_type,
+        tl1_0.transaction_id,
+        t1_0.id,
+        t1_0.amount,
+        t1_0.created_at,
+        t1_0.description,
+        t1_0.device_fingerprint,
+        t1_0.emotion_signal,
+        t1_0.failed_ai_attempts,
+        t1_0.from_account_id,
+        t1_0.location_ip,
+        t1_0.risk_level,
+        t1_0.status,
+        t1_0.to_account_number,
+        t1_0.to_bank_code,
+        t1_0.total_risk_score
+    from
+        transaction_ledgers tl1_0
+    join
+        transactions t1_0
+            on t1_0.id=tl1_0.transaction_id
+    where
+        tl1_0.account_id=?
+        and tl1_0.entry_type='DEBIT'
+        and tl1_0.created_at>=?
+    order by
+        tl1_0.created_at desc
+Hibernate:
+    SELECT
+        uc.id as id,
+        uc.contact_name as contactName,
+        uc.contact_account_number as contactAccountNumber,
+        uc.is_pinned as isPinned,
+        t.amount as lastAmount,
+        t.created_at as lastDate
+    FROM
+        user_contacts uc
+    LEFT JOIN
+        (         SELECT
+            from_account_id, to_account_number, amount, created_at,                ROW_NUMBER() OVER (PARTITION
+        BY
+            to_account_number
+        ORDER BY
+            created_at DESC) as rn
+        FROM
+            transactions
+        WHERE
+            status = 'SUCCESS'
+            AND from_account_id = (SELECT
+                id
+            FROM
+                accounts
+            WHERE
+                user_id = ?
+            LIMIT
+                1)     ) t
+            ON uc.contact_account_number = t.to_account_number
+            AND t.rn = 1
+    WHERE
+        uc.user_id = ?
+    ORDER BY
+        uc.is_pinned DESC,
+        uc.created_at DESC
+2026-05-27T22:09:39.827+07:00  INFO 28760 --- [nio-8081-exec-7] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.repository.TransactionLedgerRepository.findRecentDebitsWithTransaction() executed in 41 ms
+2026-05-27T22:09:39.829+07:00  INFO 28760 --- [nio-8081-exec-8] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.web.controllers.UserController.getContacts() executed in 44 ms
+Hibernate:
+    select
+        a1_0.account_number,
+        u1_0.full_name
+    from
+        accounts a1_0
+    join
+        users u1_0
+            on u1_0.id=a1_0.user_id
+    where
+        a1_0.account_number in (?, ?, ?, ?, ?)
+2026-05-27T22:09:39.838+07:00  INFO 28760 --- [nio-8081-exec-9] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.JwtBlocklistService.isBlocked() executed in 2 ms
+2026-05-27T22:09:39.839+07:00  INFO 28760 --- [nio-8081-exec-7] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.repository.AccountRepository.findAccountNumbersAndNames() executed in 8 ms
+2026-05-27T22:09:39.840+07:00  INFO 28760 --- [nio-8081-exec-7] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.web.controllers.TransactionController.getRecentRecipients() executed in 55 ms
+Hibernate:
+    SELECT
+        uc.id as id,
+        uc.contact_name as contactName,
+        uc.contact_account_number as contactAccountNumber,
+        uc.is_pinned as isPinned,
+        t.amount as lastAmount,
+        t.created_at as lastDate
+    FROM
+        user_contacts uc
+    LEFT JOIN
+        (         SELECT
+            from_account_id, to_account_number, amount, created_at,                ROW_NUMBER() OVER (PARTITION
+        BY
+            to_account_number
+        ORDER BY
+            created_at DESC) as rn
+        FROM
+            transactions
+        WHERE
+            status = 'SUCCESS'
+            AND from_account_id = (SELECT
+                id
+            FROM
+                accounts
+            WHERE
+                user_id = ?
+            LIMIT
+                1)     ) t
+            ON uc.contact_account_number = t.to_account_number
+            AND t.rn = 1
+    WHERE
+        uc.user_id = ?
+    ORDER BY
+        uc.is_pinned DESC,
+        uc.created_at DESC
+2026-05-27T22:09:39.849+07:00  INFO 28760 --- [io-8081-exec-10] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.JwtBlocklistService.isBlocked() executed in 2 ms
+2026-05-27T22:09:39.853+07:00  INFO 28760 --- [nio-8081-exec-9] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.web.controllers.UserController.getContacts() executed in 11 ms
+Hibernate:
+    select
+        tl1_0.id,
+        tl1_0.account_id,
+        tl1_0.amount,
+        tl1_0.balance_after,
+        tl1_0.created_at,
+        tl1_0.description,
+        tl1_0.entry_type,
+        tl1_0.transaction_id,
+        t1_0.id,
+        t1_0.amount,
+        t1_0.created_at,
+        t1_0.description,
+        t1_0.device_fingerprint,
+        t1_0.emotion_signal,
+        t1_0.failed_ai_attempts,
+        t1_0.from_account_id,
+        t1_0.location_ip,
+        t1_0.risk_level,
+        t1_0.status,
+        t1_0.to_account_number,
+        t1_0.to_bank_code,
+        t1_0.total_risk_score
+    from
+        transaction_ledgers tl1_0
+    join
+        transactions t1_0
+            on t1_0.id=tl1_0.transaction_id
+    where
+        tl1_0.account_id=?
+        and tl1_0.entry_type='DEBIT'
+        and tl1_0.created_at>=?
+    order by
+        tl1_0.created_at desc
+2026-05-27T22:09:39.871+07:00  INFO 28760 --- [io-8081-exec-10] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.repository.TransactionLedgerRepository.findRecentDebitsWithTransaction() executed in 18 ms
+Hibernate:
+    select
+        a1_0.account_number,
+        u1_0.full_name
+    from
+        accounts a1_0
+    join
+        users u1_0
+            on u1_0.id=a1_0.user_id
+    where
+        a1_0.account_number in (?, ?, ?, ?, ?)
+2026-05-27T22:09:39.874+07:00  INFO 28760 --- [io-8081-exec-10] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.repository.AccountRepository.findAccountNumbersAndNames() executed in 3 ms
+2026-05-27T22:09:39.874+07:00  INFO 28760 --- [io-8081-exec-10] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.web.controllers.TransactionController.getRecentRecipients() executed in 21 ms
+2026-05-27T22:09:42.560+07:00  INFO 28760 --- [nio-8081-exec-2] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.JwtBlocklistService.isBlocked() executed in 1 ms
+Hibernate:
+    select
+        u1_0.full_name
+    from
+        accounts a1_0
+    join
+        users u1_0
+            on u1_0.id=a1_0.user_id
+    where
+        a1_0.account_number=?
+2026-05-27T22:09:42.570+07:00  INFO 28760 --- [nio-8081-exec-2] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.repository.AccountRepository.findFullNameByAccountNumber() executed in 4 ms
+2026-05-27T22:09:42.571+07:00  INFO 28760 --- [nio-8081-exec-2] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.web.controllers.TransactionController.lookupAccountName() executed in 5 ms
+2026-05-27T22:09:45.680+07:00  INFO 28760 --- [nio-8081-exec-4] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.JwtBlocklistService.isBlocked() executed in 0 ms
+Hibernate:
+    select
+        a1_0.id,
+        a1_0.account_number,
+        a1_0.balance,
+        a1_0.currency,
+        a1_0.status,
+        u1_0.id,
+        u1_0.admin_flagged,
+        u1_0.created_at,
+        u1_0.current_refresh_token,
+        u1_0.email,
+        u1_0.face_embeddings,
+        u1_0.full_name,
+        u1_0.is_suspicious_session,
+        u1_0.last_login_device,
+        u1_0.last_login_ip,
+        u1_0.phone_number,
+        u1_0.role,
+        u1_0.status,
+        us1_0.id,
+        us1_0.created_at,
+        us1_0.failed_login_attempts,
+        us1_0.failed_pin_attempts,
+        us1_0.is_pin_setup,
+        us1_0.last_password_change,
+        us1_0.last_pin_change,
+        us1_0.lock_until,
+        us1_0.password_hash,
+        us1_0.pin_hash,
+        us1_0.two_factor_enabled,
+        us1_0.updated_at,
+        us1_0.user_id,
+        u1_0.username,
+        a1_0.version
+    from
+        accounts a1_0
+    left join
+        users u1_0
+            on u1_0.id=a1_0.user_id
+    left join
+        user_securities us1_0
+            on u1_0.id=us1_0.user_id
+    where
+        a1_0.id=?
+Hibernate:
+    select
+        ubp1_0.id,
+        ubp1_0.covariance_matrix_c,
+        ubp1_0.created_at,
+        ubp1_0.ewma_mean_vector,
+        ubp1_0.ewma_variance,
+        ubp1_0.last_tx_timestamp,
+        ubp1_0.mean_vector,
+        ubp1_0.tx_count,
+        ubp1_0.updated_at,
+        ubp1_0.user_id,
+        ubp1_0.version
+    from
+        user_behavior_profiles ubp1_0
+    where
+        ubp1_0.user_id=?
+2026-05-27T22:09:45.754+07:00  INFO 28760 --- [nio-8081-exec-4] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.repository.AccountRepository.findByIdWithUserAndSecurity() executed in 13 ms
+Hibernate:
+    select
+        a1_0.id,
+        a1_0.account_number,
+        a1_0.balance,
+        a1_0.currency,
+        a1_0.status,
+        u1_0.id,
+        u1_0.admin_flagged,
+        u1_0.created_at,
+        u1_0.current_refresh_token,
+        u1_0.email,
+        u1_0.face_embeddings,
+        u1_0.full_name,
+        u1_0.is_suspicious_session,
+        u1_0.last_login_device,
+        u1_0.last_login_ip,
+        u1_0.phone_number,
+        u1_0.role,
+        u1_0.status,
+        us1_0.id,
+        us1_0.created_at,
+        us1_0.failed_login_attempts,
+        us1_0.failed_pin_attempts,
+        us1_0.is_pin_setup,
+        us1_0.last_password_change,
+        us1_0.last_pin_change,
+        us1_0.lock_until,
+        us1_0.password_hash,
+        us1_0.pin_hash,
+        us1_0.two_factor_enabled,
+        us1_0.updated_at,
+        us1_0.user_id,
+        u1_0.username,
+        a1_0.version
+    from
+        accounts a1_0
+    left join
+        users u1_0
+            on u1_0.id=a1_0.user_id
+    left join
+        user_securities us1_0
+            on u1_0.id=us1_0.user_id
+    where
+        a1_0.id=?
+2026-05-27T22:09:45.760+07:00  INFO 28760 --- [nio-8081-exec-4] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.repository.AccountRepository.findByIdWithUserAndSecurity() executed in 3 ms
+Hibernate:
+    select
+        count(tl1_0.id)>0
+    from
+        transaction_ledgers tl1_0
+    join
+        transactions t1_0
+            on t1_0.id=tl1_0.transaction_id
+    where
+        tl1_0.account_id=?
+        and tl1_0.entry_type='DEBIT'
+        and t1_0.to_account_number=?
+2026-05-27T22:09:45.773+07:00  INFO 28760 --- [nio-8081-exec-4] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.repository.TransactionLedgerRepository.existsByAccountIdAndToAccountNumber() executed in 12 ms
+Hibernate:
+    select
+        r1_0.id,
+        r1_0.action_score,
+        r1_0.category,
+        r1_0.conditions,
+        r1_0.description,
+        r1_0.is_active,
+        r1_0.min_policy_override,
+        r1_0.rule_name,
+        r1_0.rule_type,
+        r1_0.spel_expression
+    from
+        rules r1_0
+    where
+        r1_0.is_active
+2026-05-27T22:09:45.782+07:00  INFO 28760 --- [nio-8081-exec-4] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.repository.RuleRepository.findByIsActiveTrue() executed in 5 ms
+Hibernate:
+    select
+        count(t1_0.id)
+    from
+        transactions t1_0
+    where
+        t1_0.from_account_id=?
+        and t1_0.created_at>=?
+2026-05-27T22:09:45.789+07:00  INFO 28760 --- [nio-8081-exec-4] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.repository.TransactionRepository.countRecentTransactions() executed in 6 ms
+Hibernate:
+    select
+        sum(t1_0.amount)
+    from
+        transactions t1_0
+    where
+        t1_0.from_account_id=?
+        and t1_0.status='SUCCESS'
+        and t1_0.created_at>=?
+2026-05-27T22:09:45.795+07:00  INFO 28760 --- [nio-8081-exec-4] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.repository.TransactionRepository.sumSuccessfulAmountToday() executed in 6 ms
+2026-05-27T22:09:45.828+07:00  INFO 28760 --- [nio-8081-exec-4] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.BehavioralProfilingService.calculateBehavioralAnomalyScore() executed in 32 ms
+Hibernate:
+    select
+        ud1_0.id,
+        ud1_0.created_at,
+        ud1_0.device_fingerprint,
+        ud1_0.device_name,
+        ud1_0.is_trusted,
+        ud1_0.last_used_at,
+        ud1_0.last_used_ip,
+        ud1_0.user_id
+    from
+        user_devices ud1_0
+    left join
+        users u1_0
+            on u1_0.id=ud1_0.user_id
+    where
+        u1_0.id=?
+        and ud1_0.device_fingerprint=?
+2026-05-27T22:09:45.835+07:00  INFO 28760 --- [nio-8081-exec-4] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.repository.UserDeviceRepository.findByUserIdAndDeviceFingerprint() executed in 4 ms
+2026-05-27T22:09:45.842+07:00  INFO 28760 --- [nio-8081-exec-4] c.d.f.c.services.RiskEvaluationService   : [RISK-ENGINE][RESULT] tx=null final=78 cat_total=60 ai=18 cats={CONTEXTUAL=40, FINANCIAL=40} override=MEDIUM_2
+2026-05-27T22:09:45.842+07:00  INFO 28760 --- [nio-8081-exec-4] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.RiskEvaluationService.evaluateRisk() executed in 67 ms
+Hibernate:
+    insert
+    into
+        transactions
+        (amount, created_at, description, device_fingerprint, emotion_signal, failed_ai_attempts, from_account_id, location_ip, risk_level, status, to_account_number, to_bank_code, total_risk_score)
+    values
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+Hibernate:
+    insert
+    into
+        risk_scores
+        (applied_score, created_at, rule_id, transaction_id)
+    values
+        (?, ?, ?, ?)
+Hibernate:
+    insert
+    into
+        risk_scores
+        (applied_score, created_at, rule_id, transaction_id)
+    values
+        (?, ?, ?, ?)
+Hibernate:
+    insert
+    into
+        transaction_ai_insights
+        (anomaly_score, created_at, feature_name, insight_message, insight_type, transaction_id)
+    values
+        (?, ?, ?, ?, ?, ?)
+Hibernate:
+    insert
+    into
+        transaction_ai_insights
+        (anomaly_score, created_at, feature_name, insight_message, insight_type, transaction_id)
+    values
+        (?, ?, ?, ?, ?, ?)
+Hibernate:
+    insert
+    into
+        transaction_ai_insights
+        (anomaly_score, created_at, feature_name, insight_message, insight_type, transaction_id)
+    values
+        (?, ?, ?, ?, ?, ?)
+Hibernate:
+    insert
+    into
+        transaction_ai_insights
+        (anomaly_score, created_at, feature_name, insight_message, insight_type, transaction_id)
+    values
+        (?, ?, ?, ?, ?, ?)
+Hibernate:
+    insert
+    into
+        transaction_ai_insights
+        (anomaly_score, created_at, feature_name, insight_message, insight_type, transaction_id)
+    values
+        (?, ?, ?, ?, ?, ?)
+Hibernate:
+    select
+        rp1_0.id,
+        rp1_0.action_bean_name,
+        rp1_0.created_at,
+        rp1_0.description,
+        rp1_0.max_score,
+        rp1_0.min_score,
+        rp1_0.risk_level,
+        rp1_0.updated_at
+    from
+        risk_policies rp1_0
+    where
+        ?>=rp1_0.min_score
+        and ?<=rp1_0.max_score
+2026-05-27T22:09:45.884+07:00  INFO 28760 --- [nio-8081-exec-4] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.repository.RiskPolicyRepository.findByScore() executed in 10 ms
+Hibernate:
+    select
+        rp1_0.id,
+        rp1_0.action_bean_name,
+        rp1_0.created_at,
+        rp1_0.description,
+        rp1_0.max_score,
+        rp1_0.min_score,
+        rp1_0.risk_level,
+        rp1_0.updated_at
+    from
+        risk_policies rp1_0
+    where
+        rp1_0.risk_level=?
+2026-05-27T22:09:45.891+07:00  INFO 28760 --- [nio-8081-exec-4] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.repository.RiskPolicyRepository.findByRiskLevel() executed in 5 ms
+2026-05-27T22:09:45.891+07:00  INFO 28760 --- [nio-8081-exec-4] c.d.f.core.services.TransactionService   : Risk evaluation: score=78 level=HIGH desc=C?NH B?O: AI C?m xúc + Voice OTP
+2026-05-27T22:09:45.893+07:00  INFO 28760 --- [nio-8081-exec-4] c.d.f.c.s.AdvancedFaceActionStrategy     : [FaceStrategy][EXECUTE] tx=4832 riskLevel=HIGH ? PENDING_PIN_HIGH
+2026-05-27T22:09:45.893+07:00  INFO 28760 --- [nio-8081-exec-4] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.strategies.AdvancedFaceActionStrategy.execute() executed in 0 ms
+2026-05-27T22:09:45.893+07:00  INFO 28760 --- [nio-8081-exec-4] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.TransactionService.initiateTransaction() executed in 138 ms
+Hibernate:
+    update
+        transactions
+    set
+        amount=?,
+        created_at=?,
+        description=?,
+        device_fingerprint=?,
+        emotion_signal=?,
+        failed_ai_attempts=?,
+        from_account_id=?,
+        location_ip=?,
+        risk_level=?,
+        status=?,
+        to_account_number=?,
+        to_bank_code=?,
+        total_risk_score=?
+    where
+        id=?
+Hibernate:
+    insert
+    into
+        audit_logs
+        (action, details, timestamp, username)
+    values
+        (?, ?, ?, ?)
+2026-05-27T22:09:45.907+07:00  INFO 28760 --- [nio-8081-exec-4] c.d.f.core.services.AuditLogService      : [AUDIT] action=TRANSACTION_INITIATED user=congnhan_b
+2026-05-27T22:09:45.907+07:00  INFO 28760 --- [nio-8081-exec-4] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.AuditLogService.logAction() executed in 5 ms
+2026-05-27T22:09:45.907+07:00  INFO 28760 --- [nio-8081-exec-4] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.web.controllers.TransactionController.processTransaction() executed in 166 ms
+2026-05-27T22:09:48.986+07:00  INFO 28760 --- [nio-8081-exec-6] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.JwtBlocklistService.isBlocked() executed in 1 ms
+2026-05-27T22:09:48.994+07:00  INFO 28760 --- [nio-8081-exec-6] c.d.f.w.c.TransactionController          : ? [B?Y DEBUG] Nh?n request verify cho TxID: 4832 - Lúc: 1779894588994
+Hibernate:
+    select
+        t1_0.id,
+        t1_0.amount,
+        t1_0.created_at,
+        t1_0.description,
+        t1_0.device_fingerprint,
+        t1_0.emotion_signal,
+        t1_0.failed_ai_attempts,
+        fa1_0.id,
+        fa1_0.account_number,
+        fa1_0.balance,
+        fa1_0.currency,
+        fa1_0.status,
+        u1_0.id,
+        u1_0.admin_flagged,
+        bp1_0.id,
+        bp1_0.covariance_matrix_c,
+        bp1_0.created_at,
+        bp1_0.ewma_mean_vector,
+        bp1_0.ewma_variance,
+        bp1_0.last_tx_timestamp,
+        bp1_0.mean_vector,
+        bp1_0.tx_count,
+        bp1_0.updated_at,
+        bp1_0.user_id,
+        bp1_0.version,
+        u1_0.created_at,
+        u1_0.current_refresh_token,
+        u1_0.email,
+        u1_0.face_embeddings,
+        u1_0.full_name,
+        u1_0.is_suspicious_session,
+        u1_0.last_login_device,
+        u1_0.last_login_ip,
+        u1_0.phone_number,
+        u1_0.role,
+        u1_0.status,
+        us1_0.id,
+        us1_0.created_at,
+        us1_0.failed_login_attempts,
+        us1_0.failed_pin_attempts,
+        us1_0.is_pin_setup,
+        us1_0.last_password_change,
+        us1_0.last_pin_change,
+        us1_0.lock_until,
+        us1_0.password_hash,
+        us1_0.pin_hash,
+        us1_0.two_factor_enabled,
+        us1_0.updated_at,
+        us1_0.user_id,
+        u1_0.username,
+        fa1_0.version,
+        t1_0.location_ip,
+        t1_0.risk_level,
+        t1_0.status,
+        t1_0.to_account_number,
+        t1_0.to_bank_code,
+        t1_0.total_risk_score
+    from
+        transactions t1_0
+    left join
+        accounts fa1_0
+            on fa1_0.id=t1_0.from_account_id
+    left join
+        users u1_0
+            on u1_0.id=fa1_0.user_id
+    left join
+        user_securities us1_0
+            on u1_0.id=us1_0.user_id
+    left join
+        user_behavior_profiles bp1_0
+            on u1_0.id=bp1_0.user_id
+    where
+        t1_0.id=?
+2026-05-27T22:09:49.008+07:00  INFO 28760 --- [nio-8081-exec-6] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.repository.TransactionRepository.findByIdWithUserSecurity() executed in 13 ms
+2026-05-27T22:09:49.087+07:00  INFO 28760 --- [nio-8081-exec-6] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.PinService.verifyPin() executed in 76 ms
+Hibernate:
+    update
+        transactions
+    set
+        amount=?,
+        created_at=?,
+        description=?,
+        device_fingerprint=?,
+        emotion_signal=?,
+        failed_ai_attempts=?,
+        from_account_id=?,
+        location_ip=?,
+        risk_level=?,
+        status=?,
+        to_account_number=?,
+        to_bank_code=?,
+        total_risk_score=?
+    where
+        id=?
+Hibernate:
+    insert
+    into
+        biometric_session
+        (created_at, error_message, expires_at, face_result, finalized, session_token, transaction_id, used, user_id, version, voice_result)
+    values
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+2026-05-27T22:09:49.121+07:00  INFO 28760 --- [nio-8081-exec-6] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.OtpService.generateVoiceOtp() executed in 10 ms
+2026-05-27T22:09:49.121+07:00  INFO 28760 --- [nio-8081-exec-6] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.web.controllers.TransactionController.verifyAndExecute() executed in 127 ms
+Hibernate:
+    select
+        bs1_0.id,
+        bs1_0.created_at,
+        bs1_0.error_message,
+        bs1_0.expires_at,
+        bs1_0.face_result,
+        bs1_0.finalized,
+        bs1_0.session_token,
+        t1_0.id,
+        t1_0.amount,
+        t1_0.created_at,
+        t1_0.description,
+        t1_0.device_fingerprint,
+        t1_0.emotion_signal,
+        t1_0.failed_ai_attempts,
+        t1_0.from_account_id,
+        t1_0.location_ip,
+        t1_0.risk_level,
+        t1_0.status,
+        t1_0.to_account_number,
+        t1_0.to_bank_code,
+        t1_0.total_risk_score,
+        bs1_0.used,
+        u1_0.id,
+        u1_0.admin_flagged,
+        bp1_0.id,
+        bp1_0.covariance_matrix_c,
+        bp1_0.created_at,
+        bp1_0.ewma_mean_vector,
+        bp1_0.ewma_variance,
+        bp1_0.last_tx_timestamp,
+        bp1_0.mean_vector,
+        bp1_0.tx_count,
+        bp1_0.updated_at,
+        bp1_0.user_id,
+        bp1_0.version,
+        u1_0.created_at,
+        u1_0.current_refresh_token,
+        u1_0.email,
+        u1_0.face_embeddings,
+        u1_0.full_name,
+        u1_0.is_suspicious_session,
+        u1_0.last_login_device,
+        u1_0.last_login_ip,
+        u1_0.phone_number,
+        u1_0.role,
+        u1_0.status,
+        us1_0.id,
+        us1_0.created_at,
+        us1_0.failed_login_attempts,
+        us1_0.failed_pin_attempts,
+        us1_0.is_pin_setup,
+        us1_0.last_password_change,
+        us1_0.last_pin_change,
+        us1_0.lock_until,
+        us1_0.password_hash,
+        us1_0.pin_hash,
+        us1_0.two_factor_enabled,
+        us1_0.updated_at,
+        us1_0.user_id,
+        u1_0.username,
+        bs1_0.version,
+        bs1_0.voice_result
+    from
+        biometric_session bs1_0
+    left join
+        users u1_0
+            on u1_0.id=bs1_0.user_id
+    left join
+        user_behavior_profiles bp1_0
+            on u1_0.id=bp1_0.user_id
+    left join
+        user_securities us1_0
+            on u1_0.id=us1_0.user_id
+    left join
+        transactions t1_0
+            on t1_0.id=bs1_0.transaction_id
+    where
+        bs1_0.session_token=?
+Hibernate:
+    select
+        bs1_0.id,
+        bs1_0.created_at,
+        bs1_0.error_message,
+        bs1_0.expires_at,
+        bs1_0.face_result,
+        bs1_0.finalized,
+        bs1_0.session_token,
+        t1_0.id,
+        t1_0.amount,
+        t1_0.created_at,
+        t1_0.description,
+        t1_0.device_fingerprint,
+        t1_0.emotion_signal,
+        t1_0.failed_ai_attempts,
+        t1_0.from_account_id,
+        t1_0.location_ip,
+        t1_0.risk_level,
+        t1_0.status,
+        t1_0.to_account_number,
+        t1_0.to_bank_code,
+        t1_0.total_risk_score,
+        bs1_0.used,
+        u1_0.id,
+        u1_0.admin_flagged,
+        bp1_0.id,
+        bp1_0.covariance_matrix_c,
+        bp1_0.created_at,
+        bp1_0.ewma_mean_vector,
+        bp1_0.ewma_variance,
+        bp1_0.last_tx_timestamp,
+        bp1_0.mean_vector,
+        bp1_0.tx_count,
+        bp1_0.updated_at,
+        bp1_0.user_id,
+        bp1_0.version,
+        u1_0.created_at,
+        u1_0.current_refresh_token,
+        u1_0.email,
+        u1_0.face_embeddings,
+        u1_0.full_name,
+        u1_0.is_suspicious_session,
+        u1_0.last_login_device,
+        u1_0.last_login_ip,
+        u1_0.phone_number,
+        u1_0.role,
+        u1_0.status,
+        us1_0.id,
+        us1_0.created_at,
+        us1_0.failed_login_attempts,
+        us1_0.failed_pin_attempts,
+        us1_0.is_pin_setup,
+        us1_0.last_password_change,
+        us1_0.last_pin_change,
+        us1_0.lock_until,
+        us1_0.password_hash,
+        us1_0.pin_hash,
+        us1_0.two_factor_enabled,
+        us1_0.updated_at,
+        us1_0.user_id,
+        u1_0.username,
+        bs1_0.version,
+        bs1_0.voice_result
+    from
+        biometric_session bs1_0
+    left join
+        users u1_0
+            on u1_0.id=bs1_0.user_id
+    left join
+        user_behavior_profiles bp1_0
+            on u1_0.id=bp1_0.user_id
+    left join
+        user_securities us1_0
+            on u1_0.id=us1_0.user_id
+    left join
+        transactions t1_0
+            on t1_0.id=bs1_0.transaction_id
+    where
+        bs1_0.session_token=?
+2026-05-27T22:09:49.196+07:00  INFO 28760 --- [nio-8081-exec-8] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.repository.BiometricSessionRepository.findBySessionTokenEager() executed in 22 ms
+2026-05-27T22:09:49.198+07:00  INFO 28760 --- [nio-8081-exec-8] c.d.f.w.w.BiometricHandshakeInterceptor  : [WS-SECURITY] ip=0:0:0:0:0:0:0:1 user=congnhan_b ? handshake accepted
+2026-05-27T22:09:49.199+07:00  INFO 28760 --- [nio-8081-exec-7] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.repository.BiometricSessionRepository.findBySessionTokenEager() executed in 11 ms
+2026-05-27T22:09:49.199+07:00  INFO 28760 --- [nio-8081-exec-7] c.d.f.w.w.BiometricHandshakeInterceptor  : [WS-SECURITY] ip=0:0:0:0:0:0:0:1 user=congnhan_b ? handshake accepted
+2026-05-27T22:09:49.248+07:00  INFO 28760 --- [nio-8081-exec-7] c.d.f.w.w.LiveEmotionWebSocketHandler    : [WS-FACE] connected session=2aab684c-1838-a433-7f26-6111705c7d18 ip=0:0:0:0:0:0:0:1
+2026-05-27T22:09:49.248+07:00  INFO 28760 --- [nio-8081-exec-8] c.d.f.w.w.LiveEmotionWebSocketHandler    : [WS-FACE] connected session=8ea77ab2-27cb-f37f-9524-f98705e17751 ip=0:0:0:0:0:0:0:1
+Hibernate:
+    select
+        bs1_0.id,
+        bs1_0.created_at,
+        bs1_0.error_message,
+        bs1_0.expires_at,
+        bs1_0.face_result,
+        bs1_0.finalized,
+        bs1_0.session_token,
+        t1_0.id,
+        t1_0.amount,
+        t1_0.created_at,
+        t1_0.description,
+        t1_0.device_fingerprint,
+        t1_0.emotion_signal,
+        t1_0.failed_ai_attempts,
+        t1_0.from_account_id,
+        t1_0.location_ip,
+        t1_0.risk_level,
+        t1_0.status,
+        t1_0.to_account_number,
+        t1_0.to_bank_code,
+        t1_0.total_risk_score,
+        bs1_0.used,
+        u1_0.id,
+        u1_0.admin_flagged,
+        bp1_0.id,
+        bp1_0.covariance_matrix_c,
+        bp1_0.created_at,
+        bp1_0.ewma_mean_vector,
+        bp1_0.ewma_variance,
+        bp1_0.last_tx_timestamp,
+        bp1_0.mean_vector,
+        bp1_0.tx_count,
+        bp1_0.updated_at,
+        bp1_0.user_id,
+        bp1_0.version,
+        u1_0.created_at,
+        u1_0.current_refresh_token,
+        u1_0.email,
+        u1_0.face_embeddings,
+        u1_0.full_name,
+        u1_0.is_suspicious_session,
+        u1_0.last_login_device,
+        u1_0.last_login_ip,
+        u1_0.phone_number,
+        u1_0.role,
+        u1_0.status,
+        us1_0.id,
+        us1_0.created_at,
+        us1_0.failed_login_attempts,
+        us1_0.failed_pin_attempts,
+        us1_0.is_pin_setup,
+        us1_0.last_password_change,
+        us1_0.last_pin_change,
+        us1_0.lock_until,
+        us1_0.password_hash,
+        us1_0.pin_hash,
+        us1_0.two_factor_enabled,
+        us1_0.updated_at,
+        us1_0.user_id,
+        u1_0.username,
+        bs1_0.version,
+        bs1_0.voice_result
+    from
+        biometric_session bs1_0
+    left join
+        users u1_0
+            on u1_0.id=bs1_0.user_id
+    left join
+        user_behavior_profiles bp1_0
+            on u1_0.id=bp1_0.user_id
+    left join
+        user_securities us1_0
+            on u1_0.id=us1_0.user_id
+    left join
+        transactions t1_0
+            on t1_0.id=bs1_0.transaction_id
+    where
+        bs1_0.session_token=?
+2026-05-27T22:09:49.251+07:00 ERROR 28760 --- [nio-8081-exec-8] c.d.f.w.w.LiveEmotionWebSocketHandler    : [WS-FACE] transport error session=8ea77ab2-27cb-f37f-9524-f98705e17751 ip=0:0:0:0:0:0:0:1 error=An established connection was aborted by the software in your host machine
+2026-05-27T22:09:49.256+07:00  INFO 28760 --- [nio-8081-exec-9] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.repository.BiometricSessionRepository.findBySessionTokenEager() executed in 8 ms
+2026-05-27T22:09:49.258+07:00  INFO 28760 --- [nio-8081-exec-9] c.d.f.w.w.BiometricHandshakeInterceptor  : [WS-SECURITY] ip=0:0:0:0:0:0:0:1 user=congnhan_b ? handshake accepted
+2026-05-27T22:09:49.259+07:00 ERROR 28760 --- [nio-8081-exec-8] c.d.f.w.w.LiveEmotionWebSocketHandler    : [WS-FACE] transport error session=8ea77ab2-27cb-f37f-9524-f98705e17751 ip=0:0:0:0:0:0:0:1 error=java.io.IOException: An established connection was aborted by the software in your host machine
+2026-05-27T22:09:49.260+07:00  INFO 28760 --- [nio-8081-exec-8] c.d.f.w.w.LiveEmotionWebSocketHandler    : [WS-FACE] closed session=8ea77ab2-27cb-f37f-9524-f98705e17751 ip=0:0:0:0:0:0:0:1 status=1011
+2026-05-27T22:09:49.269+07:00  INFO 28760 --- [nio-8081-exec-9] c.d.f.w.w.LiveVoiceWebSocketHandler      : [WS-VOICE] session=f8d081eb-0893-5640-c857-8e0de7f9e5fd ip=0:0:0:0:0:0:0:1 user=congnhan_b txId=4832 ? opening bridge to Python voice service
+2026-05-27T22:09:49.309+07:00  INFO 28760 --- [nio-8081-exec-9] c.d.f.w.w.LiveVoiceWebSocketHandler      : [WS-VOICE] bridge established session=f8d081eb-0893-5640-c857-8e0de7f9e5fd ip=0:0:0:0:0:0:0:1 txId=4832
+Hibernate:
+    select
+        t1_0.id,
+        t1_0.amount,
+        t1_0.created_at,
+        t1_0.description,
+        t1_0.device_fingerprint,
+        t1_0.emotion_signal,
+        t1_0.failed_ai_attempts,
+        fa1_0.id,
+        fa1_0.account_number,
+        fa1_0.balance,
+        fa1_0.currency,
+        fa1_0.status,
+        u1_0.id,
+        u1_0.admin_flagged,
+        bp1_0.id,
+        bp1_0.covariance_matrix_c,
+        bp1_0.created_at,
+        bp1_0.ewma_mean_vector,
+        bp1_0.ewma_variance,
+        bp1_0.last_tx_timestamp,
+        bp1_0.mean_vector,
+        bp1_0.tx_count,
+        bp1_0.updated_at,
+        bp1_0.user_id,
+        bp1_0.version,
+        u1_0.created_at,
+        u1_0.current_refresh_token,
+        u1_0.email,
+        u1_0.face_embeddings,
+        u1_0.full_name,
+        u1_0.is_suspicious_session,
+        u1_0.last_login_device,
+        u1_0.last_login_ip,
+        u1_0.phone_number,
+        u1_0.role,
+        u1_0.status,
+        us1_0.id,
+        us1_0.created_at,
+        us1_0.failed_login_attempts,
+        us1_0.failed_pin_attempts,
+        us1_0.is_pin_setup,
+        us1_0.last_password_change,
+        us1_0.last_pin_change,
+        us1_0.lock_until,
+        us1_0.password_hash,
+        us1_0.pin_hash,
+        us1_0.two_factor_enabled,
+        us1_0.updated_at,
+        us1_0.user_id,
+        u1_0.username,
+        fa1_0.version,
+        t1_0.location_ip,
+        t1_0.risk_level,
+        t1_0.status,
+        t1_0.to_account_number,
+        t1_0.to_bank_code,
+        t1_0.total_risk_score
+    from
+        transactions t1_0
+    left join
+        accounts fa1_0
+            on fa1_0.id=t1_0.from_account_id
+    left join
+        users u1_0
+            on u1_0.id=fa1_0.user_id
+    left join
+        user_securities us1_0
+            on u1_0.id=us1_0.user_id
+    left join
+        user_behavior_profiles bp1_0
+            on u1_0.id=bp1_0.user_id
+    where
+        t1_0.id=?
+2026-05-27T22:09:57.143+07:00  INFO 28760 --- [nio-8081-exec-1] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.repository.TransactionRepository.findByIdWithUserSecurity() executed in 7 ms
+2026-05-27T22:09:57.248+07:00  INFO 28760 --- [   RT-Emotion-1] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.RiskEvaluationService.detectEmotionAsync() executed in 97 ms
+2026-05-27T22:09:57.932+07:00  INFO 28760 --- [   RT-Emotion-3] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.RiskEvaluationService.detectEmotionAsync() executed in 121 ms
+2026-05-27T22:09:57.936+07:00  INFO 28760 --- [   RT-Emotion-2] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.RiskEvaluationService.detectEmotionAsync() executed in 125 ms
+2026-05-27T22:09:57.958+07:00  INFO 28760 --- [   RT-Emotion-1] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.RiskEvaluationService.detectEmotionAsync() executed in 112 ms
+2026-05-27T22:09:58.948+07:00  INFO 28760 --- [   RT-Emotion-3] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.RiskEvaluationService.detectEmotionAsync() executed in 150 ms
+2026-05-27T22:09:58.951+07:00  INFO 28760 --- [   RT-Emotion-1] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.RiskEvaluationService.detectEmotionAsync() executed in 147 ms
+2026-05-27T22:09:58.956+07:00  INFO 28760 --- [   RT-Emotion-2] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.RiskEvaluationService.detectEmotionAsync() executed in 154 ms
+2026-05-27T22:09:59.035+07:00  INFO 28760 --- [   RT-Emotion-3] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.RiskEvaluationService.detectEmotionAsync() executed in 86 ms
+2026-05-27T22:09:59.225+07:00  INFO 28760 --- [   RT-Emotion-1] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.RiskEvaluationService.detectEmotionAsync() executed in 91 ms
+2026-05-27T22:09:59.414+07:00  INFO 28760 --- [   RT-Emotion-2] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.RiskEvaluationService.detectEmotionAsync() executed in 76 ms
+2026-05-27T22:09:59.673+07:00  INFO 28760 --- [   RT-Emotion-3] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.RiskEvaluationService.detectEmotionAsync() executed in 77 ms
+2026-05-27T22:09:59.749+07:00  INFO 28760 --- [   scheduling-1] c.d.f.i.m.ExecutorMetricsLogger          : [EXECUTOR-METRICS][BG-Task       [aiTaskExecutor]] threads=0/0 queue=0/500 (0%) completed=0
+2026-05-27T22:09:59.749+07:00  INFO 28760 --- [   scheduling-1] c.d.f.i.m.ExecutorMetricsLogger          : [EXECUTOR-METRICS][RT-Emotion    [realtimeEmotionExecutor]] threads=0/3 queue=0/30 (0%) completed=11
+2026-05-27T22:09:59.749+07:00  INFO 28760 --- [   scheduling-1] c.d.f.i.m.ExecutorMetricsLogger          : [EXECUTOR-METRICS][BioVerify     [biometricVerifyExecutor]] threads=0/0 queue=0/50 (0%) completed=0
+2026-05-27T22:09:59.913+07:00  INFO 28760 --- [   RT-Emotion-1] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.RiskEvaluationService.detectEmotionAsync() executed in 76 ms
+2026-05-27T22:10:00.949+07:00  INFO 28760 --- [   RT-Emotion-3] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.RiskEvaluationService.detectEmotionAsync() executed in 140 ms
+2026-05-27T22:10:00.958+07:00  INFO 28760 --- [   RT-Emotion-2] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.RiskEvaluationService.detectEmotionAsync() executed in 149 ms
+2026-05-27T22:10:00.960+07:00  INFO 28760 --- [   RT-Emotion-1] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.RiskEvaluationService.detectEmotionAsync() executed in 151 ms
+2026-05-27T22:10:01.027+07:00  INFO 28760 --- [   RT-Emotion-3] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.RiskEvaluationService.detectEmotionAsync() executed in 78 ms
+2026-05-27T22:10:01.218+07:00  INFO 28760 --- [   RT-Emotion-2] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.RiskEvaluationService.detectEmotionAsync() executed in 83 ms
+2026-05-27T22:10:01.758+07:00  INFO 28760 --- [   RT-Emotion-1] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.RiskEvaluationService.detectEmotionAsync() executed in 102 ms
+2026-05-27T22:10:01.772+07:00  INFO 28760 --- [   RT-Emotion-3] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.RiskEvaluationService.detectEmotionAsync() executed in 115 ms
+2026-05-27T22:10:01.910+07:00  INFO 28760 --- [   RT-Emotion-2] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.RiskEvaluationService.detectEmotionAsync() executed in 72 ms
+2026-05-27T22:10:03.088+07:00  INFO 28760 --- [   RT-Emotion-3] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.RiskEvaluationService.detectEmotionAsync() executed in 279 ms
+2026-05-27T22:10:03.127+07:00  INFO 28760 --- [   RT-Emotion-2] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.RiskEvaluationService.detectEmotionAsync() executed in 314 ms
+2026-05-27T22:10:03.130+07:00  INFO 28760 --- [   RT-Emotion-1] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.RiskEvaluationService.detectEmotionAsync() executed in 321 ms
+2026-05-27T22:10:03.232+07:00  INFO 28760 --- [   RT-Emotion-3] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.RiskEvaluationService.detectEmotionAsync() executed in 143 ms
+2026-05-27T22:10:03.240+07:00  INFO 28760 --- [   RT-Emotion-2] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.RiskEvaluationService.detectEmotionAsync() executed in 111 ms
+2026-05-27T22:10:03.415+07:00  INFO 28760 --- [   RT-Emotion-1] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.RiskEvaluationService.detectEmotionAsync() executed in 79 ms
+2026-05-27T22:10:03.813+07:00  INFO 28760 --- [   RT-Emotion-3] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.RiskEvaluationService.detectEmotionAsync() executed in 81 ms
+2026-05-27T22:10:03.912+07:00  INFO 28760 --- [   RT-Emotion-2] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.RiskEvaluationService.detectEmotionAsync() executed in 75 ms
+2026-05-27T22:10:04.938+07:00  INFO 28760 --- [   RT-Emotion-1] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.RiskEvaluationService.detectEmotionAsync() executed in 130 ms
+2026-05-27T22:10:04.945+07:00  INFO 28760 --- [   RT-Emotion-3] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.RiskEvaluationService.detectEmotionAsync() executed in 136 ms
+2026-05-27T22:10:04.957+07:00  INFO 28760 --- [   RT-Emotion-2] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.RiskEvaluationService.detectEmotionAsync() executed in 148 ms
+2026-05-27T22:10:05.023+07:00  INFO 28760 --- [   RT-Emotion-1] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.RiskEvaluationService.detectEmotionAsync() executed in 83 ms
+2026-05-27T22:10:05.204+07:00  INFO 28760 --- [   RT-Emotion-3] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.RiskEvaluationService.detectEmotionAsync() executed in 70 ms
+2026-05-27T22:10:05.926+07:00  INFO 28760 --- [   RT-Emotion-2] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.RiskEvaluationService.detectEmotionAsync() executed in 118 ms
+2026-05-27T22:10:05.933+07:00  INFO 28760 --- [   RT-Emotion-1] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.RiskEvaluationService.detectEmotionAsync() executed in 125 ms
+2026-05-27T22:10:05.957+07:00  INFO 28760 --- [   RT-Emotion-3] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.RiskEvaluationService.detectEmotionAsync() executed in 120 ms
+2026-05-27T22:10:06.572+07:00  INFO 28760 --- [   RT-Emotion-2] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.RiskEvaluationService.detectEmotionAsync() executed in 103 ms
+2026-05-27T22:10:06.573+07:00  INFO 28760 --- [   RT-Emotion-1] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.RiskEvaluationService.detectEmotionAsync() executed in 104 ms
+2026-05-27T22:10:06.907+07:00  INFO 28760 --- [   RT-Emotion-3] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.RiskEvaluationService.detectEmotionAsync() executed in 100 ms
+2026-05-27T22:10:06.924+07:00  INFO 28760 --- [   RT-Emotion-2] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.RiskEvaluationService.detectEmotionAsync() executed in 93 ms
+Hibernate:
+    select
+        t1_0.id,
+        t1_0.amount,
+        t1_0.created_at,
+        t1_0.description,
+        t1_0.device_fingerprint,
+        t1_0.emotion_signal,
+        t1_0.failed_ai_attempts,
+        fa1_0.id,
+        fa1_0.account_number,
+        fa1_0.balance,
+        fa1_0.currency,
+        fa1_0.status,
+        u1_0.id,
+        u1_0.admin_flagged,
+        bp1_0.id,
+        bp1_0.covariance_matrix_c,
+        bp1_0.created_at,
+        bp1_0.ewma_mean_vector,
+        bp1_0.ewma_variance,
+        bp1_0.last_tx_timestamp,
+        bp1_0.mean_vector,
+        bp1_0.tx_count,
+        bp1_0.updated_at,
+        bp1_0.user_id,
+        bp1_0.version,
+        u1_0.created_at,
+        u1_0.current_refresh_token,
+        u1_0.email,
+        u1_0.face_embeddings,
+        u1_0.full_name,
+        u1_0.is_suspicious_session,
+        u1_0.last_login_device,
+        u1_0.last_login_ip,
+        u1_0.phone_number,
+        u1_0.role,
+        u1_0.status,
+        us1_0.id,
+        us1_0.created_at,
+        us1_0.failed_login_attempts,
+        us1_0.failed_pin_attempts,
+        us1_0.is_pin_setup,
+        us1_0.last_password_change,
+        us1_0.last_pin_change,
+        us1_0.lock_until,
+        us1_0.password_hash,
+        us1_0.pin_hash,
+        us1_0.two_factor_enabled,
+        us1_0.updated_at,
+        us1_0.user_id,
+        u1_0.username,
+        fa1_0.version,
+        t1_0.location_ip,
+        t1_0.risk_level,
+        t1_0.status,
+        t1_0.to_account_number,
+        t1_0.to_bank_code,
+        t1_0.total_risk_score
+    from
+        transactions t1_0
+    left join
+        accounts fa1_0
+            on fa1_0.id=t1_0.from_account_id
+    left join
+        users u1_0
+            on u1_0.id=fa1_0.user_id
+    left join
+        user_securities us1_0
+            on u1_0.id=us1_0.user_id
+    left join
+        user_behavior_profiles bp1_0
+            on u1_0.id=bp1_0.user_id
+    where
+        t1_0.id=?
+2026-05-27T22:10:07.016+07:00  INFO 28760 --- [nio-8081-exec-5] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.repository.TransactionRepository.findByIdWithUserSecurity() executed in 8 ms
+2026-05-27T22:10:07.017+07:00  INFO 28760 --- [nio-8081-exec-5] c.d.f.w.w.LiveEmotionWebSocketHandler    : [WS-FACE][FINALIZE] txKey=4832 frames=5 totalBytes=226696 session=2aab684c-1838-a433-7f26-6111705c7d18
+Hibernate:
+    select
+        t1_0.id,
+        t1_0.amount,
+        t1_0.created_at,
+        t1_0.description,
+        t1_0.device_fingerprint,
+        t1_0.emotion_signal,
+        t1_0.failed_ai_attempts,
+        fa1_0.id,
+        fa1_0.account_number,
+        fa1_0.balance,
+        fa1_0.currency,
+        fa1_0.status,
+        u1_0.id,
+        u1_0.admin_flagged,
+        bp1_0.id,
+        bp1_0.covariance_matrix_c,
+        bp1_0.created_at,
+        bp1_0.ewma_mean_vector,
+        bp1_0.ewma_variance,
+        bp1_0.last_tx_timestamp,
+        bp1_0.mean_vector,
+        bp1_0.tx_count,
+        bp1_0.updated_at,
+        bp1_0.user_id,
+        bp1_0.version,
+        u1_0.created_at,
+        u1_0.current_refresh_token,
+        u1_0.email,
+        u1_0.face_embeddings,
+        u1_0.full_name,
+        u1_0.is_suspicious_session,
+        u1_0.last_login_device,
+        u1_0.last_login_ip,
+        u1_0.phone_number,
+        u1_0.role,
+        u1_0.status,
+        us1_0.id,
+        us1_0.created_at,
+        us1_0.failed_login_attempts,
+        us1_0.failed_pin_attempts,
+        us1_0.is_pin_setup,
+        us1_0.last_password_change,
+        us1_0.last_pin_change,
+        us1_0.lock_until,
+        us1_0.password_hash,
+        us1_0.pin_hash,
+        us1_0.two_factor_enabled,
+        us1_0.updated_at,
+        us1_0.user_id,
+        u1_0.username,
+        fa1_0.version,
+        t1_0.location_ip,
+        t1_0.risk_level,
+        t1_0.status,
+        t1_0.to_account_number,
+        t1_0.to_bank_code,
+        t1_0.total_risk_score
+    from
+        transactions t1_0
+    left join
+        accounts fa1_0
+            on fa1_0.id=t1_0.from_account_id
+    left join
+        users u1_0
+            on u1_0.id=fa1_0.user_id
+    left join
+        user_securities us1_0
+            on u1_0.id=us1_0.user_id
+    left join
+        user_behavior_profiles bp1_0
+            on u1_0.id=bp1_0.user_id
+    where
+        t1_0.id=?
+2026-05-27T22:10:07.021+07:00  INFO 28760 --- [ient-AsyncIO-12] c.d.f.w.w.LiveVoiceWebSocketHandler      : [WS-VOICE][PYTHON] received VERIFICATION_COMPLETE txKey=9a025de3-9e50-4eb8-ac6d-53524ac29480 authCode_length=6
+Hibernate:
+    select
+        t1_0.id,
+        t1_0.amount,
+        t1_0.created_at,
+        t1_0.description,
+        t1_0.device_fingerprint,
+        t1_0.emotion_signal,
+        t1_0.failed_ai_attempts,
+        fa1_0.id,
+        fa1_0.account_number,
+        fa1_0.balance,
+        fa1_0.currency,
+        fa1_0.status,
+        u1_0.id,
+        u1_0.admin_flagged,
+        bp1_0.id,
+        bp1_0.covariance_matrix_c,
+        bp1_0.created_at,
+        bp1_0.ewma_mean_vector,
+        bp1_0.ewma_variance,
+        bp1_0.last_tx_timestamp,
+        bp1_0.mean_vector,
+        bp1_0.tx_count,
+        bp1_0.updated_at,
+        bp1_0.user_id,
+        bp1_0.version,
+        u1_0.created_at,
+        u1_0.current_refresh_token,
+        u1_0.email,
+        u1_0.face_embeddings,
+        u1_0.full_name,
+        u1_0.is_suspicious_session,
+        u1_0.last_login_device,
+        u1_0.last_login_ip,
+        u1_0.phone_number,
+        u1_0.role,
+        u1_0.status,
+        us1_0.id,
+        us1_0.created_at,
+        us1_0.failed_login_attempts,
+        us1_0.failed_pin_attempts,
+        us1_0.is_pin_setup,
+        us1_0.last_password_change,
+        us1_0.last_pin_change,
+        us1_0.lock_until,
+        us1_0.password_hash,
+        us1_0.pin_hash,
+        us1_0.two_factor_enabled,
+        us1_0.updated_at,
+        us1_0.user_id,
+        u1_0.username,
+        fa1_0.version,
+        t1_0.location_ip,
+        t1_0.risk_level,
+        t1_0.status,
+        t1_0.to_account_number,
+        t1_0.to_bank_code,
+        t1_0.total_risk_score
+    from
+        transactions t1_0
+    left join
+        accounts fa1_0
+            on fa1_0.id=t1_0.from_account_id
+    left join
+        users u1_0
+            on u1_0.id=fa1_0.user_id
+    left join
+        user_securities us1_0
+            on u1_0.id=us1_0.user_id
+    left join
+        user_behavior_profiles bp1_0
+            on u1_0.id=bp1_0.user_id
+    where
+        t1_0.id=?
+2026-05-27T22:10:07.026+07:00  INFO 28760 --- [nio-8081-exec-5] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.repository.TransactionRepository.findByIdWithUserSecurity() executed in 7 ms
+2026-05-27T22:10:07.026+07:00  INFO 28760 --- [nio-8081-exec-5] c.d.f.w.w.LiveEmotionWebSocketHandler    : [WS-FACE][FINALIZE][ASYNC-SUBMIT] txKey=4832 user=congnhan_b frames=5
+2026-05-27T22:10:07.028+07:00  INFO 28760 --- [nio-8081-exec-5] c.d.f.c.s.AdvancedFaceActionStrategy     : [FaceAI][ASYNC-START] tx=4832 frames=5
+2026-05-27T22:10:07.029+07:00  INFO 28760 --- [ient-AsyncIO-12] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.repository.TransactionRepository.findByIdWithUserSecurity() executed in 7 ms
+2026-05-27T22:10:07.031+07:00  INFO 28760 --- [    BioVerify-2] c.d.f.c.s.b.BatchEmotionEvaluator        : [BATCH-EMOTION][START] frames=5 thread=BioVerify-2
+2026-05-27T22:10:07.035+07:00  INFO 28760 --- [ient-AsyncIO-12] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.OtpService.verifyVoiceOtp() executed in 5 ms
+2026-05-27T22:10:07.035+07:00  INFO 28760 --- [ient-AsyncIO-12] c.d.f.w.w.LiveVoiceWebSocketHandler      : [WS-VOICE] voice OTP match=true txId=4832
+2026-05-27T22:10:07.035+07:00  INFO 28760 --- [    BioVerify-1] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.FaceEnrollService.parseEmbeddings() executed in 4 ms
+2026-05-27T22:10:07.035+07:00  INFO 28760 --- [nio-8081-exec-5] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.strategies.AdvancedFaceActionStrategy.validateFaceAndEmotionAsync() executed in 7 ms
+2026-05-27T22:10:07.035+07:00  INFO 28760 --- [    BioVerify-1] c.d.f.c.services.RiskEvaluationService   : [FACE-ID][START] userId=2002 embeddings=5 frames=5
+2026-05-27T22:10:07.035+07:00  INFO 28760 --- [    BioVerify-1] c.d.f.c.services.RiskEvaluationService   : [FACE-ID][START] mode=MULTI_EMBEDDING frames=5 registered=5
+Hibernate:
+    select
+        bs1_0.id,
+        bs1_0.created_at,
+        bs1_0.error_message,
+        bs1_0.expires_at,
+        bs1_0.face_result,
+        bs1_0.finalized,
+        bs1_0.session_token,
+        bs1_0.transaction_id,
+        bs1_0.used,
+        bs1_0.user_id,
+        bs1_0.version,
+        bs1_0.voice_result
+    from
+        biometric_session bs1_0
+    where
+        bs1_0.session_token=? for update
+2026-05-27T22:10:07.054+07:00  INFO 28760 --- [ient-AsyncIO-12] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.repository.BiometricSessionRepository.findBySessionTokenForUpdate() executed in 14 ms
+2026-05-27T22:10:07.055+07:00  INFO 28760 --- [ient-AsyncIO-12] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.VerificationSyncManager.updateVoiceResult() executed in 18 ms
+Hibernate:
+    update
+        biometric_session
+    set
+        created_at=?,
+        error_message=?,
+        expires_at=?,
+        face_result=?,
+        finalized=?,
+        session_token=?,
+        transaction_id=?,
+        used=?,
+        user_id=?,
+        version=?,
+        voice_result=?
+    where
+        id=?
+        and version=?
+2026-05-27T22:10:07.070+07:00  INFO 28760 --- [ient-AsyncIO-11] c.d.f.w.w.LiveVoiceWebSocketHandler      : [WS-VOICE][PYTHON] normal close after VERIFICATION_COMPLETE status=1000 txKey=9a025de3-9e50-4eb8-ac6d-53524ac29480
+2026-05-27T22:10:07.731+07:00  INFO 28760 --- [    BioVerify-2] c.d.f.c.s.b.BatchEmotionEvaluator        : [BATCH-EMOTION][DONE] elapsed=700ms emotion=SAD
+2026-05-27T22:10:07.732+07:00  INFO 28760 --- [    BioVerify-2] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.biometric.BatchEmotionEvaluator.evaluateSequenceAsync() executed in 701 ms
+2026-05-27T22:10:09.962+07:00  INFO 28760 --- [    BioVerify-1] c.d.f.c.services.RiskEvaluationService   : [FACE-ID][DONE] elapsed=2927ms matched=true distance=0.202422 band=HIGH backend=insightface/buffalo_l
+2026-05-27T22:10:09.962+07:00  INFO 28760 --- [    BioVerify-1] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.RiskEvaluationService.verifyIdentityAsync() executed in 2931 ms
+2026-05-27T22:10:09.962+07:00  INFO 28760 --- [    BioVerify-1] c.d.f.c.s.AdvancedFaceActionStrategy     : [FaceAI][ASYNC-RESULT] tx=4832 elapsed=2934ms matched=true distance=0.2024 band=HIGH emotion=SAD
+2026-05-27T22:10:09.963+07:00  INFO 28760 --- [    BioVerify-1] c.d.f.c.s.AdvancedFaceActionStrategy     : [FaceAI][LIVENESS] tx=4832 liveness_pass=true liveness_score=0.9997 spoof_detected=false
+Hibernate:
+    update
+        transactions t1_0
+    set
+        emotion_signal=?
+    where
+        t1_0.id=?
+2026-05-27T22:10:09.981+07:00  INFO 28760 --- [    BioVerify-1] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.repository.TransactionRepository.updateEmotionSignal() executed in 18 ms
+2026-05-27T22:10:09.982+07:00  INFO 28760 --- [    BioVerify-1] c.d.f.c.s.AdvancedFaceActionStrategy     : [FaceAI][ASYNC-PASS] tx=4832 elapsed=2934ms ? identity + emotion OK
+2026-05-27T22:10:09.983+07:00  INFO 28760 --- [    BioVerify-1] c.d.f.w.w.LiveEmotionWebSocketHandler    : [WS-FACE][FINALIZE][ASYNC-DONE] txKey=4832 elapsed=2957ms result=true
+Hibernate:
+    select
+        bs1_0.id,
+        bs1_0.created_at,
+        bs1_0.error_message,
+        bs1_0.expires_at,
+        bs1_0.face_result,
+        bs1_0.finalized,
+        bs1_0.session_token,
+        bs1_0.transaction_id,
+        bs1_0.used,
+        bs1_0.user_id,
+        bs1_0.version,
+        bs1_0.voice_result
+    from
+        biometric_session bs1_0
+    where
+        bs1_0.session_token=? for update
+2026-05-27T22:10:09.985+07:00  INFO 28760 --- [    BioVerify-1] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.repository.BiometricSessionRepository.findBySessionTokenForUpdate() executed in 1 ms
+Hibernate:
+    insert
+    into
+        ai_scan_logs
+        (confidence_score, created_at, emotion_details, process_time_ms, result_label, scan_type, transaction_id, user_id)
+    values
+        (?, ?, ?, ?, ?, ?, ?, ?)
+? [AUDIT] ?? ghi log nh?n di?n c?m xúc vào DB thành công ng?m!
+2026-05-27T22:10:09.994+07:00  INFO 28760 --- [      BG-Task-1] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.AiAuditService.logEmotionScan() executed in 11 ms
+Hibernate:
+    select
+        t1_0.id,
+        t1_0.amount,
+        t1_0.created_at,
+        t1_0.description,
+        t1_0.device_fingerprint,
+        t1_0.emotion_signal,
+        t1_0.failed_ai_attempts,
+        t1_0.from_account_id,
+        t1_0.location_ip,
+        t1_0.risk_level,
+        t1_0.status,
+        t1_0.to_account_number,
+        t1_0.to_bank_code,
+        t1_0.total_risk_score
+    from
+        transactions t1_0
+    where
+        t1_0.id=?
+Hibernate:
+    update
+        biometric_session
+    set
+        created_at=?,
+        error_message=?,
+        expires_at=?,
+        face_result=?,
+        finalized=?,
+        session_token=?,
+        transaction_id=?,
+        used=?,
+        user_id=?,
+        version=?,
+        voice_result=?
+    where
+        id=?
+        and version=?
+Hibernate:
+    update
+        transactions t1_0
+    set
+        status='PROCESSING'
+    where
+        t1_0.id=?
+        and t1_0.status in ('PENDING_PIN', 'PENDING_OTP', 'PENDING_FACE_STATIC', 'PENDING_ALL_IN_ONE', 'PENDING_VOICE_OTP', 'UNDER_REVIEW')
+2026-05-27T22:10:10.012+07:00  INFO 28760 --- [    BioVerify-1] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.repository.TransactionRepository.claimForExecution() executed in 12 ms
+2026-05-27T22:10:10.012+07:00  INFO 28760 --- [    BioVerify-1] c.d.f.core.services.TransactionService   : Transaction execution claimed: id=4832
+Hibernate:
+    select
+        t1_0.id,
+        t1_0.amount,
+        t1_0.created_at,
+        t1_0.description,
+        t1_0.device_fingerprint,
+        t1_0.emotion_signal,
+        t1_0.failed_ai_attempts,
+        t1_0.from_account_id,
+        t1_0.location_ip,
+        t1_0.risk_level,
+        t1_0.status,
+        t1_0.to_account_number,
+        t1_0.to_bank_code,
+        t1_0.total_risk_score,
+        ai1_0.transaction_id,
+        ai1_0.id,
+        ai1_0.anomaly_score,
+        ai1_0.created_at,
+        ai1_0.feature_name,
+        ai1_0.insight_message,
+        ai1_0.insight_type
+    from
+        transactions t1_0
+    left join
+        transaction_ai_insights ai1_0
+            on t1_0.id=ai1_0.transaction_id
+    where
+        t1_0.id=?
+Hibernate:
+    select
+        rs1_0.transaction_id,
+        rs1_0.id,
+        rs1_0.applied_score,
+        rs1_0.created_at,
+        rs1_0.rule_id
+    from
+        risk_scores rs1_0
+    where
+        rs1_0.transaction_id=?
+Hibernate:
+    update
+        transactions
+    set
+        amount=?,
+        created_at=?,
+        description=?,
+        device_fingerprint=?,
+        emotion_signal=?,
+        failed_ai_attempts=?,
+        from_account_id=?,
+        location_ip=?,
+        risk_level=?,
+        status=?,
+        to_account_number=?,
+        to_bank_code=?,
+        total_risk_score=?
+    where
+        id=?
+Hibernate:
+    select
+        count(tl1_0.id)>0
+    from
+        transaction_ledgers tl1_0
+    join
+        transactions t1_0
+            on t1_0.id=tl1_0.transaction_id
+    where
+        tl1_0.account_id=?
+        and tl1_0.entry_type='DEBIT'
+        and t1_0.to_account_number=?
+2026-05-27T22:10:10.033+07:00  INFO 28760 --- [    BioVerify-1] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.repository.TransactionLedgerRepository.existsByAccountIdAndToAccountNumber() executed in 6 ms
+Hibernate:
+    select
+        a1_0.id,
+        a1_0.account_number,
+        a1_0.balance,
+        a1_0.currency,
+        a1_0.status,
+        a1_0.user_id,
+        a1_0.version
+    from
+        accounts a1_0
+    where
+        a1_0.id=? for update
+2026-05-27T22:10:10.040+07:00  INFO 28760 --- [    BioVerify-1] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.repository.AccountRepository.findByIdForUpdate() executed in 6 ms
+Hibernate:
+    insert
+    into
+        transaction_ledgers
+        (account_id, amount, balance_after, created_at, description, entry_type, transaction_id)
+    values
+        (?, ?, ?, ?, ?, ?, ?)
+Hibernate:
+    update
+        accounts
+    set
+        account_number=?,
+        balance=?,
+        currency=?,
+        status=?,
+        user_id=?,
+        version=?
+    where
+        id=?
+        and version=?
+Hibernate:
+    select
+        a1_0.id,
+        a1_0.account_number,
+        a1_0.balance,
+        a1_0.currency,
+        a1_0.status,
+        a1_0.user_id,
+        a1_0.version
+    from
+        accounts a1_0
+    where
+        a1_0.account_number=? for update
+2026-05-27T22:10:10.054+07:00  INFO 28760 --- [    BioVerify-1] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.repository.AccountRepository.findByAccountNumberForUpdate() executed in 8 ms
+Hibernate:
+    insert
+    into
+        transaction_ledgers
+        (account_id, amount, balance_after, created_at, description, entry_type, transaction_id)
+    values
+        (?, ?, ?, ?, ?, ?, ?)
+2026-05-27T22:10:10.059+07:00  INFO 28760 --- [    BioVerify-1] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.TransactionService.executeTransactionCore() executed in 59 ms
+Hibernate:
+    insert
+    into
+        audit_logs
+        (action, details, timestamp, username)
+    values
+        (?, ?, ?, ?)
+? [ASYNC] H?c giao d?ch th?t #4832
+2026-05-27T22:10:10.061+07:00  INFO 28760 --- [    BioVerify-1] c.d.f.core.services.AuditLogService      : [AUDIT] action=TX_SUCCESS user=congnhan_b
+2026-05-27T22:10:10.061+07:00  INFO 28760 --- [    BioVerify-1] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.AuditLogService.logAction() executed in 1 ms
+Hibernate:
+    select
+        bs1_0.id,
+        bs1_0.created_at,
+        bs1_0.error_message,
+        bs1_0.expires_at,
+        bs1_0.face_result,
+        bs1_0.finalized,
+        bs1_0.session_token,
+        bs1_0.transaction_id,
+        bs1_0.used,
+        bs1_0.user_id,
+        bs1_0.version,
+        bs1_0.voice_result
+    from
+        biometric_session bs1_0
+    where
+        bs1_0.id=?
+Hibernate:
+    select
+        ubp1_0.id,
+        ubp1_0.covariance_matrix_c,
+        ubp1_0.created_at,
+        ubp1_0.ewma_mean_vector,
+        ubp1_0.ewma_variance,
+        ubp1_0.last_tx_timestamp,
+        ubp1_0.mean_vector,
+        ubp1_0.tx_count,
+        ubp1_0.updated_at,
+        ubp1_0.user_id,
+        ubp1_0.version
+    from
+        user_behavior_profiles ubp1_0
+    left join
+        users u1_0
+            on u1_0.id=ubp1_0.user_id
+    where
+        u1_0.id=?
+2026-05-27T22:10:10.067+07:00  INFO 28760 --- [      BG-Task-2] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.repository.UserBehaviorProfileRepository.findByUserId() executed in 5 ms
+2026-05-27T22:10:10.067+07:00  INFO 28760 --- [    BioVerify-1] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.VerificationSyncManager.updateFaceResult() executed in 84 ms
+Hibernate:
+    update
+        accounts
+    set
+        account_number=?,
+        balance=?,
+        currency=?,
+        status=?,
+        user_id=?,
+        version=?
+    where
+        id=?
+        and version=?
+? [LEARN] User #2002 | tx_count=363 | gap=1173s
+2026-05-27T22:10:10.069+07:00  INFO 28760 --- [      BG-Task-2] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.BehaviorLearningService.learnFromTransaction() executed in 9 ms
+Hibernate:
+    update
+        user_behavior_profiles
+    set
+        covariance_matrix_c=cast(? as json),
+        ewma_mean_vector=cast(? as json),
+        ewma_variance=cast(? as json),
+        last_tx_timestamp=?,
+        mean_vector=cast(? as json),
+        tx_count=?,
+        updated_at=?,
+        user_id=?,
+        version=?
+    where
+        id=?
+        and version=?
+2026-05-27T22:10:10.073+07:00  WARN 28760 --- [    BioVerify-1] c.d.f.c.s.VerificationSyncManager        : [SYNC] afterCommit: face session closed or missing for txId=4832 ? client must poll REST
+2026-05-27T22:10:27.015+07:00  INFO 28760 --- [nio-8081-exec-9] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.services.JwtBlocklistService.isBlocked() executed in 1 ms
+Hibernate:
+    select
+        t1_0.id,
+        t1_0.amount,
+        t1_0.created_at,
+        t1_0.description,
+        t1_0.device_fingerprint,
+        t1_0.emotion_signal,
+        t1_0.failed_ai_attempts,
+        fa1_0.id,
+        fa1_0.account_number,
+        fa1_0.balance,
+        fa1_0.currency,
+        fa1_0.status,
+        u1_0.id,
+        u1_0.admin_flagged,
+        bp1_0.id,
+        bp1_0.covariance_matrix_c,
+        bp1_0.created_at,
+        bp1_0.ewma_mean_vector,
+        bp1_0.ewma_variance,
+        bp1_0.last_tx_timestamp,
+        bp1_0.mean_vector,
+        bp1_0.tx_count,
+        bp1_0.updated_at,
+        bp1_0.user_id,
+        bp1_0.version,
+        u1_0.created_at,
+        u1_0.current_refresh_token,
+        u1_0.email,
+        u1_0.face_embeddings,
+        u1_0.full_name,
+        u1_0.is_suspicious_session,
+        u1_0.last_login_device,
+        u1_0.last_login_ip,
+        u1_0.phone_number,
+        u1_0.role,
+        u1_0.status,
+        us1_0.id,
+        us1_0.created_at,
+        us1_0.failed_login_attempts,
+        us1_0.failed_pin_attempts,
+        us1_0.is_pin_setup,
+        us1_0.last_password_change,
+        us1_0.last_pin_change,
+        us1_0.lock_until,
+        us1_0.password_hash,
+        us1_0.pin_hash,
+        us1_0.two_factor_enabled,
+        us1_0.updated_at,
+        us1_0.user_id,
+        u1_0.username,
+        fa1_0.version,
+        t1_0.location_ip,
+        t1_0.risk_level,
+        t1_0.status,
+        t1_0.to_account_number,
+        t1_0.to_bank_code,
+        t1_0.total_risk_score
+    from
+        transactions t1_0
+    left join
+        accounts fa1_0
+            on fa1_0.id=t1_0.from_account_id
+    left join
+        users u1_0
+            on u1_0.id=fa1_0.user_id
+    left join
+        user_securities us1_0
+            on u1_0.id=us1_0.user_id
+    left join
+        user_behavior_profiles bp1_0
+            on u1_0.id=bp1_0.user_id
+    where
+        t1_0.id=?
+2026-05-27T22:10:27.024+07:00  INFO 28760 --- [nio-8081-exec-9] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.core.repository.TransactionRepository.findByIdWithUserSecurity() executed in 5 ms
+2026-05-27T22:10:27.024+07:00  INFO 28760 --- [nio-8081-exec-9] c.d.f.i.aspects.PerformanceTracerAspect  : [TRACE-JAVA] com.datn.finrisk.web.controllers.TransactionController.getVerificationStatus() executed in 5 ms
+2026-05-27T22:10:27.048+07:00  INFO 28760 --- [io-8081-exec-10] c.d.f.w.w.LiveVoiceWebSocketHandler      : [WS-VOICE] closed session=f8d081eb-0893-5640-c857-8e0de7f9e5fd ip=0:0:0:0:0:0:0:1 status=1000
+2026-05-27T22:10:27.048+07:00  INFO 28760 --- [nio-8081-exec-7] c.d.f.w.w.LiveEmotionWebSocketHandler    : [WS-FACE] closed session=2aab684c-1838-a433-7f26-6111705c7d18 ip=0:0:0:0:0:0:0:1 status=1000
+2026-05-27T22:10:29.747+07:00  INFO 28760 --- [   scheduling-1] c.d.f.i.m.ExecutorMetricsLogger          : [EXECUTOR-METRICS][BG-Task       [aiTaskExecutor]] threads=0/2 queue=0/500 (0%) completed=2
+2026-05-27T22:10:29.747+07:00  INFO 28760 --- [   scheduling-1] c.d.f.i.m.ExecutorMetricsLogger          : [EXECUTOR-METRICS][RT-Emotion    [realtimeEmotionExecutor]] threads=0/3 queue=0/30 (0%) completed=40
+2026-05-27T22:10:29.747+07:00  INFO 28760 --- [   scheduling-1] c.d.f.i.m.ExecutorMetricsLogger          : [EXECUTOR-METRICS][BioVerify     [biometricVerifyExecutor]] threads=0/2 queue=0/50 (0%) completed=2

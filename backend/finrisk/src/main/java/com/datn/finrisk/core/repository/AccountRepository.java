@@ -34,9 +34,10 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
     Optional<Account> findByUserId(@Param("userId") Long userId);
 
     @Query("""
-        SELECT a FROM Account a 
-        LEFT JOIN FETCH a.user u 
-        LEFT JOIN FETCH u.userSecurity 
+        SELECT a FROM Account a
+        LEFT JOIN FETCH a.user u
+        LEFT JOIN FETCH u.userSecurity
+        LEFT JOIN FETCH u.behaviorProfile
         WHERE a.id = :accountId
     """)
     Optional<Account> findByIdWithUserAndSecurity(@Param("accountId") Long accountId);
@@ -48,6 +49,17 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
         WHERE a.accountNumber = :accountNumber
     """)
     Optional<Account> findByAccountNumberWithUser(@Param("accountNumber") String accountNumber);
+
+    @Query("""
+        SELECT a.accountNumber, u.fullName
+        FROM Account a
+        JOIN a.user u
+        WHERE a.accountNumber IN :accountNumbers
+    """)
+    List<Object[]> findAccountNumbersAndNames(@Param("accountNumbers") Set<String> accountNumbers);
+
+    @Query("SELECT u.fullName FROM Account a JOIN a.user u WHERE a.accountNumber = :accountNumber")
+    Optional<String> findFullNameByAccountNumber(@Param("accountNumber") String accountNumber);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT a FROM Account a WHERE a.id = :id")

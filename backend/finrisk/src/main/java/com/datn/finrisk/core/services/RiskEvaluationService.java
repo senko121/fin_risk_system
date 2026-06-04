@@ -64,7 +64,6 @@ public class RiskEvaluationService {
     @Autowired private RuleRepository ruleRepository;
     @Autowired private TransactionRepository transactionRepository;
     @Autowired private RiskScoreRepository riskScoreRepository;
-    @Autowired private com.datn.finrisk.core.repository.UserBehaviorProfileRepository profileRepository;
     @Autowired private com.datn.finrisk.core.services.BehavioralProfilingService behavioralProfilingService;
     @Autowired private UserDeviceRepository userDeviceRepository;
     @Autowired private CircuitBreakerRegistry circuitBreakerRegistry;
@@ -124,8 +123,7 @@ public class RiskEvaluationService {
         // Chỉ tính lịch sử đã chuyển — giao dịch đang xét chưa committed
         double dailyTotalAmount = totalTransferredToday;
 
-        com.datn.finrisk.core.entities.UserBehaviorProfile profile =
-                profileRepository.findByUserId(sender.getId()).orElse(null);
+        com.datn.finrisk.core.entities.UserBehaviorProfile profile = sender.getBehaviorProfile();
 
         double gapSeconds = 86400.0;
         if (profile != null && profile.getLastTxTimestamp() != null) {

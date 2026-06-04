@@ -117,22 +117,20 @@ public class TransactionService {
         tx.setTotalRiskScore(riskScore);
  
         tx = transactionRepository.save(tx);
-        System.out.println("🚀 TRANSACTION ĐÃ ĐƯỢC CHỐT SỔ. ID: " + tx.getId());
- 
+        log.debug("Transaction saved: id={}", tx.getId());
+
         if (!pendingRiskLogs.isEmpty()) {
-            for (RiskScore log : pendingRiskLogs) {
-                log.setTransaction(tx); 
-                riskScoreRepository.save(log);
-            }
-            System.out.println("✅ ĐÃ GHI NHẬN " + pendingRiskLogs.size() + " BẰNG CHỨNG VI PHẠM VÀO DATABASE.");
+            final Transaction savedTx = tx;
+            pendingRiskLogs.forEach(r -> r.setTransaction(savedTx));
+            riskScoreRepository.saveAll(pendingRiskLogs);
+            log.debug("Saved {} risk score(s) for tx={}", pendingRiskLogs.size(), savedTx.getId());
         }
- 
+
         if (!pendingAiInsights.isEmpty()) {
-            for (TransactionAiInsight insight : pendingAiInsights) {
-                insight.setTransaction(tx);
-                aiInsightRepository.save(insight);
-            }
-            System.out.println("🧠 ĐÃ GHI NHẬN " + pendingAiInsights.size() + " AI INSIGHTS VÀO DATABASE.");
+            final Transaction savedTx = tx;
+            pendingAiInsights.forEach(i -> i.setTransaction(savedTx));
+            aiInsightRepository.saveAll(pendingAiInsights);
+            log.debug("Saved {} AI insight(s) for tx={}", pendingAiInsights.size(), savedTx.getId());
         }
 
  
@@ -149,15 +147,14 @@ public class TransactionService {
                     OVERRIDE_PRIORITY.getOrDefault(policy.getRiskLevel(), 0);
 
                 if (overrideIsStricter) {
-                    System.out.printf("📌 OVERRIDE ÁP DỤNG: %s → %s (Pháp lý/nghiệp vụ bắt buộc)%n",
-                                      policy.getRiskLevel(), overridePolicy.getRiskLevel());
+                    log.info("Policy override applied: {} → {} (business rule)", policy.getRiskLevel(), overridePolicy.getRiskLevel());
                     policy = overridePolicy;
                 }
             }
         }
 
         tx.setRiskLevel(policy.getRiskLevel());  
-        System.out.printf("🔎 Kết luận: Điểm %d → %s [%s]%n", riskScore, policy.getRiskLevel(), policy.getDescription());
+        log.info("Risk evaluation: score={} level={} desc={}", riskScore, policy.getRiskLevel(), policy.getDescription());
  
         RiskActionStrategy strategy = actionStrategies.get(policy.getActionBeanName());
         
@@ -177,7 +174,7 @@ public class TransactionService {
             throw new BusinessLogicException("ERR_DUPLICATE_EXECUTION",
                 "Giao dịch đang được xử lý hoặc đã hoàn tất.");
         }
-        System.out.println("✅ XÁC THỰC THÀNH CÔNG -> ĐÓNG MỘC TRỪ TIỀN VÀO SỔ CÁI");
+        log.info("Transaction execution claimed: id={}", tx.getId());
 
         tx.setStatus("SUCCESS");
         Transaction savedTx = transactionRepository.save(tx);

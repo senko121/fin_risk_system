@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FinRisk — Wireframes Chương 4.4</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #e8eaf0;
+    color: #1a1a2e;
+    padding: 40px 20px;
+  }
+
+  h1.page-title {
+    text-align: center;
+    font-size: 22px;
+    font-weight: 800;
+    color: #1e2d40;
+    margin-bottom: 8px;
+    letter-spacing: 1px;
+  }
+  p.subtitle {
+    text-align: center;
+    font-size: 13px;
+    color: #64748b;
+    margin-bottom: 40px;
+  }
+
+  /* ── SECTION ── */
+  .section-title {
+    font-size: 15px;
+    font-weight: 800;
+    color: #1e2d40;
+    background: #d1d5db;
+    padding: 8px 18px;
+    border-radius: 8px;
+    margin: 40px 0 24px;
+    display: inline-block;
+    letter-spacing: 0.5px;
+  }
+
+  /* ── GRID LAYOUT ── */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 32px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  /* ── WIREFRAME CARD ── */
+  .wf-card {
+    background: white;
+    border: 2px solid #c4c9d4;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+  }
+  .wf-label {
+    background: #1e2d40;
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 6px 14px;
+    letter-spacing: 0.5px;
+  }
+  .wf-caption {
+    font-size: 12px;
+    color: #475569;
+    padding: 10px 14px 12px;
+    border-top: 1px solid #e2e8f0;
+    line-height: 1.5;
+  }
+
+  /* ── PHONE SHELL ── */
+  .phone {
+    background: #f8f9fb;
+    border: 1.5px solid #d1d5db;
+    margin: 12px;
+    border-radius: 8px;
+    min-height: 500px;
+    overflow: hidden;
+    font-size: 12px;
+  }
+
+  /* ── SHARED PRIMITIVES ── */
+  .wf-topbar {
+    background: #1e2d40;
+    color: #fff;
+    padding: 10px 14px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .wf-topbar small { color: rgba(255,255,255,0.45); display: block; font-weight: 400; }
+
+  .wf-header {
+    background: #f1f4f8;
+    border-bottom: 1px solid #dde3ec;
+    padding: 10px 14px;
+  }
+  .wf-header h3 { font-size: 13px; font-weight: 800; color: #1e2d40; }
+  .wf-header p  { font-size: 10px; color: #94a3b8; }
+
+  .wf-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+
+  .wf-card-block {
+    background: white;
+    border: 1.5px solid #dde3ec;
+    border-radius: 10px;
+    padding: 10px 12px;
+  }
+  .wf-card-block.dark {
+    background: #1e2d40;
+    border-color: #1e2d40;
+    color: white;
+  }
+  .wf-label-xs {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #94a3b8;
+    margin-bottom: 3px;
+  }
+  .wf-value { font-size: 14px; font-weight: 800; color: #1e2d40; }
+  .wf-value.big { font-size: 22px; }
+  .wf-value.green { color: #059669; }
+  .wf-value.white { color: white; }
+  .wf-value.white-dim { color: rgba(255,255,255,0.7); }
+
+  .wf-row { display: flex; align-items: center; justify-content: space-between; }
+  .wf-row-gap { display: flex; gap: 8px; }
+
+  .wf-btn {
+    background: #1e2d40;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 11px;
+    font-weight: 800;
+    text-align: center;
+    cursor: default;
+    letter-spacing: 0.04em;
+  }
+  .wf-btn.outline {
+    background: white;
+    color: #1e2d40;
+    border: 1.5px solid #dde3ec;
+  }
+  .wf-btn.indigo { background: #4f46e5; }
+  .wf-btn.disabled { background: #e2e8f0; color: #94a3b8; }
+
+  .wf-badge {
+    font-size: 9px;
+    font-weight: 800;
+    padding: 3px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .wf-badge.green  { background: rgba(16,185,129,0.15); color: #059669; }
+  .wf-badge.blue   { background: rgba(26,86,219,0.12);  color: #1a56db; }
+  .wf-badge.red    { background: rgba(239,68,68,0.12);   color: #dc2626; }
+  .wf-badge.orange { background: rgba(249,115,22,0.12);  color: #ea580c; }
+  .wf-badge.gray   { background: #f1f5f9; color: #64748b; }
+  .wf-badge.pulse  { animation: pulse 1.2s infinite; }
+
+  .wf-input-block {
+    border: 1.5px solid #dde3ec;
+    border-radius: 10px;
+    padding: 10px 12px;
+    background: white;
+  }
+  .wf-input-line {
+    height: 28px;
+    border-bottom: 1.5px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    font-size: 20px;
+    font-weight: 800;
+    color: #1e2d40;
+    font-family: monospace;
+  }
+  .wf-input-line.sm { font-size: 13px; height: 22px; }
+
+  .wf-chip {
+    background: #f1f4f8;
+    color: #64748b;
+    border-radius: 20px;
+    padding: 4px 10px;
+    font-size: 10px;
+    font-weight: 700;
+  }
+  .wf-chip.active { background: #1e2d40; color: white; }
+
+  .wf-divider { border: none; border-top: 1.5px dashed #e2e8f0; margin: 4px 0; }
+  .wf-divider-solid { border: none; border-top: 1px solid #f1f5f9; margin: 6px 0; }
+
+  .wf-camera {
+    width: 200px;
+    height: 200px;
+    border-radius: 12px;
+    background: #0f172a;
+    border: 3px solid #334155;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .wf-camera-label {
+    color: rgba(255,255,255,0.35);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .wf-camera-oval {
+    position: absolute;
+    width: 100px;
+    height: 130px;
+    border: 2px dashed rgba(255,255,255,0.25);
+    border-radius: 50%;
+  }
+  .wf-camera.green-border { border-color: #22c55e; }
+
+  .wf-status-bar {
+    height: 4px;
+    background: #f97316;
+    border-radius: 2px 2px 0 0;
+  }
+  .wf-status-bar.green { background: #22c55e; }
+
+  .wf-dark-screen {
+    background: #0f172a;
+    padding: 16px 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+  .wf-white-modal {
+    background: white;
+    border-radius: 20px;
+    padding: 14px 16px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    border: 3px solid #1e293b;
+  }
+
+  /* action buttons grid */
+  .action-grid {
+    display: grid;
+    grid-template-columns: repeat(4,1fr);
+    gap: 6px;
+  }
+  .action-btn {
+    background: white;
+    border: 1.5px solid #e8ecf2;
+    border-radius: 12px;
+    padding: 10px 4px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+  .action-btn .icon-box {
+    width: 34px; height: 34px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+  }
+  .action-btn span { font-size: 9px; font-weight: 700; color: #334155; }
+
+  /* tab filter */
+  .tab-bar { display: flex; gap: 4px; background: white; padding: 4px; border-radius: 10px; border: 1px solid #e8ecf2; width: fit-content; }
+  .tab { padding: 5px 10px; border-radius: 7px; font-size: 10px; font-weight: 700; color: #64748b; }
+  .tab.active { background: #1e2d40; color: white; }
+  .tab.green-active { background: #d1fae5; color: #065f46; }
+  .tab.red-active   { background: #fee2e2; color: #991b1b; }
+
+  /* tx list item */
+  .tx-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 4px;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .tx-icon {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    flex-shrink: 0;
+    margin-right: 8px;
+  }
+  .tx-icon.credit { background: #dcfce7; color: #16a34a; }
+  .tx-icon.debit  { background: #fee2e2; color: #dc2626; }
+  .tx-meta { flex: 1; }
+  .tx-meta .name { font-size: 11px; font-weight: 700; color: #1e293b; }
+  .tx-meta .desc { font-size: 9px; color: #94a3b8; margin-top: 1px; }
+  .tx-amount { text-align: right; }
+  .tx-amount .amt  { font-size: 11px; font-weight: 800; }
+  .tx-amount .bal  { font-size: 9px; color: #94a3b8; }
+  .tx-amount .credit { color: #16a34a; }
+  .tx-amount .debit  { color: #1e293b; }
+
+  /* admin stats */
+  .stats-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 8px; }
+  .stat-card {
+    background: white;
+    border: 1.5px solid #dde3ec;
+    border-radius: 10px;
+    padding: 10px;
+    text-align: center;
+  }
+  .stat-card .stat-val { font-size: 20px; font-weight: 800; color: #1e2d40; }
+  .stat-card .stat-lbl { font-size: 9px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 2px; }
+
+  /* pie placeholder */
+  .pie-placeholder {
+    background: white;
+    border: 1.5px solid #dde3ec;
+    border-radius: 10px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .pie-circle {
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    background: conic-gradient(#15803d 0deg 310deg, #b91c1c 310deg 360deg);
+    border: 3px solid white;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  .pie-legend { display: flex; gap: 12px; }
+  .pie-legend span { font-size: 10px; font-weight: 600; color: #475569; display: flex; align-items: center; gap: 4px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  /* rule item */
+  .rule-item {
+    background: white;
+    border: 1.5px solid #dde3ec;
+    border-radius: 10px;
+    padding: 10px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .rule-info .rule-name { font-size: 11px; font-weight: 800; color: #1e2d40; }
+  .rule-info .rule-cond { font-size: 9px; color: #64748b; font-family: monospace; margin-top: 2px; }
+  .rule-info .rule-score { font-size: 9px; color: #1a56db; font-weight: 700; margin-top: 1px; }
+  .rule-actions { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
+  .toggle-on  { background: #22c55e; color: white; border-radius: 20px; padding: 2px 8px; font-size: 9px; font-weight: 800; }
+  .toggle-off { background: #e2e8f0; color: #94a3b8; border-radius: 20px; padding: 2px 8px; font-size: 9px; font-weight: 800; }
+
+  /* AI log item */
+  .log-item {
+    background: white;
+    border: 1.5px solid #dde3ec;
+    border-radius: 10px;
+    padding: 10px 12px;
+  }
+  .log-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .log-id   { font-size: 10px; font-weight: 800; color: #1e2d40; }
+  .log-date { font-size: 9px; color: #94a3b8; }
+  .emotion-row { display: flex; flex-wrap: wrap; gap: 4px; }
+  .emotion-chip {
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    color: #475569;
+  }
+  .emotion-chip.dominant { color: #1a56db; border-color: #bfdbfe; background: #eff6ff; }
+
+  /* modal overlay (fake) */
+  .modal-fake {
+    background: white;
+    border: 2px solid #1e2d40;
+    border-radius: 12px;
+    padding: 12px;
+    margin-top: 4px;
+  }
+  .modal-fake h4 { font-size: 11px; font-weight: 800; color: #1e2d40; margin-bottom: 8px; text-align: center; }
+  .form-row { display: flex; flex-direction: column; gap: 3px; margin-bottom: 7px; }
+  .form-label { font-size: 9px; font-weight: 700; color: #94a3b8; text-transform: uppercase; }
+  .form-field {
+    border: 1.5px solid #dde3ec;
+    border-radius: 6px;
+    padding: 5px 8px;
+    font-size: 11px;
+    color: #1e2d40;
+    font-weight: 600;
+    height: 24px;
+    background: #f8fafc;
+  }
+  .form-row-horizontal { display: flex; gap: 6px; }
+  .form-row-horizontal .form-row { flex: 1; }
+
+  /* fear alert */
+  .fear-panel {
+    background: #fff7ed;
+    border: 1.5px solid #fed7aa;
+    border-radius: 10px;
+    padding: 8px 10px;
+  }
+  .fear-panel .fear-title { font-size: 10px; font-weight: 800; color: #ea580c; margin-bottom: 5px; }
+  .fear-row { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+  .fear-row .name { font-size: 10px; font-weight: 700; color: #1e2d40; }
+  .fear-btn-row { display: flex; gap: 4px; }
+  .fear-btn { font-size: 9px; font-weight: 800; padding: 3px 8px; border-radius: 6px; }
+  .fear-btn.approve { background: #dcfce7; color: #16a34a; }
+  .fear-btn.reject  { background: #fee2e2; color: #dc2626; }
+
+  /* admin tx item */
+  .admin-tx {
+    border-bottom: 1px solid #f1f5f9;
+    padding: 8px 4px;
+  }
+  .admin-tx .tx-top { display: flex; justify-content: space-between; font-size: 10px; }
+  .admin-tx .tx-top .id { font-weight: 800; color: #1e2d40; }
+  .admin-tx .tx-top .amt { font-weight: 800; color: #1e2d40; }
+  .admin-tx .tx-bot { display: flex; gap: 5px; margin-top: 3px; align-items: center; }
+
+  /* result card */
+  .result-header { padding: 16px 12px; text-align: center; }
+  .result-header.success { background: #22c55e; }
+  .result-header.fail    { background: #ef4444; }
+  .result-icon {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: rgba(255,255,255,0.22);
+    border: 2px solid rgba(255,255,255,0.5);
+    margin: 0 auto 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; color: white;
+  }
+  .result-title { color: white; font-size: 14px; font-weight: 800; }
+  .result-date  { color: rgba(255,255,255,0.9); font-size: 10px; margin-top: 2px; }
+  .scallop { height: 10px; background: linear-gradient(to bottom, #22c55e 0%, #f8f9fb 100%); }
+  .info-row { display: flex; gap: 10px; padding: 5px 0; align-items: flex-start; }
+  .info-lbl { font-size: 9px; font-weight: 800; color: #64748b; text-transform: uppercase; min-width: 36px; padding-top: 1px; }
+  .info-val { font-size: 11px; font-weight: 700; color: #1e2d40; }
+  .info-sub { font-size: 9px; color: #64748b; }
+
+  /* voice code */
+  .voice-code {
+    font-size: 30px;
+    font-weight: 900;
+    letter-spacing: 0.2em;
+    color: #4f46e5;
+    text-align: center;
+  }
+  .rec-indicator {
+    display: flex; align-items: center; gap: 5px;
+    background: #fee2e2;
+    border: 1px solid #fca5a5;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 9px;
+    font-weight: 800;
+    color: #dc2626;
+  }
+  .rec-dot { width: 6px; height: 6px; border-radius: 50%; background: #dc2626; animation: pulse 1s infinite; }
+
+  /* nav links */
+  .nav-links { display: flex; gap: 6px; flex-wrap: wrap; }
+  .nav-link {
+    font-size: 10px;
+    font-weight: 700;
+    color: #1a56db;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 6px;
+    padding: 5px 10px;
+  }
+
+  /* admin topbar */
+  .admin-topbar {
+    background: #1e2d40;
+    padding: 10px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .admin-topbar .brand  { color: white; font-size: 11px; font-weight: 700; }
+  .admin-topbar .sub    { color: rgba(255,255,255,0.4); font-size: 9px; }
+  .logout-btn {
+    background: rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.7);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 10px;
+    font-weight: 700;
+  }
+
+  /* brand header */
+  .brand-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 14px;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .fr-logo {
+    width: 24px; height: 24px;
+    background: #1a56db;
+    border-radius: 7px;
+    color: white;
+    font-size: 9px;
+    font-weight: 900;
+    display: flex; align-items: center; justify-content: center;
+    margin-right: 6px;
+  }
+  .brand-name { font-size: 12px; font-weight: 900; color: #1e2d40; letter-spacing: 1px; }
+  .tx-code { font-size: 10px; font-weight: 700; color: #64748b; }
+
+  /* search bar */
+  .search-bar {
+    border: 1.5px solid #dde3ec;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 10px;
+    color: #94a3b8;
+    background: white;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .filter-row { display: flex; gap: 5px; }
+  .filter-select {
+    border: 1.5px solid #dde3ec;
+    border-radius: 7px;
+    padding: 4px 8px;
+    font-size: 9px;
+    font-weight: 700;
+    color: #64748b;
+    background: white;
+    flex: 1;
+    text-align: center;
+  }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  .print-note {
+    text-align: center;
+    font-size: 12px;
+    color: #94a3b8;
+    margin-bottom: 30px;
+  }
+  .load-more {
+    text-align: center;
+    font-size: 10px;
+    font-weight: 700;
+    color: #1a56db;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    padding: 6px;
+    margin-top: 4px;
+  }
+  .edit-btn {
+    font-size: 9px; font-weight: 700;
+    background: #f1f4f8; color: #475569;
+    border-radius: 5px; padding: 2px 7px;
+  }
+</style>
+</head>
+<body>
+
+<h1 class="page-title">FINRISK — WIREFRAMES 4.4</h1>
+<p class="subtitle">Thiết kế giao diện người dùng (UI/UX) · In hoặc chụp màn hình cho đồ án</p>
+<p class="print-note">Mở file này bằng trình duyệt → Nhấn Ctrl+P để in hoặc dùng Snipping Tool chụp từng màn hình</p>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!--               PHẦN A — USER                   -->
+<!-- ═══════════════════════════════════════════════ -->
+<div style="max-width:1100px;margin:0 auto;">
+  <span class="section-title">PHẦN A — Giao diện người dùng (User)</span>
+</div>
+
+<div class="grid">
+
+  <!-- ── 4.3 DASHBOARD ── -->
+  <div class="wf-card">
+    <div class="wf-label">Hình 4.3 — Dashboard chính &nbsp;(Dashboard.jsx)</div>
+    <div class="phone">
+      <div class="wf-topbar">
+        FinRisk
+        <small>Ứng dụng quản lý tài chính</small>
+      </div>
+      <div class="wf-body">
+        <div>
+          <div class="wf-label-xs">Xin chào trở lại</div>
+          <div class="wf-value">Nguyễn Văn A</div>
+        </div>
+
+        <!-- Balance card -->
+        <div class="wf-card-block dark">
+          <div class="wf-row" style="margin-bottom:4px;">
+            <span class="wf-label-xs" style="color:rgba(255,255,255,0.38)">Số dư hiện tại</span>
+            <span style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:3px 7px;font-size:10px;color:rgba(255,255,255,0.6)">▣ QR</span>
+          </div>
+          <div class="wf-value big white" style="margin-bottom:12px;">12.500.000 ₫</div>
+          <div class="wf-row">
+            <div>
+              <div class="wf-label-xs" style="color:rgba(255,255,255,0.3)">Số tài khoản</div>
+              <div class="wf-value white-dim" style="font-family:monospace;font-size:12px;letter-spacing:0.15em">1234 5678 9012</div>
+            </div>
+            <span style="background:#1a56db;color:rgba(255,255,255,0.9);padding:4px 10px;border-radius:6px;font-size:9px;font-weight:800;letter-spacing:0.05em">GLOBAL CLASS</span>
+          </div>
+        </div>
+
+        <!-- Action buttons -->
+        <div class="wf-label-xs">Chức năng chính</div>
+        <div class="action-grid">
+          <div class="action-btn">
+            <div class="icon-box" style="background:#e8f0fd;color:#1a56db">↑</div>
+            <span>Chuyển tiền</span>
+          </div>
+          <div class="action-btn">
+            <div class="icon-box" style="background:#e8f7f0;color:#059669">📋</div>
+            <span>Lịch sử GD</span>
+          </div>
+          <div class="action-btn">
+            <div class="icon-box" style="background:#f0eeff;color:#7c3aed">📊</div>
+            <span>Chi tiêu</span>
+          </div>
+          <div class="action-btn">
+            <div class="icon-box" style="background:#f1f4f8;color:#475569">🛡</div>
+            <span>Bảo mật</span>
+          </div>
+        </div>
+
+        <!-- AI Status bar -->
+        <div class="wf-card-block dark" style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="color:white;font-size:10px;font-weight:700">■ AI Risk Monitor đang hoạt động</div>
+            <div style="color:rgba(255,255,255,0.38);font-size:9px;margin-top:2px">Không phát hiện bất thường</div>
+          </div>
+          <div style="display:flex;gap:4px;">
+            <span class="wf-badge green">FaceID</span>
+            <span class="wf-badge blue">PIN</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="wf-caption">Màn hình Dashboard là điểm vào chính. Thẻ Balance Card hiển thị số dư trên nền navy. Bốn nút chức năng nhanh dẫn đến các luồng nghiệp vụ. Thanh AI Risk Monitor thông báo hệ thống bảo mật đang hoạt động.</div>
+  </div>
+
+  <!-- ── 4.4 TRANSACTION STEP 1 ── -->
+  <div class="wf-card">
+    <div class="wf-label">Hình 4.4 — Nhập thông tin giao dịch &nbsp;(TransactionStep1.jsx)</div>
+    <div class="phone">
+      <div class="wf-header">
+        <h3>Chuyển tiền</h3>
+        <p>Tạo lệnh giao dịch an toàn</p>
+      </div>
+      <div class="wf-body">
+        <!-- Source account -->
+        <div class="wf-card-block wf-row">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div class="icon-box" style="background:#f1f5f9;color:#1e2d40;width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;">💳</div>
+            <div>
+              <div class="wf-label-xs">Tài khoản nguồn</div>
+              <div class="wf-value" style="font-size:12px">Tài khoản chính</div>
+            </div>
+          </div>
+          <div style="text-align:right">
+            <div class="wf-label-xs">Số dư khả dụng</div>
+            <div class="wf-value green" style="font-size:12px">12.500.000 ₫</div>
+          </div>
+        </div>
+
+        <!-- Account number -->
+        <div class="wf-input-block">
+          <div class="wf-label-xs">Số tài khoản nhận</div>
+          <div class="wf-row">
+            <div class="wf-input-line" style="flex:1">987654321</div>
+            <div style="width:20px;height:20px;border-radius:50%;background:#10b981;display:flex;align-items:center;justify-content:center;color:white;font-size:10px;font-weight:900;flex-shrink:0;">✓</div>
+          </div>
+        </div>
+
+        <!-- Recipient reveal -->
+        <div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div class="wf-label-xs" style="color:#6ee7b7">Chủ tài khoản</div>
+            <div style="font-size:13px;font-weight:800;color:#065f46">Trần Thị B</div>
+          </div>
+          <div style="width:28px;height:28px;border-radius:50%;background:#d1fae5;display:flex;align-items:center;justify-content:center;color:#10b981;font-weight:900;">✓</div>
+        </div>
+
+        <!-- Amount -->
+        <div class="wf-input-block">
+          <div class="wf-label-xs">Số tiền chuyển</div>
+          <div class="wf-row" style="align-items:baseline">
+            <div style="font-size:28px;font-weight:900;color:#1e2d40;">500.000</div>
+            <span style="font-size:14px;color:#cbd5e1;font-weight:800;margin-left:6px">VND</span>
+          </div>
+          <div class="wf-row-gap" style="margin-top:6px;">
+            <span class="wf-chip">100K</span>
+            <span class="wf-chip active">500K</span>
+            <span class="wf-chip">1M</span>
+            <span class="wf-chip">5M</span>
+          </div>
+        </div>
+
+        <!-- Description -->
+        <div class="wf-input-block">
+          <div class="wf-label-xs">Nội dung chuyển khoản</div>
+          <div class="wf-input-line sm">Trả tiền cà phê</div>
+        </div>
+
+        <div class="wf-btn">XÁC NHẬN CHUYỂN TIỀN</div>
+        <div style="text-align:center;font-size:9px;color:#94a3b8">Bảo vệ bởi AI Risk Monitor &amp; SSL 256-bit</div>
+      </div>
+    </div>
+    <div class="wf-caption">Trường số tài khoản tra cứu tự động realtime (debounce 500ms). Khi hợp lệ hiện tên chủ tài khoản màu xanh lá. Nút xác nhận chỉ kích hoạt khi lookup thành công.</div>
+  </div>
+
+  <!-- ── 4.5 FACE VERIFICATION ── -->
+  <div class="wf-card">
+    <div class="wf-label">Hình 4.5 — Xác thực khuôn mặt &nbsp;(FaceVerification.jsx)</div>
+    <div class="phone" style="background:#0f172a;">
+      <div class="wf-status-bar"></div>
+      <div class="wf-dark-screen">
+        <div class="wf-white-modal">
+          <div style="text-align:center;">
+            <div style="font-size:14px;font-weight:900;color:#1e2d40;text-transform:uppercase;letter-spacing:1px">Xác thực khuôn mặt</div>
+            <div style="font-size:9px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.2em;margin-top:2px">AI Liveness Detection</div>
+          </div>
+
+          <div style="font-size:11px;font-weight:700;color:#64748b;text-align:center">
+            👀 Hãy nhìn thẳng camera, chớp mắt &amp; lắc nhẹ đầu...
+          </div>
+
+          <div class="wf-camera">
+            <div class="wf-camera-oval"></div>
+            <div class="wf-camera-label">WEBCAM FEED</div>
+          </div>
+
+          <div class="wf-btn disabled" style="width:100%;border-radius:12px;padding:12px;">XÁC NHẬN GIAO DỊCH</div>
+          <div style="font-size:9px;color:#94a3b8;display:flex;align-items:center;gap:4px;">🔒 End-to-End Encryption</div>
+        </div>
+      </div>
+    </div>
+    <div class="wf-caption">Nền tối toàn màn hình để tập trung vào camera. MediaPipe phân tích 30 frame/0.5s — phát hiện chớp mắt và chuyển động 3D. Nút xác nhận chỉ mở sau khi liveness detection thành công.</div>
+  </div>
+
+  <!-- ── 4.6 HIGH RISK VERIFICATION ── -->
+  <div class="wf-card">
+    <div class="wf-label">Hình 4.6 — Xác thực rủi ro cao — Dual Biometric &nbsp;(HighRiskVerification.jsx)</div>
+    <div class="phone" style="background:#0f172a;">
+      <div class="wf-status-bar green"></div>
+      <div class="wf-dark-screen">
+        <div class="wf-white-modal">
+          <div style="text-align:center;">
+            <div style="font-size:13px;font-weight:900;color:#1e2d40;text-transform:uppercase;letter-spacing:0.5px">Khu Vực An Ninh</div>
+            <div style="font-size:9px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.15em;margin-top:2px">Xác thực sinh trắc học kép</div>
+          </div>
+
+          <div style="font-size:11px;font-weight:700;color:#22c55e;text-align:center">
+            ✅ NGƯỜI THẬT: Sẵn sàng Xác thực Kép!
+          </div>
+
+          <!-- Camera with emotion badge -->
+          <div style="position:relative;width:fit-content;margin:0 auto;">
+            <div class="wf-camera green-border" style="width:170px;height:170px;">
+              <div class="wf-camera-oval"></div>
+              <div class="wf-camera-label">WEBCAM FEED</div>
+            </div>
+            <div style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.6);color:white;font-size:9px;font-weight:800;padding:3px 8px;border-radius:20px;backdrop-filter:blur(4px)">
+              Tâm lý: <span style="color:#4ade80">NEUTRAL</span>
+            </div>
+          </div>
+
+          <!-- Voice code -->
+          <div style="background:#f0f4ff;border:1px solid #c7d2fe;border-radius:10px;padding:10px 14px;width:100%;text-align:center">
+            <div class="wf-label-xs" style="color:#818cf8;margin-bottom:4px">Hãy đọc to mã này:</div>
+            <div class="voice-code">4 8 2 9 1 7</div>
+            <div class="rec-indicator" style="margin:6px auto 0;width:fit-content">
+              <div class="rec-dot"></div>
+              Đang ghi âm...
+            </div>
+          </div>
+
+          <div class="wf-btn indigo" style="width:100%;border-radius:12px;padding:12px;">BẮT ĐẦU XÁC THỰC (10 GIÂY)</div>
+        </div>
+      </div>
+    </div>
+    <div class="wf-caption">Xác thực kép: camera stream qua WebSocket phân tích cảm xúc realtime, microphone thu âm PCM 16kHz nhận diện giọng đọc mã OTP 6 số. Hai luồng song song 10 giây, kết quả tổng hợp phía server.</div>
+  </div>
+
+  <!-- ── 4.7 TRANSACTION RESULT ── -->
+  <div class="wf-card">
+    <div class="wf-label">Hình 4.7 — Kết quả giao dịch &nbsp;(TransactionResult.jsx)</div>
+    <div class="phone">
+      <!-- Brand bar -->
+      <div class="brand-bar">
+        <div style="display:flex;align-items:center;">
+          <div class="fr-logo">FR</div>
+          <span class="brand-name">FINRISK</span>
+        </div>
+        <span class="tx-code">Mã GD: 142 &nbsp;⎘</span>
+      </div>
+
+      <!-- Main card -->
+      <div style="margin:10px 12px;border:1.5px solid #dde3ec;border-radius:16px;overflow:hidden;">
+        <!-- Status header -->
+        <div class="result-header success">
+          <div class="result-icon">✓</div>
+          <div class="result-title">Giao dịch thành công</div>
+          <div class="result-date">28/05/2026 · 14:32</div>
+        </div>
+
+        <!-- Amount -->
+        <div style="padding:12px 14px;text-align:center;">
+          <div class="wf-label-xs" style="margin-bottom:4px">Chuyển tiền</div>
+          <div style="font-size:28px;font-weight:900;color:#1e2d40;">500.000 <span style="font-size:13px;color:#64748b;font-weight:700">VND</span></div>
+        </div>
+
+        <hr class="wf-divider" style="margin:0 14px"/>
+
+        <!-- Info rows -->
+        <div style="padding:8px 14px;">
+          <div class="info-row">
+            <span class="info-lbl">TỪ</span>
+            <div>
+              <div class="info-val">Nguyễn Văn A</div>
+              <div class="info-sub">FinRisk · 1234 5678 9012</div>
+            </div>
+          </div>
+          <hr class="wf-divider-solid"/>
+          <div class="info-row">
+            <span class="info-lbl">ĐẾN</span>
+            <div>
+              <div class="info-val">Trần Thị B</div>
+              <div class="info-sub">9876 5432</div>
+            </div>
+          </div>
+          <hr class="wf-divider-solid"/>
+          <div class="info-row">
+            <span class="info-lbl">NỘI DUNG</span>
+            <div class="info-val" style="font-style:italic;">"Trả tiền cà phê"</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Buttons -->
+      <div style="display:flex;gap:8px;margin:0 12px 10px;">
+        <div class="wf-btn" style="flex:1;border-radius:12px;padding:10px;">Về trang chủ</div>
+        <div class="wf-btn outline" style="flex:1;border-radius:12px;padding:10px;">Chuyển tiếp</div>
+      </div>
+      <div style="text-align:center;font-size:9px;color:#94a3b8;padding-bottom:10px">Bảo mật bởi FinRisk AI Core</div>
+    </div>
+    <div class="wf-caption">Biên nhận giao dịch hiển thị trạng thái (header xanh = thành công, đỏ = bị chặn), số tiền lớn nổi bật, thông tin người gửi/nhận và nội dung. Người dùng có thể sao chép mã GD hoặc điều hướng tiếp.</div>
+  </div>
+
+  <!-- ── 4.8 TRANSACTION HISTORY ── -->
+  <div class="wf-card">
+    <div class="wf-label">Hình 4.8 — Lịch sử giao dịch &nbsp;(TransactionHistory.jsx)</div>
+    <div class="phone">
+      <div class="wf-header">
+        <h3>← &nbsp;Lịch sử giao dịch</h3>
+        <p>Toàn bộ biến động số dư của bạn</p>
+      </div>
+      <div class="wf-body">
+        <!-- Tab filter -->
+        <div class="tab-bar">
+          <div class="tab active">Tất cả</div>
+          <div class="tab green-active">● Tiền vào</div>
+          <div class="tab red-active">● Tiền ra</div>
+        </div>
+
+        <!-- List -->
+        <div class="wf-card-block" style="padding:4px 8px;">
+          <div class="tx-item">
+            <div class="tx-icon credit">↓</div>
+            <div class="tx-meta">
+              <div class="name">Nhận từ: Nguyễn Văn A</div>
+              <div class="desc">Trả tiền cà phê · 28/05 14:32</div>
+            </div>
+            <div class="tx-amount">
+              <div class="amt credit">+500.000 ₫</div>
+              <div class="bal">SD: 12.5M</div>
+            </div>
+          </div>
+          <div class="tx-item">
+            <div class="tx-icon debit">↑</div>
+            <div class="tx-meta">
+              <div class="name">Chuyển đến: Trần Thị B</div>
+              <div class="desc">Mua sách · 27/05 09:15</div>
+            </div>
+            <div class="tx-amount">
+              <div class="amt debit">−200.000 ₫</div>
+              <div class="bal">SD: 12.0M</div>
+            </div>
+          </div>
+          <div class="tx-item">
+            <div class="tx-icon debit">↑</div>
+            <div class="tx-meta">
+              <div class="name">Chuyển đến: Lê Văn C</div>
+              <div class="desc">Tiền nhà · 26/05 18:00</div>
+            </div>
+            <div class="tx-amount">
+              <div class="amt debit">−1.000.000 ₫</div>
+              <div class="bal">SD: 11.0M</div>
+            </div>
+          </div>
+          <div class="tx-item" style="border:none">
+            <div class="tx-icon credit">↓</div>
+            <div class="tx-meta">
+              <div class="name">Nhận từ: Phạm Thị D</div>
+              <div class="desc">Chuyển khoản · 25/05 11:20</div>
+            </div>
+            <div class="tx-amount">
+              <div class="amt credit">+2.000.000 ₫</div>
+              <div class="bal">SD: 13.0M</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="load-more">Xem thêm giao dịch ↓</div>
+      </div>
+    </div>
+    <div class="wf-caption">Hỗ trợ lọc 3 tab (Tất cả / Tiền vào / Tiền ra) với lazy loading phân trang 10 bản ghi/trang từ backend. Bấm dòng bất kỳ mở modal chi tiết. Icon màu xanh = nhận tiền, đỏ = chuyển đi.</div>
+  </div>
+
+</div><!-- /grid A -->
+
+<!-- ═══════════════════════════════════════════════ -->
+<!--               PHẦN B — ADMIN                  -->
+<!-- ═══════════════════════════════════════════════ -->
+<div style="max-width:1100px;margin:0 auto;">
+  <span class="section-title">PHẦN B — Giao diện quản trị (Admin)</span>
+</div>
+
+<div class="grid">
+
+  <!-- ── 4.9 ADMIN DASHBOARD ── -->
+  <div class="wf-card">
+    <div class="wf-label">Hình 4.9 — Dashboard quản trị &nbsp;(AdminDashboard.jsx)</div>
+    <div class="phone">
+      <div class="admin-topbar">
+        <div>
+          <div class="brand">Hệ thống quản trị rủi ro</div>
+          <div class="sub">FinRisk AI Security System · Realtime</div>
+        </div>
+        <div class="logout-btn">Đăng xuất</div>
+      </div>
+      <div class="wf-body">
+        <!-- KPI cards -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-val">248</div>
+            <div class="stat-lbl">Tổng giao dịch</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val" style="color:#dc2626">12</div>
+            <div class="stat-lbl">Đã bị chặn</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val" style="font-size:14px">4.2 tỷ ₫</div>
+            <div class="stat-lbl">Tổng tiền chuyển</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val" style="color:#ea580c">4.8%</div>
+            <div class="stat-lbl">Tỉ lệ rủi ro</div>
+          </div>
+        </div>
+
+        <!-- Pie chart placeholder -->
+        <div class="pie-placeholder">
+          <div class="wf-label-xs">Phân bổ giao dịch</div>
+          <div class="pie-circle"></div>
+          <div class="pie-legend">
+            <span><div class="dot" style="background:#15803d"></div> An toàn (236)</span>
+            <span><div class="dot" style="background:#b91c1c"></div> Bị chặn (12)</span>
+          </div>
+        </div>
+
+        <!-- Nav links -->
+        <div class="wf-label-xs">Điều hướng nhanh</div>
+        <div class="nav-links">
+          <span class="nav-link">→ Quản lý GD</span>
+          <span class="nav-link">→ Quy tắc Risk</span>
+          <span class="nav-link">→ AI Logs</span>
+          <span class="nav-link">→ Người dùng</span>
+        </div>
+      </div>
+    </div>
+    <div class="wf-caption">Tổng quan hệ thống với 4 thẻ KPI và biểu đồ PieChart (Recharts) phân tích tỉ lệ giao dịch an toàn/bị chặn. Dữ liệu tự làm mới mỗi 3 phút.</div>
+  </div>
+
+  <!-- ── 4.10 ADMIN TRANSACTION ── -->
+  <div class="wf-card">
+    <div class="wf-label">Hình 4.10 — Quản lý giao dịch &nbsp;(AdminTransactionDashboard.jsx)</div>
+    <div class="phone">
+      <div class="admin-topbar">
+        <div>
+          <div class="brand">← &nbsp;Quản lý giao dịch</div>
+        </div>
+        <span style="font-size:9px;color:rgba(255,255,255,0.5);font-weight:700;border:1px solid rgba(255,255,255,0.15);padding:3px 8px;border-radius:6px">↺ Làm mới</span>
+      </div>
+      <div class="wf-body">
+        <!-- Search + Filter -->
+        <div class="search-bar">🔍 &nbsp;<span>Tìm kiếm giao dịch...</span></div>
+        <div class="filter-row">
+          <div class="filter-select">Trạng thái ▾</div>
+          <div class="filter-select">Mức rủi ro ▾</div>
+        </div>
+
+        <!-- FEAR Alert Panel -->
+        <div class="fear-panel">
+          <div class="fear-title">⚠ FEAR Alert — 2 giao dịch cần xem xét</div>
+          <div class="fear-row">
+            <div class="name">#138 · Nguyễn A &nbsp;<span class="wf-badge red pulse">FEAR 87%</span></div>
+            <div class="fear-btn-row">
+              <span class="fear-btn approve">✓ Duyệt</span>
+              <span class="fear-btn reject">✗ Từ chối</span>
+            </div>
+          </div>
+          <hr style="border:none;border-top:1px solid #fed7aa;margin:5px 0"/>
+          <div class="fear-row">
+            <div class="name">#135 · Lê C &nbsp;<span class="wf-badge red pulse">FEAR 72%</span></div>
+            <div class="fear-btn-row">
+              <span class="fear-btn approve">✓ Duyệt</span>
+              <span class="fear-btn reject">✗ Từ chối</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- TX list -->
+        <div class="wf-card-block" style="padding:4px 8px;">
+          <div class="admin-tx">
+            <div class="tx-top"><span class="id">#142 · Nguyễn A → Trần B</span><span class="amt">500K ₫</span></div>
+            <div class="tx-bot"><span class="wf-badge green">SUCCESS</span><span class="wf-badge gray">LOW</span><span style="font-size:9px;color:#94a3b8">28/05 14:32</span></div>
+          </div>
+          <div class="admin-tx">
+            <div class="tx-top"><span class="id">#141 · Lê C → Phạm D</span><span class="amt">10M ₫</span></div>
+            <div class="tx-bot"><span class="wf-badge red">BLOCKED</span><span class="wf-badge red">HIGH</span><span style="font-size:9px;color:#94a3b8">28/05 11:05</span></div>
+          </div>
+          <div class="admin-tx" style="border:none">
+            <div class="tx-top"><span class="id">#140 · Hoàng E → Vũ F</span><span class="amt">2M ₫</span></div>
+            <div class="tx-bot"><span class="wf-badge orange">REVIEWING</span><span class="wf-badge orange">MEDIUM</span><span style="font-size:9px;color:#94a3b8">27/05 22:10</span></div>
+          </div>
+        </div>
+        <div class="load-more">Xem thêm giao dịch ↓</div>
+      </div>
+    </div>
+    <div class="wf-caption">Lọc đồng thời theo từ khóa, trạng thái và mức rủi ro. FEAR Alert Panel nổi bật hiển thị giao dịch đang bị tạm giữ do cảm xúc bất thường, cho phép admin duyệt/từ chối thủ công.</div>
+  </div>
+
+  <!-- ── 4.11 ADMIN RULE ── -->
+  <div class="wf-card">
+    <div class="wf-label">Hình 4.11 — Quản lý quy tắc rủi ro &nbsp;(AdminRuleDashboard.jsx)</div>
+    <div class="phone">
+      <div class="admin-topbar">
+        <div class="brand">← &nbsp;Quản lý quy tắc</div>
+        <div style="background:#1a56db;color:white;font-size:10px;font-weight:800;padding:4px 10px;border-radius:7px;">+ Tạo rule mới</div>
+      </div>
+      <div class="wf-body">
+        <!-- Rules list -->
+        <div class="rule-item">
+          <div class="rule-info">
+            <div class="rule-name">Giao dịch lớn bất thường</div>
+            <div class="rule-cond">amount &gt;= 50.000.000</div>
+            <div class="rule-score">Điểm rủi ro: +40</div>
+          </div>
+          <div class="rule-actions">
+            <span class="edit-btn">Sửa</span>
+            <span class="toggle-on">ON ●</span>
+          </div>
+        </div>
+        <div class="rule-item">
+          <div class="rule-info">
+            <div class="rule-name">Giao dịch đêm khuya</div>
+            <div class="rule-cond">hour &gt;= 23</div>
+            <div class="rule-score">Điểm rủi ro: +20</div>
+          </div>
+          <div class="rule-actions">
+            <span class="edit-btn">Sửa</span>
+            <span class="toggle-off">OFF ○</span>
+          </div>
+        </div>
+        <div class="rule-item">
+          <div class="rule-info">
+            <div class="rule-name">Tần suất giao dịch cao</div>
+            <div class="rule-cond">txCount24h &gt;= 10</div>
+            <div class="rule-score">Điểm rủi ro: +30</div>
+          </div>
+          <div class="rule-actions">
+            <span class="edit-btn">Sửa</span>
+            <span class="toggle-on">ON ●</span>
+          </div>
+        </div>
+
+        <!-- Edit modal -->
+        <div class="modal-fake">
+          <h4>✏ Sửa quy tắc</h4>
+          <div class="form-row">
+            <span class="form-label">Tên rule</span>
+            <div class="form-field">Giao dịch lớn bất thường</div>
+          </div>
+          <div class="form-row-horizontal">
+            <div class="form-row">
+              <span class="form-label">Trường</span>
+              <div class="form-field">amount ▾</div>
+            </div>
+            <div class="form-row">
+              <span class="form-label">Toán tử</span>
+              <div class="form-field">&gt;= ▾</div>
+            </div>
+          </div>
+          <div class="form-row-horizontal">
+            <div class="form-row">
+              <span class="form-label">Giá trị</span>
+              <div class="form-field">50000000</div>
+            </div>
+            <div class="form-row">
+              <span class="form-label">Điểm</span>
+              <div class="form-field">40</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;margin-top:4px;">
+            <div class="wf-btn outline" style="flex:1;padding:7px;font-size:10px;border-radius:8px;">Hủy</div>
+            <div class="wf-btn" style="flex:2;padding:7px;font-size:10px;border-radius:8px;">Lưu thay đổi</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="wf-caption">Cấu hình quy tắc dạng field–operator–value. Toggle bật/tắt tức thời. Modal tạo/sửa hiển thị inline, không mất context trang chính. Mỗi rule cộng điểm rủi ro vào tổng điểm của giao dịch.</div>
+  </div>
+
+  <!-- ── 4.12 ADMIN AI LOG ── -->
+  <div class="wf-card">
+    <div class="wf-label">Hình 4.12 — Nhật ký phân tích AI &nbsp;(AdminAiLogDashboard.jsx)</div>
+    <div class="phone">
+      <div class="admin-topbar">
+        <div class="brand">← &nbsp;Nhật ký AI</div>
+        <span style="font-size:9px;color:rgba(255,255,255,0.5);font-weight:700;border:1px solid rgba(255,255,255,0.15);padding:3px 8px;border-radius:6px">↺ Làm mới</span>
+      </div>
+      <div class="wf-body">
+
+        <!-- Log 1 -->
+        <div class="log-item">
+          <div class="log-header">
+            <span class="log-id">GD #142 · Nguyễn A</span>
+            <span class="log-date">28/05 14:32</span>
+          </div>
+          <div style="margin-bottom:5px">Kết quả: <span class="wf-badge gray">NEUTRAL</span></div>
+          <div class="emotion-row">
+            <span class="emotion-chip dominant">NEUTRAL: 78.4%</span>
+            <span class="emotion-chip">HAPPY: 15.2%</span>
+            <span class="emotion-chip">FEAR: 3.1%</span>
+            <span class="emotion-chip">SAD: 2.1%</span>
+          </div>
+        </div>
+
+        <!-- Log 2 — FEAR -->
+        <div class="log-item" style="border-left:3px solid #dc2626;">
+          <div class="log-header">
+            <span class="log-id">GD #141 · Lê C</span>
+            <span class="log-date">28/05 11:05</span>
+          </div>
+          <div style="margin-bottom:5px">Kết quả: <span class="wf-badge red pulse">FEAR</span></div>
+          <div class="emotion-row">
+            <span class="emotion-chip dominant">FEAR: 72.3%</span>
+            <span class="emotion-chip">STRESS: 18.5%</span>
+            <span class="emotion-chip">NEUTRAL: 6.1%</span>
+            <span class="emotion-chip">ANGRY: 3.1%</span>
+          </div>
+        </div>
+
+        <!-- Log 3 — HAPPY -->
+        <div class="log-item">
+          <div class="log-header">
+            <span class="log-id">GD #140 · Hoàng E</span>
+            <span class="log-date">27/05 22:10</span>
+          </div>
+          <div style="margin-bottom:5px">Kết quả: <span class="wf-badge green">HAPPY</span></div>
+          <div class="emotion-row">
+            <span class="emotion-chip dominant">HAPPY: 65.0%</span>
+            <span class="emotion-chip">NEUTRAL: 28.3%</span>
+            <span class="emotion-chip">SAD: 4.2%</span>
+            <span class="emotion-chip">FEAR: 2.5%</span>
+          </div>
+        </div>
+
+        <div class="load-more">Tải thêm bản ghi ↓</div>
+      </div>
+    </div>
+    <div class="wf-caption">Hiển thị kết quả phân tích cảm xúc từng phiên xác thực sinh trắc học. Badge FEAR nhấp nháy đỏ — viền đỏ nổi bật cảnh báo. Phân rã phần trăm từng nhãn cảm xúc phục vụ audit.</div>
+  </div>
+
+</div><!-- /grid B -->
+
+<p style="text-align:center;margin-top:40px;font-size:11px;color:#94a3b8;">
+  FinRisk Wireframes · Chương 4.4 · Đồ án tốt nghiệp 2026
+</p>
+
+</body>
+</html>
