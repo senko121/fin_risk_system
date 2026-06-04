@@ -23,7 +23,7 @@ public class BehavioralProfilingService {
     @Autowired
     private UserBehaviorProfileRepository profileRepository;
 
-    private static final int DIMENSIONS = 5;
+    private static final int DIMENSIONS = MahalanobisCalculator.DIMENSIONS; // P1.5: 6 chiều
  
     public BehaviorInsightResult calculateBehavioralAnomalyScore(
             Transaction currentTx,
@@ -56,12 +56,22 @@ public class BehavioralProfilingService {
         double dSquaredForLog = 0.0;
         String phase, method;
 
-        if (txCount < 50) {
+        if (txCount < 10) {
             double raw = mathCalculator.calculateEuclidean(currentVector, meanVector);
             totalScore    = normalizeEuclidean(raw);
             dSquaredForLog = raw * raw;
             phase  = "COLD_START";
             method = "EUCLIDEAN";
+
+        } else if (txCount < 50) {
+            // P1.1: WARM_START — Mahalanobis blended với global prior, bắt đầu từ 10 tx
+            double[][] covC = convertNestedListToArray(profile.getCovarianceMatrixC());
+            double dSquared = mathCalculator.calculateWithGlobalPrior(
+                                  currentVector, meanVector, covC, txCount);
+            totalScore     = normalizeMahalanobis(dSquared);
+            dSquaredForLog = dSquared;
+            phase  = "WARM_START";
+            method = "GLOBAL_PRIOR_MAHALANOBIS";
 
         } else if (txCount <= 150) {
             double raw   = mathCalculator.calculateEuclidean(currentVector, meanVector);
@@ -356,12 +366,16 @@ public class BehavioralProfilingService {
         double hour      = tx.getCreatedAt().getHour()
                          + tx.getCreatedAt().getMinute() / 60.0;
         double hourRad   = (hour / 24.0) * 2 * Math.PI;
+        // P1.5: chiều 6 — tỷ lệ giao dịch/số dư (log-scale để ổn định)
+        double balance      = tx.getFromAccount().getBalance().doubleValue();
+        double balanceRatio = balance > 0 ? tx.getAmount().doubleValue() / balance : 0.0;
         return new double[]{
             logAmount,
             Math.sin(hourRad),
             Math.cos(hourRad),
             Math.log1p(Math.max(gapSeconds, 1.0)),
-            recipientNovelty
+            recipientNovelty,
+            Math.log1p(balanceRatio)
         };
     }
 
@@ -411,19 +425,25 @@ public class BehavioralProfilingService {
     }
  
 
+    // P1.5: pad đến DIMENSIONS để tương thích ngược với profile DB 5D cũ
     private double[] convertListToArray(List<Double> list) {
-        if (list == null || list.isEmpty()) return new double[DIMENSIONS];
-        return list.stream().mapToDouble(v -> v == null ? 0.0 : v).toArray();
+        double[] result = new double[DIMENSIONS];
+        if (list == null) return result;
+        for (int i = 0; i < Math.min(list.size(), DIMENSIONS); i++) {
+            Double val = list.get(i);
+            result[i] = (val == null || Double.isNaN(val) || Double.isInfinite(val)) ? 0.0 : val;
+        }
+        return result;
     }
 
+    // P1.5: pad đến DIMENSIONS×DIMENSIONS để tương thích ngược với covariance DB 5×5 cũ
     private double[][] convertNestedListToArray(List<List<Double>> nested) {
         double[][] array = new double[DIMENSIONS][DIMENSIONS];
         if (nested == null) return array;
-        for (int i = 0; i < DIMENSIONS; i++) {
-            if (i >= nested.size()) break;
+        for (int i = 0; i < Math.min(nested.size(), DIMENSIONS); i++) {
             List<Double> row = nested.get(i);
-            for (int j = 0; j < DIMENSIONS; j++) {
-                if (row == null || j >= row.size()) continue;
+            if (row == null) continue;
+            for (int j = 0; j < Math.min(row.size(), DIMENSIONS); j++) {
                 Double val = row.get(j);
                 array[i][j] = (val == null || Double.isNaN(val) || Double.isInfinite(val))
                               ? 0.0 : val;
@@ -440,9 +460,13 @@ public class BehavioralProfilingService {
         double[] ewmaMean = convertListToArray(profile.getEwmaMeanVector());
         int txCount       = profile.getTxCount();
 
-        if (txCount < 50) {
+        if (txCount < 10) {
             double raw = mathCalculator.calculateEuclidean(ewmaMean, mean);
             return Math.min((raw / 4.0) * 100, 100);
+        } else if (txCount < 50) {
+            double[][] covC = convertNestedListToArray(profile.getCovarianceMatrixC());
+            double dSquared = mathCalculator.calculateWithGlobalPrior(ewmaMean, mean, covC, txCount);
+            return Math.min((dSquared / 20.51) * 100, 100);
         } else {
             double[][] covC = convertNestedListToArray(profile.getCovarianceMatrixC());
             double lambda   = txCount < 150 ? 0.1 : 0.001;
@@ -481,8 +505,12 @@ public class BehavioralProfilingService {
 
         double anomalyScore   = calculateCurrentAnomalyScore(profile);
         String anomalyLevel   = anomalyScore < 40 ? "NORMAL" : anomalyScore < 70 ? "SUSPICIOUS" : "CRITICAL";
-        String phase          = n < 50 ? "COLD_START" : n < 150 ? "TRANSITION" : "MATURE";
-        String method         = n < 50 ? "EUCLIDEAN"  : n < 150 ? "BLEND"      : "MAHALANOBIS";
+        String phase   = n < 10 ? "COLD_START"
+                       : n < 50  ? "WARM_START"
+                       : n < 150 ? "TRANSITION" : "MATURE";
+        String method  = n < 10 ? "EUCLIDEAN"
+                       : n < 50  ? "GLOBAL_PRIOR_MAHALANOBIS"
+                       : n < 150 ? "BLEND" : "MAHALANOBIS";
         double reliability    = Math.min(n / 150.0, 1.0);
 
         return BehaviorProfileDTO.builder()

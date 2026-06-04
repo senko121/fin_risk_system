@@ -109,8 +109,16 @@ public class AdvancedFaceActionStrategy implements RiskActionStrategy {
             FaceAIResponse idResult = identityTask.get();
             EmotionAIResponse emotionResult = emotionTask.get();
 
-            String emotion = (emotionResult != null && emotionResult.getEmotion() != null)
-                             ? emotionResult.getEmotion().toUpperCase() : "UNKNOWN";
+            String rawEmotion = (emotionResult != null && emotionResult.getEmotion() != null)
+                                ? emotionResult.getEmotion().toUpperCase() : "UNKNOWN";
+            double emotionConf = (emotionResult != null) ? emotionResult.getConfidence() : 0.0;
+            // P1.2: FEAR chỉ được coi là coercion signal khi confidence >= 0.65
+            String emotion = rawEmotion;
+            if ("FEAR".equals(rawEmotion) && emotionConf < 0.65) {
+                log.info("[FaceAI][SYNC-CONF-SKIP] tx={} FEAR conf={} < 0.65 — downgraded to UNKNOWN",
+                    tx.getId(), String.format("%.3f", emotionConf));
+                emotion = "UNKNOWN";
+            }
 
             log.info("[FaceAI][SYNC-RESULT] tx={} matched={} distance={} band={} emotion={}",
                 tx.getId(),
@@ -200,8 +208,16 @@ public class AdvancedFaceActionStrategy implements RiskActionStrategy {
                 FaceAIResponse    idResult      = identityTask.getNow(null);
                 EmotionAIResponse emotionResult = emotionTask.getNow(null);
 
-                String emotion = (emotionResult != null && emotionResult.getEmotion() != null)
-                                 ? emotionResult.getEmotion().toUpperCase() : "UNKNOWN";
+                String rawEmotion = (emotionResult != null && emotionResult.getEmotion() != null)
+                                    ? emotionResult.getEmotion().toUpperCase() : "UNKNOWN";
+                double emotionConf = (emotionResult != null) ? emotionResult.getConfidence() : 0.0;
+                // P1.2: FEAR chỉ được coi là coercion signal khi confidence >= 0.65
+                String emotion = rawEmotion;
+                if ("FEAR".equals(rawEmotion) && emotionConf < 0.65) {
+                    log.info("[FaceAI][ASYNC-CONF-SKIP] tx={} FEAR conf={} < 0.65 — downgraded to UNKNOWN",
+                        tx.getId(), String.format("%.3f", emotionConf));
+                    emotion = "UNKNOWN";
+                }
 
                 log.info("[FaceAI][ASYNC-RESULT] tx={} elapsed={}ms matched={} distance={} band={} emotion={}",
                     tx.getId(), elapsed,

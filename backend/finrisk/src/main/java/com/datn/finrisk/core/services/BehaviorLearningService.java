@@ -4,6 +4,7 @@ import com.datn.finrisk.core.entities.Transaction;
 import com.datn.finrisk.core.entities.User;
 import com.datn.finrisk.core.entities.UserBehaviorProfile;
 import com.datn.finrisk.core.repository.UserBehaviorProfileRepository;
+import com.datn.finrisk.core.utils.MahalanobisCalculator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
@@ -23,7 +24,7 @@ public class BehaviorLearningService {
     @Autowired
     private UserBehaviorProfileRepository profileRepository;
 
-    private static final int    DIMENSIONS = 5;
+    private static final int    DIMENSIONS = MahalanobisCalculator.DIMENSIONS; // P1.5: 6
     private static final double EWMA_ALPHA = 0.05;
 
  
@@ -159,13 +160,19 @@ public class BehaviorLearningService {
                          + tx.getCreatedAt().getMinute() / 60.0;
         double hourRad   = (hour / 24.0) * 2 * Math.PI;
         double logGap    = Math.log1p(safeGap);
+        // P1.5: chiều 6 — tỷ lệ giao dịch/số dư (log-scale)
+        double balance      = (tx.getFromAccount() != null
+                                && tx.getFromAccount().getBalance() != null)
+                              ? tx.getFromAccount().getBalance().doubleValue() : 0.0;
+        double balanceRatio = balance > 0 ? amount / balance : 0.0;
 
         double[] vector = {
             logAmount,
             Math.sin(hourRad),
             Math.cos(hourRad),
             logGap,
-            recipientNovelty
+            recipientNovelty,
+            Math.log1p(balanceRatio)
         };
 
         return sanitize(vector);
@@ -201,7 +208,7 @@ public class BehaviorLearningService {
         p.setUser(user);
         p.setTxCount(0);
 
-        List<Double> zeros = Arrays.asList(0.0, 0.0, 0.0, 0.0, 0.0);
+        List<Double> zeros = Arrays.asList(0.0, 0.0, 0.0, 0.0, 0.0, 0.0); // P1.5: 6 chiều
         p.setMeanVector(new ArrayList<>(zeros));
         p.setEwmaMeanVector(new ArrayList<>(zeros));
         p.setEwmaVariance(new ArrayList<>(zeros));
@@ -216,9 +223,15 @@ public class BehaviorLearningService {
     }
  
 
+    // P1.5: pad đến DIMENSIONS để tương thích ngược với profile DB 5D cũ
     private double[] convertListToArray(List<Double> list) {
-        if (list == null || list.isEmpty()) return new double[DIMENSIONS];
-        return list.stream().mapToDouble(v -> v == null ? 0.0 : v).toArray();
+        double[] result = new double[DIMENSIONS];
+        if (list == null) return result;
+        for (int i = 0; i < Math.min(list.size(), DIMENSIONS); i++) {
+            Double val = list.get(i);
+            result[i] = (val == null || Double.isNaN(val) || Double.isInfinite(val)) ? 0.0 : val;
+        }
+        return result;
     }
 
     private List<Double> convertArrayToList(double[] array) {
@@ -227,14 +240,14 @@ public class BehaviorLearningService {
         return list;
     }
 
+    // P1.5: pad đến DIMENSIONS×DIMENSIONS để tương thích ngược với covariance DB 5×5 cũ
     private double[][] convertNestedListToArray(List<List<Double>> nestedList) {
         double[][] array = new double[DIMENSIONS][DIMENSIONS];
         if (nestedList == null) return array;
-        for (int i = 0; i < DIMENSIONS; i++) {
-            if (i >= nestedList.size()) break;
+        for (int i = 0; i < Math.min(nestedList.size(), DIMENSIONS); i++) {
             List<Double> row = nestedList.get(i);
-            for (int j = 0; j < DIMENSIONS; j++) {
-                if (row == null || j >= row.size()) continue;
+            if (row == null) continue;
+            for (int j = 0; j < Math.min(row.size(), DIMENSIONS); j++) {
                 Double val = row.get(j);
                 array[i][j] = (val == null || Double.isNaN(val) || Double.isInfinite(val))
                     ? 0.0 : val;

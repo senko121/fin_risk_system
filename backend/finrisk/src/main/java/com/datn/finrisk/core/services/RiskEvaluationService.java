@@ -38,11 +38,13 @@ import org.springframework.core.io.ByteArrayResource;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.List;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import org.springframework.expression.Expression;
 
 @Slf4j
 @Service
@@ -71,9 +73,10 @@ public class RiskEvaluationService {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final ExpressionParser parser = new SpelExpressionParser();
+    private final ConcurrentHashMap<String, Expression> spelCache = new ConcurrentHashMap<>();
 
     private static final int AI_MATURE_COUNT = 150;
-    private static final int AI_ACTIVE_COUNT = 50;
+    private static final int AI_ACTIVE_COUNT = 50;  // giữ nguyên: WARM_START cải thiện insights nhưng chưa đủ tin để ảnh hưởng risk decision
     private static final double AI_SCORE_FACTOR = 0.35;
 
     // Category caps: correlated signals trong cùng domain không thể inflate lẫn nhau
@@ -91,6 +94,11 @@ public class RiskEvaluationService {
         "MEDIUM_2", 2,
         "HIGH",     3
     );
+
+    // P1.3: Parse SpEL expression một lần và cache — tránh re-parse mỗi request
+    private Expression getCachedExpression(String spel) {
+        return spelCache.computeIfAbsent(spel, parser::parseExpression);
+    }
 
     // =========================================================================
     // evaluateRisk — interaction-aware category scoring (v2)
@@ -159,7 +167,7 @@ public class RiskEvaluationService {
             try {
                 String spel = rule.getSpelExpression();
                 if (spel == null || spel.isEmpty()) continue;
-                Boolean matched = parser.parseExpression(spel).getValue(context, Boolean.class);
+                Boolean matched = getCachedExpression(spel).getValue(context, Boolean.class);
                 if (Boolean.TRUE.equals(matched)) {
                     log.warn("[RISK-ENGINE][VETO] tx={} rule='{}' — returning 100 immediately",
                             transaction.getId(), rule.getRuleName());
@@ -190,7 +198,7 @@ public class RiskEvaluationService {
             try {
                 String spel = rule.getSpelExpression();
                 if (spel == null || spel.isEmpty()) continue;
-                Boolean matched = parser.parseExpression(spel).getValue(context, Boolean.class);
+                Boolean matched = getCachedExpression(spel).getValue(context, Boolean.class);
                 if (Boolean.TRUE.equals(matched)) {
                     int score = rule.getActionScore();
                     String cat = (rule.getCategory() != null && !rule.getCategory().isBlank())
