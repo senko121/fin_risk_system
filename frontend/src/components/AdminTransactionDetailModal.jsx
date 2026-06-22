@@ -280,6 +280,17 @@ export default function AdminTransactionDetailModal({ isOpen, onClose, transacti
                 >
                   {isResolving ? 'Đang xử lý...' : '✗ Từ Chối — Gian Lận'}
                 </button>
+                <button
+                  onClick={() => {
+                    if (window.confirm(`Đóng băng giao dịch #${transaction.id}? Giao dịch sẽ bị tạm giữ và không thể thực hiện.`)) {
+                      onResolve(transaction.id, 'FREEZE');
+                    }
+                  }}
+                  disabled={isResolving}
+                  className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl transition-all shadow-lg text-sm uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isResolving ? 'Đang xử lý...' : '❄ Đóng Băng'}
+                </button>
               </>
             )}
           </div>

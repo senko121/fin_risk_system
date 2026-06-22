@@ -551,12 +551,80 @@ BEGIN
     SET MESSAGE_TEXT = 'LỖI BẢO MẬT KẾ TOÁN: Dữ liệu Sổ cái (Ledger) là bất biến. NGHIÊM CẤM sửa đổi!';
 END$$
 
+-- P2.2: Audit trigger — ghi nhận mọi giao dịch mới vào audit_logs.
+-- @audit_username được set bởi application trước khi INSERT; fallback về MySQL user.
+USE `fin_risk_db`$$
+CREATE
+DEFINER=`root`@`localhost`
+TRIGGER `fin_risk_db`.`trg_audit_transaction_insert`
+AFTER INSERT ON `fin_risk_db`.`transactions`
+FOR EACH ROW
+BEGIN
+    INSERT INTO `fin_risk_db`.`audit_logs` (`action`, `details`, `timestamp`, `username`)
+    VALUES (
+        'TRANSACTION_INSERT',
+        JSON_OBJECT(
+            'tx_id',             NEW.id,
+            'from_account_id',   NEW.from_account_id,
+            'to_account_number', NEW.to_account_number,
+            'amount',            NEW.amount,
+            'status',            NEW.status,
+            'risk_level',        NEW.risk_level,
+            'total_risk_score',  NEW.total_risk_score,
+            'device_fingerprint',NEW.device_fingerprint,
+            'location_ip',       NEW.location_ip
+        ),
+        NOW(6),
+        IFNULL(@audit_username, CURRENT_USER())
+    );
+END$$
+
 
 DELIMITER ;
 
 SET SQL_MODE=@OLD_SQL_MODE;
 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;
+
+-- =========================================================================
+-- P2.1: Peer-Group Profiling schema
+-- Cho phép phân nhóm user theo nhân khẩu học để hỗ trợ cold-start (<10 tx)
+-- =========================================================================
+
+ALTER TABLE `fin_risk_db`.`users`
+  ADD COLUMN `age_range` ENUM('YOUTH', 'ADULT', 'SENIOR') NULL DEFAULT NULL COMMENT 'Nhóm tuổi: YOUTH(<25), ADULT(25-60), SENIOR(>60)',
+  ADD COLUMN `region`    VARCHAR(100)                     NULL DEFAULT NULL COMMENT 'Vùng địa lý (Bắc/Trung/Nam hoặc mã tỉnh)';
+
+CREATE TABLE IF NOT EXISTS `fin_risk_db`.`peer_groups` (
+  `id`                BIGINT      NOT NULL AUTO_INCREMENT,
+  `age_range`         ENUM('YOUTH','ADULT','SENIOR') NOT NULL,
+  `region`            VARCHAR(100) NOT NULL,
+  `sample_count`      INT          NOT NULL DEFAULT 0   COMMENT 'Số user đóng góp vào nhóm này',
+  `mean_vector`       JSON         NOT NULL             COMMENT 'Vector mean 6 chiều của nhóm',
+  `covariance_matrix` JSON         NOT NULL             COMMENT 'Ma trận hiệp phương sai 6×6 của nhóm',
+  `last_updated_at`   TIMESTAMP    NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `created_at`        TIMESTAMP    NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_peer_group` (`age_range`, `region`)
+) ENGINE = InnoDB
+  DEFAULT CHARACTER SET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci
+  COMMENT = 'Thống kê hành vi theo nhóm nhân khẩu học — dùng cho cold-start Mahalanobis';
+
+-- Seed dữ liệu mặc định: mean và covariance identity cho mỗi nhóm
+-- mean_vector: [logAmount=13.1(~500k), sin=0, cos=1, logGap=10.6(~8h), recipientNovelty=0.3, logBalanceRatio=0.1]
+INSERT IGNORE INTO `fin_risk_db`.`peer_groups`
+  (`age_range`, `region`, `sample_count`, `mean_vector`, `covariance_matrix`)
+VALUES
+  ('YOUTH', 'Bắc',   0, '[12.5, 0.0, 1.0, 10.0, 0.3, 0.1]', '[[1.5,0,0,0,0,0],[0,0.5,0,0,0,0],[0,0,0.5,0,0,0],[0,0,0,2.0,0,0],[0,0,0,0,0.25,0],[0,0,0,0,0,0.4]]'),
+  ('YOUTH', 'Trung', 0, '[12.3, 0.0, 1.0, 10.0, 0.3, 0.1]', '[[1.5,0,0,0,0,0],[0,0.5,0,0,0,0],[0,0,0.5,0,0,0],[0,0,0,2.0,0,0],[0,0,0,0,0.25,0],[0,0,0,0,0,0.4]]'),
+  ('YOUTH', 'Nam',   0, '[12.4, 0.0, 1.0, 10.0, 0.3, 0.1]', '[[1.5,0,0,0,0,0],[0,0.5,0,0,0,0],[0,0,0.5,0,0,0],[0,0,0,2.0,0,0],[0,0,0,0,0.25,0],[0,0,0,0,0,0.4]]'),
+  ('ADULT', 'Bắc',   0, '[13.1, 0.0, 1.0, 10.6, 0.25, 0.1]','[[1.5,0,0,0,0,0],[0,0.5,0,0,0,0],[0,0,0.5,0,0,0],[0,0,0,2.0,0,0],[0,0,0,0,0.25,0],[0,0,0,0,0,0.4]]'),
+  ('ADULT', 'Trung', 0, '[12.9, 0.0, 1.0, 10.6, 0.25, 0.1]','[[1.5,0,0,0,0,0],[0,0.5,0,0,0,0],[0,0,0.5,0,0,0],[0,0,0,2.0,0,0],[0,0,0,0,0.25,0],[0,0,0,0,0,0.4]]'),
+  ('ADULT', 'Nam',   0, '[13.0, 0.0, 1.0, 10.6, 0.25, 0.1]','[[1.5,0,0,0,0,0],[0,0.5,0,0,0,0],[0,0,0.5,0,0,0],[0,0,0,2.0,0,0],[0,0,0,0,0.25,0],[0,0,0,0,0,0.4]]'),
+  ('SENIOR','Bắc',   0, '[12.8, 0.0, 1.0, 11.0, 0.15, 0.05]','[[1.5,0,0,0,0,0],[0,0.5,0,0,0,0],[0,0,0.5,0,0,0],[0,0,0,2.0,0,0],[0,0,0,0,0.25,0],[0,0,0,0,0,0.4]]'),
+  ('SENIOR','Trung', 0, '[12.7, 0.0, 1.0, 11.0, 0.15, 0.05]','[[1.5,0,0,0,0,0],[0,0.5,0,0,0,0],[0,0,0.5,0,0,0],[0,0,0,2.0,0,0],[0,0,0,0,0.25,0],[0,0,0,0,0,0.4]]'),
+  ('SENIOR','Nam',   0, '[12.9, 0.0, 1.0, 11.0, 0.15, 0.05]','[[1.5,0,0,0,0,0],[0,0.5,0,0,0,0],[0,0,0.5,0,0,0],[0,0,0,2.0,0,0],[0,0,0,0,0.25,0],[0,0,0,0,0,0.4]]');
 
 
 [{"id":1, "rule_name":"T\u00e0i kho\u1ea3n nh\u1eadn l\u1ea1", "description":"C\u1ed9ng 25 \u0111i\u1ec3m n\u1ebfu ch\u01b0a t\u1eebng chuy\u1ec3n ti\u1ec1n", "conditions":{"field": "history", "value": "NEW_RECIPIENT", "operator": "=="}, "spel_expression":"#isNewRecipient == true", "action_score":20, "is_active":1, "created_at":"2026-04-25 15:08:10", "updated_at":"2026-05-27 17:01:25", "min_policy_override":"", "category":"CONTEXTUAL", "rule_type":"ADDITIVE"},

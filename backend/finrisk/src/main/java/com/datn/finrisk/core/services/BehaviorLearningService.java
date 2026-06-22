@@ -24,6 +24,9 @@ public class BehaviorLearningService {
     @Autowired
     private UserBehaviorProfileRepository profileRepository;
 
+    @Autowired
+    private PeerGroupService peerGroupService;
+
     private static final int    DIMENSIONS = MahalanobisCalculator.DIMENSIONS; // P1.5: 6
     private static final double EWMA_ALPHA = 0.05;
 
@@ -82,8 +85,11 @@ public class BehaviorLearningService {
 
  
         profile.setLastTxTimestamp(timestampToSave);
- 
+
         profileRepository.save(profile);
+
+        // P2.1: cập nhật thống kê peer group với vector giao dịch vừa học
+        peerGroupService.updatePeerGroupStats(profile.getUser(), currentVector);
 
         System.out.println("✅ [LEARN] User #"
             + profile.getUser().getId()

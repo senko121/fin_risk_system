@@ -505,6 +505,46 @@ class TransactionServiceTest {
 
             assertEquals("SUCCESS", txCaptor.getValue().getStatus());
         }
+
+        // ── Atomic claim idempotency ──────────────────────────────────────────
+
+        @Test
+        @DisplayName("❌ claimForExecution = 0 → ERR_DUPLICATE_EXECUTION (giao dịch đã bị thread khác claim)")
+        void executeTransactionCore_claimZero_throwsDuplicateExecution() {
+            // claimForExecution trả 0 khi UPDATE không thay đổi row nào
+            // (tx đã ở trạng thái PROCESSING hoặc SUCCESS do thread khác thắng race)
+            when(transactionRepository.claimForExecution(anyLong())).thenReturn(0);
+
+            BusinessLogicException ex = assertThrows(BusinessLogicException.class,
+                () -> transactionService.executeTransactionCore(mockTx));
+
+            assertEquals("ERR_DUPLICATE_EXECUTION", ex.getErrorCode());
+        }
+
+        @Test
+        @DisplayName("❌ claimForExecution = 0 → balance KHÔNG bị trừ (no side effects)")
+        void executeTransactionCore_claimZero_balanceUnchanged() {
+            BigDecimal balanceBefore = mockSender.getBalance();
+            when(transactionRepository.claimForExecution(anyLong())).thenReturn(0);
+
+            assertThrows(BusinessLogicException.class,
+                () -> transactionService.executeTransactionCore(mockTx));
+
+            // Số dư không được thay đổi khi claim thất bại
+            assertEquals(balanceBefore, mockSender.getBalance());
+            verify(accountRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("❌ claimForExecution = 0 → KHÔNG tạo ledger entry nào")
+        void executeTransactionCore_claimZero_noLedgerCreated() {
+            when(transactionRepository.claimForExecution(anyLong())).thenReturn(0);
+
+            assertThrows(BusinessLogicException.class,
+                () -> transactionService.executeTransactionCore(mockTx));
+
+            verify(transactionLedgerRepository, never()).save(any());
+        }
     }
 
     // =============================================

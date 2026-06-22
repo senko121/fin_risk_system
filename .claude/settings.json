@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs grep -l \"Risk\\\\|Auth\\\\|Otp\\\\|Pin\\\\|Face\\\\|Voice\\\\|Behavior\\\\|Device\\\\|Session\\\\|Emotion\\\\|Verify\")",
+      "Bash(xargs wc -l)",
+      "Bash(grep -v \"//\\\\|✅\\\\|❌\\\\|⚠\")",
+      "Bash(grep -E \"Tests run|PASSED|FAILED|ERROR|BUILD|\\\\\\\\[INFO\\\\\\\\] ---\")",
+      "Bash(xargs grep -l \"ai.service\")",
+      "Bash(xargs grep -l \"RestTemplate\\\\|WebClient\")",
+      "Bash(xargs grep -l \"transaction_ledgers\\\\|TransactionLedger\")",
+      "Bash(cd /c/Users/thach/fin-risk-system/frontend && find src -type f -name \"*.jsx\" -o -name \"*.js\" -o -name \"*.tsx\" -o -name \"*.ts\" | head -100)",
+      "Read(//c/c/Users/thach/fin-risk-system/frontend/**)",
+      "PowerShell(head -100)"
+    ]
+  }
+}

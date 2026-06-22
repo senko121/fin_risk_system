@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-@Service("batchEmotionEvaluator")
+@Service("realBatchEmotionEvaluator")
 public class BatchEmotionEvaluator implements EmotionEvaluator {
 
     private static final Logger log = LoggerFactory.getLogger(BatchEmotionEvaluator.class);

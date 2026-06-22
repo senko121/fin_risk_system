@@ -68,8 +68,8 @@ export default function AdminTransactionDashboard() {
   };
 
   // Lấy danh sách giao dịch đang bị đóng băng do cảm xúc bất thường
-  const fetchFearTransactions = async () => {
-    setFearLoading(true);
+  const fetchFearTransactions = async (silent = false) => {
+    if (!silent) setFearLoading(true);
     try {
       const res = await axiosClient.get('/admin/transactions', {
         params: { status: 'UNDER_REVIEW', page: 0, size: 50 }
@@ -78,7 +78,7 @@ export default function AdminTransactionDashboard() {
     } catch {
       // panel phụ — không cần toast khi lỗi
     } finally {
-      setFearLoading(false);
+      if (!silent) setFearLoading(false);
     }
   };
 
@@ -91,11 +91,15 @@ export default function AdminTransactionDashboard() {
           action,
           adminNotes: action === 'APPROVE'
             ? 'Admin duyệt — đã xem xét tín hiệu cảm xúc bất thường'
+            : action === 'FREEZE'
+            ? 'Admin đóng băng — nghi ngờ cưỡng bức hoặc gian lận nghiêm trọng'
             : 'Admin từ chối — nghi ngờ gian lận hoặc ép buộc'
         }
       });
       toast.success(action === 'APPROVE'
         ? `Đã duyệt giao dịch #${txId}`
+        : action === 'FREEZE'
+        ? `Đã đóng băng giao dịch #${txId}`
         : `Đã từ chối giao dịch #${txId}`
       );
       setFearTransactions(prev => prev.filter(t => t.id !== txId));
@@ -142,9 +146,11 @@ export default function AdminTransactionDashboard() {
     fetchTransactions(0, true);
   }, [status, riskLevel]);
 
-  // Load FEAR panel một lần khi mount
+  // Load FEAR panel + tự động làm mới mỗi 10s
   useEffect(() => {
     fetchFearTransactions();
+    const id = setInterval(() => fetchFearTransactions(true), 10000);
+    return () => clearInterval(id);
   }, []);
 
   // Xử lý khi bấm nút "Lọc" cho ô tìm kiếm
@@ -226,6 +232,10 @@ export default function AdminTransactionDashboard() {
                       {fearTransactions.length} cần duyệt
                     </span>
                   )}
+                  <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                    <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse inline-block"></span>
+                    LIVE
+                  </span>
                 </h2>
                 <p className="text-xs text-rose-600 font-medium mt-0.5">
                   AI phát hiện FEAR / STRESS / ANGRY — giao dịch đang bị đóng băng chờ xét duyệt thủ công
@@ -292,6 +302,17 @@ export default function AdminTransactionDashboard() {
                         className="px-4 py-2 rounded-xl text-xs font-black text-white bg-rose-500 hover:bg-rose-600 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {fearActionLoading.has(t.id) ? '...' : '✗ Từ chối'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (window.confirm(`Đóng băng giao dịch #${t.id}? Giao dịch sẽ bị tạm giữ và không thể thực hiện.`)) {
+                            handleResolveReview(t.id, 'FREEZE');
+                          }
+                        }}
+                        disabled={fearActionLoading.has(t.id)}
+                        className="px-4 py-2 rounded-xl text-xs font-black text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {fearActionLoading.has(t.id) ? '...' : '❄ Đóng băng'}
                       </button>
                     </div>
                   </div>

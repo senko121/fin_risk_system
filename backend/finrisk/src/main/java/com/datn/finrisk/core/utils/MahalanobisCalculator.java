@@ -44,6 +44,22 @@ public class MahalanobisCalculator {
         return computeMahalanobisFromCov(currentTx, meanVector, covArray);
     }
 
+    // P2.1: Mahalanobis với covariance đã tính sẵn (peer group seed / pre-computed).
+    // Khác calculateMahalanobis: không chia txCount, covariance đã là Σ thực sự.
+    public double calculateFromPrecomputedCov(double[] currentTx, double[] meanVector,
+                                              double[][] covariance, double lambda) {
+        double[][] covArray = new double[DIMENSIONS][DIMENSIONS];
+        for (int i = 0; i < DIMENSIONS; i++) {
+            for (int j = 0; j < DIMENSIONS; j++) {
+                double v = covariance[i][j];
+                if (Double.isNaN(v) || Double.isInfinite(v)) v = 0.0;
+                covArray[i][j] = v;
+                if (i == j) covArray[i][j] = Math.max(v + lambda, lambda);
+            }
+        }
+        return computeMahalanobisFromCov(currentTx, meanVector, covArray);
+    }
+
     // P1.1: Mahalanobis với covariance blended giữa global prior và user data.
     // alpha giảm từ 1.0 → 0 khi txCount tăng từ 0 → GLOBAL_PRIOR_HORIZON.
     // Cho phép sử dụng Mahalanobis từ 10 giao dịch thay vì 50.

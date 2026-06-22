@@ -67,6 +67,13 @@ public class User {
     @Column(name = "admin_flagged")
     private boolean adminFlagged = false;
 
+    // P2.1: Nhân khẩu học — dùng cho Peer-Group cold-start profiling
+    @Column(name = "age_range", length = 10)
+    private String ageRange;
+
+    @Column(name = "region", length = 100)
+    private String region;
+
     @JsonIgnore
     @ToString.Exclude
     @EqualsAndHashCode.Exclude

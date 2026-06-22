@@ -113,6 +113,27 @@ public class AdminTransactionController {
                             "message", "Đã khóa giao dịch để bảo vệ tài sản khách hàng."
                     ));
 
+                case "FREEZE":
+                    if (!"UNDER_REVIEW".equals(currentStatus)) {
+                        return ResponseEntity.badRequest().body(Map.of(
+                                "status", "ERROR",
+                                "message", "Lỗi: Chỉ có thể FREEZE giao dịch đang ở trạng thái UNDER_REVIEW."
+                        ));
+                    }
+                    int frozen = transactionRepository.freezeIfUnderReview(txId);
+                    if (frozen == 0) {
+                        return ResponseEntity.status(409).body(Map.of(
+                                "status", "CONFLICT",
+                                "message", "Giao dịch vừa được xử lý bởi admin khác. Vui lòng tải lại trang để xem trạng thái mới nhất."
+                        ));
+                    }
+                    auditLogService.logAction("ADMIN", "RESOLVE_REVIEW_FREEZE",
+                            "Đóng băng giao dịch " + txId + ". Ghi chú: " + adminNotes);
+                    return ResponseEntity.ok(Map.of(
+                            "status", "FROZEN",
+                            "message", "Giao dịch đã bị đóng băng, chờ xử lý thêm."
+                    ));
+
                 case "REVERSE":
                     if (!"SUCCESS".equals(currentStatus)) {
                         return ResponseEntity.badRequest().body(Map.of(
@@ -131,7 +152,7 @@ public class AdminTransactionController {
                 default:
                     return ResponseEntity.badRequest().body(Map.of(
                             "status", "ERROR",
-                            "message", "Hành động (Action) không hợp lệ. Hãy truyền lên APPROVE, REJECT_FRAUD, hoặc REVERSE."
+                            "message", "Hành động (Action) không hợp lệ. Hãy truyền lên APPROVE, REJECT_FRAUD, FREEZE, hoặc REVERSE."
                     ));
             }
         } catch (BusinessLogicException e) {

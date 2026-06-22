@@ -80,13 +80,19 @@ public class RiskEvaluationService {
     private static final double AI_SCORE_FACTOR = 0.35;
 
     // Category caps: correlated signals trong cùng domain không thể inflate lẫn nhau
+    // CONTEXTUAL 35: R1(newRecipient=20) + R9(nightTime=25) = 45 → cap 35 (cả 2 đều đóng góp)
+    // DEVICE     50: R4(untrusted=25) + R5(suspicious=40) = 65 → cap 50 (cả 2 đều đóng góp)
+    // FINANCIAL  55: R8(drain=35) + R11(dailyLimit=40) = 75 → cap 55 (cả 2 đều đóng góp)
+    // VELOCITY   40: R10(rapid=35) < cap, có room cho rule mới
+    // COMPOSITE  55: R14(moneyMule=45) + R15(atoDrain=25) = 70 → cap 55 (cả 2 đều đóng góp)
+    // BIOMETRIC  55: giữ nguyên
     private static final Map<String, Integer> CATEGORY_CAPS = Map.of(
-        "DEVICE",      30,
-        "FINANCIAL",   40,
+        "DEVICE",      50,
+        "FINANCIAL",   55,
         "BIOMETRIC",   55,
-        "VELOCITY",    30,
-        "CONTEXTUAL",  20,
-        "COMPOSITE",   40
+        "VELOCITY",    40,
+        "CONTEXTUAL",  35,
+        "COMPOSITE",   55
     );
 
     private static final Map<String, Integer> OVERRIDE_PRIORITY = Map.of(
@@ -160,6 +166,14 @@ public class RiskEvaluationService {
         context.setVariable("isNightTime", isNightTime);
         context.setVariable("dailyTotalAmount", dailyTotalAmount);
 
+        log.debug("[RISK-ENGINE][CTX] tx={} amount={} deviceTrusted={} isNewRecipient={} suspiciousSession={} isNightTime={} recentTxCount={} balanceRatio={} dailyTotalAmount={}",
+                transaction.getId(),
+                transaction.getAmount(),
+                deviceTrusted, isNewRecipient, combinedSuspiciousRisk,
+                isNightTime, recentTxCount,
+                String.format("%.3f", balanceRatio),
+                String.format("%.0f", dailyTotalAmount));
+
         // ── Phase 1: VETO sweep ────────────────────────────────────────────────
         // VETO rules bypass scoring hoàn toàn — emergency signal (e.g. FEAR/coercion)
         for (Rule rule : activeRules) {
@@ -205,6 +219,9 @@ public class RiskEvaluationService {
                             ? rule.getCategory() : "CONTEXTUAL";
                     categoryTotals.merge(cat, score, Integer::sum);
 
+                    log.debug("[RISK-ENGINE][RULE-HIT] tx={} rule='{}' id={} cat={} score={}",
+                            transaction.getId(), rule.getRuleName(), rule.getId(), cat, score);
+
                     String override = rule.getMinPolicyOverride();
                     if (override != null && !override.isBlank()) {
                         if (activeOverride == null ||
@@ -233,7 +250,12 @@ public class RiskEvaluationService {
         int catTotal = 0;
         for (Map.Entry<String, Integer> entry : categoryTotals.entrySet()) {
             int cap     = CATEGORY_CAPS.getOrDefault(entry.getKey(), 20);
-            int clamped = Math.max(0, Math.min(entry.getValue(), cap));
+            int raw     = entry.getValue();
+            int clamped = Math.max(0, Math.min(raw, cap));
+            if (raw > cap) {
+                log.debug("[RISK-ENGINE][CAP] tx={} cat={} raw={} capped={} (limit={})",
+                        transaction.getId(), entry.getKey(), raw, clamped, cap);
+            }
             catTotal += clamped;
         }
 
@@ -248,6 +270,10 @@ public class RiskEvaluationService {
             aiReliability = (double)(txCount - AI_ACTIVE_COUNT) / (AI_MATURE_COUNT - AI_ACTIVE_COUNT);
         }
         int aiContribution = (int) Math.round(behavioralScore * AI_SCORE_FACTOR * aiReliability);
+
+        log.debug("[RISK-ENGINE][AI] tx={} txCount={} behavioralScore={} reliability={} contribution={}",
+                transaction.getId(), txCount, behavioralScore,
+                String.format("%.2f", aiReliability), aiContribution);
 
         // ── Phase 4: Final score ───────────────────────────────────────────────
         int finalRiskScore = Math.min(100, catTotal + aiContribution);

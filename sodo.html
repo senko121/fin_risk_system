@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FinRisk — Sơ đồ kiến trúc theo chuẩn C4 & hướng dẫn chỉnh sửa Mục 4.1</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<style>
+  :root{
+    --navy:#1f3764; --blue:#2563eb; --amber:#b45309; --red:#b91c1c; --green:#15803d;
+    --bg:#f4f6fb; --card:#ffffff; --line:#e2e8f0; --ink:#1e293b; --muted:#64748b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial,sans-serif;
+       background:var(--bg);color:var(--ink);line-height:1.6}
+  .wrap{max-width:1100px;margin:0 auto;padding:32px 22px 80px}
+  header.top{background:linear-gradient(135deg,#1f3764,#2563eb);color:#fff;border-radius:16px;
+       padding:30px 32px;margin-bottom:26px;box-shadow:0 8px 24px rgba(31,55,100,.18)}
+  header.top h1{margin:0 0 6px;font-size:25px;letter-spacing:.2px}
+  header.top p{margin:4px 0 0;opacity:.92;font-size:15px}
+  .pill{display:inline-block;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);
+       padding:3px 10px;border-radius:999px;font-size:12.5px;margin-top:12px}
+  h2.sec{font-size:21px;color:var(--navy);border-left:5px solid var(--blue);padding-left:12px;
+       margin:42px 0 14px}
+  h3{font-size:17px;color:var(--navy);margin:26px 0 6px}
+  p.lead{color:var(--muted);margin:0 0 18px;max-width:80ch}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 22px;
+       margin:16px 0;box-shadow:0 2px 8px rgba(15,23,42,.04)}
+  table{width:100%;border-collapse:collapse;font-size:14px;background:#fff;border-radius:10px;overflow:hidden}
+  th,td{border:1px solid var(--line);padding:9px 11px;vertical-align:top;text-align:left}
+  th{background:#eef2f9;color:var(--navy);font-weight:600}
+  tbody tr:nth-child(even){background:#fafbfe}
+  .tag{display:inline-block;font-size:11.5px;font-weight:700;padding:2px 9px;border-radius:6px;white-space:nowrap}
+  .t-keep{background:#dcfce7;color:var(--green)}
+  .t-fix{background:#fef3c7;color:var(--amber)}
+  .t-replace{background:#e0e7ff;color:#3730a3}
+  .t-cut{background:#fee2e2;color:var(--red)}
+  .t-new{background:#dbeafe;color:var(--blue)}
+  .figure{background:#fff;border:1px solid var(--line);border-radius:14px;margin:22px 0;overflow:hidden;
+       box-shadow:0 3px 12px rgba(15,23,42,.06)}
+  .fig-head{padding:14px 20px;border-bottom:1px solid var(--line);background:#fbfcfe;
+       display:flex;flex-wrap:wrap;align-items:center;gap:10px;justify-content:space-between}
+  .fig-head .ttl{font-weight:700;color:var(--navy);font-size:16px}
+  .fig-head .meta{font-size:12.5px;color:var(--muted)}
+  .fig-body{padding:10px 14px 6px;overflow-x:auto;background:
+       radial-gradient(circle, #e9edf5 1px, transparent 1px);background-size:18px 18px}
+  .mermaid{display:flex;justify-content:center;min-height:60px}
+  .note{margin:0;padding:12px 20px 16px;font-size:13.5px;color:#334155;background:#fff;border-top:1px dashed var(--line)}
+  .note b{color:var(--navy)}
+  .btns{display:flex;gap:8px;flex-wrap:wrap}
+  button.exp{background:var(--blue);color:#fff;border:0;border-radius:8px;padding:6px 12px;font-size:12.5px;
+       cursor:pointer;font-weight:600}
+  button.exp:hover{background:#1d4ed8}
+  .cap-hint{padding:10px 20px;font-size:12.5px;color:var(--muted);background:#f8fafc;border-top:1px solid var(--line)}
+  ol,ul{margin:8px 0 8px 4px;padding-left:22px}
+  li{margin:5px 0}
+  code{background:#eef2f9;padding:1px 6px;border-radius:5px;font-size:13px;color:#0f3a8a}
+  kbd{background:#1e293b;color:#fff;border-radius:5px;padding:1px 7px;font-size:12px;font-family:inherit}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:760px){.grid2{grid-template-columns:1fr}}
+  .legend{display:flex;flex-wrap:wrap;gap:10px;margin:6px 0 0;font-size:12.5px}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .callout{border-left:4px solid var(--blue);background:#eff4ff;padding:12px 16px;border-radius:0 10px 10px 0;margin:14px 0}
+  .callout.warn{border-color:var(--amber);background:#fffbeb}
+  footer{margin-top:48px;text-align:center;color:var(--muted);font-size:12.5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <h1>FinRisk — Bộ sơ đồ kiến trúc chuẩn hoá theo mô hình C4</h1>
+  <p>Vẽ lại &amp; bổ sung các sơ đồ Mục 4.1 · Nhận xét sơ đồ gốc · Hướng dẫn screen capture để chỉnh sửa đồ án</p>
+  <span class="pill">Đề tài: Xây dựng hệ thống đánh giá rủi ro giao dịch tài chính sử dụng Rule Engine và tín hiệu cảm xúc</span>
+</header>
+
+<p class="lead">Tài liệu này là bản tham khảo kỹ thuật giúp chuẩn hoá phần <b>Kiến trúc tổng thể (Mục 4.1)</b>.
+Toàn bộ sơ đồ được vẽ theo <b>mô hình C4</b> (Context → Container → Component → Deployment) cộng thêm một
+<b>sơ đồ động (Dynamic)</b> cho luồng giao dịch rủi ro cao. Mở file bằng Chrome/Edge; chờ vài giây để sơ đồ
+render, sau đó dùng nút <b>“Tải PNG @2x”</b> hoặc chụp màn hình để đưa vào báo cáo Word.</p>
+
+<!-- ============ PHẦN 1: NHẬN XÉT & QUYẾT ĐỊNH ============ -->
+<h2 class="sec">1 · Nhận xét sơ đồ gốc &amp; quyết định giữ – sửa – thay – bỏ</h2>
+<p class="lead">Bảng dưới tổng hợp các vấn đề kỹ thuật của 6 sơ đồ hiện có trong Mục 4.1 và đề xuất xử lý.
+Cột “Thay bằng” trỏ tới các sơ đồ mới ở Phần 2.</p>
+
+<div class="card" style="padding:0;overflow:hidden">
+<table>
+<thead><tr><th style="width:14%">Hình gốc</th><th style="width:40%">Vấn đề kỹ thuật chính</th><th style="width:13%">Quyết định</th><th style="width:33%">Thay / xử lý bằng</th></tr></thead>
+<tbody>
+<tr>
+  <td><b>Hình 4.1</b><br>Tổng thể</td>
+  <td>Đánh số tầng (1→5) lệch với bố cục không gian; hầu hết cạnh không có nhãn giao thức; <b>thiếu hoàn toàn ranh giới tin cậy (trust boundary)</b> và API gateway — bất thường với đề tài bảo mật Zero Trust.</td>
+  <td><span class="tag t-replace">THAY</span></td>
+  <td>Sơ đồ&nbsp;1 (Context) + Sơ đồ&nbsp;2 (Container) — tách 2 mức, có trust boundary &amp; nhãn giao thức.</td>
+</tr>
+<tr>
+  <td><b>Hình 4.2</b><br>Presentation</td>
+  <td><b>Hai node “MediaPipe Processing” và “State Management” bị mồ côi</b> (không cạnh nối); ánh xạ actor thiếu (Customer chỉ nối Authentication); trộn 3 mức trừu tượng (layer / nhóm tính năng / tên thư viện).</td>
+  <td><span class="tag t-replace">THAY</span></td>
+  <td>Sơ đồ&nbsp;6 (Frontend Component đã sửa) — nối lại node mồ côi, chuẩn hoá mức trừu tượng.</td>
+</tr>
+<tr>
+  <td><b>Hình 4.3</b><br>Logic Layer</td>
+  <td>Mạnh nhất, tên khớp code. Nhưng vẽ Infrastructure (thread pool, circuit breaker) <b>nằm “dưới” Strategy</b> trong khi đây là hạ tầng cắt ngang; <b>bỏ lỡ</b> quan hệ <code>VerificationSyncManager</code> đồng bộ 2 WebSocket handler (điểm xử lý race condition).</td>
+  <td><span class="tag t-replace">THAY</span></td>
+  <td>Sơ đồ&nbsp;3 (Backend Component) — Infra cắt ngang, thêm Sync.</td>
+</tr>
+<tr>
+  <td><b>Hình 4.4</b><br>AI Microservices</td>
+  <td>Giàu thông tin (port, model). Nhưng <b>làm phẳng REST vs WebSocket</b>; nhãn “Replay Attack Detection / Coercion Detection” <b>over-claim</b> (không có thực nghiệm); “Coercion Detection” mâu thuẫn với khẳng định cảm xúc là “soft signal”.</td>
+  <td><span class="tag t-fix">SỬA &amp; GỘP</span></td>
+  <td>Gộp vào Sơ đồ&nbsp;2 (Container) với nhãn REST/WSS đúng; bỏ nhãn năng lực chưa chứng minh.</td>
+</tr>
+<tr>
+  <td><b>Hình 4.5</b><br>Data Layer</td>
+  <td>Phân chia MySQL/Redis đúng. Nhưng <b>thiếu bảng <code>transaction_ledgers</code></b> (sổ cái ghi kép, append-only) và <b>không thể hiện Database Trigger</b> — vốn là điểm sáng nhất của thiết kế.</td>
+  <td><span class="tag t-fix">SỬA &amp; GỘP</span></td>
+  <td>Gộp vào Sơ đồ&nbsp;2 (Container) — bổ sung ledger &amp; ghi chú Trigger.</td>
+</tr>
+<tr>
+  <td><b>Hình 4.6</b><br>External Services</td>
+  <td><b>Sai phân loại</b>: <code>OtpService</code> và <code>Redis</code> là thành phần nội bộ nhưng bị xếp vào “external”; bản chất là <b>sơ đồ luồng (behavioral)</b>, không phải cấu trúc; thiếu kênh Voice OTP.</td>
+  <td><span class="tag t-cut">ĐỔI TÊN / CHUYỂN</span></td>
+  <td>Đổi tên “Luồng OTP đa kênh”, chuyển xuống Mục 5.3.4; phần kết nối ngoài đã nằm trong Sơ đồ&nbsp;2.</td>
+</tr>
+<tr style="background:#f0f7ff">
+  <td><i>(thiếu)</i></td>
+  <td>Không có <b>góc nhìn triển khai</b> dù hệ thống đã đa tiến trình / đa cổng / Docker.</td>
+  <td><span class="tag t-new">BỔ SUNG</span></td>
+  <td>Sơ đồ&nbsp;4 (Deployment).</td>
+</tr>
+<tr style="background:#f0f7ff">
+  <td><i>(thiếu)</i></td>
+  <td>Không có <b>góc nhìn động (process view)</b> cho luồng giao dịch rủi ro cao (xác thực song song + đồng bộ).</td>
+  <td><span class="tag t-new">BỔ SUNG</span></td>
+  <td>Sơ đồ&nbsp;5 (Dynamic / Sequence).</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+<!-- ============ PHẦN 2: BỘ SƠ ĐỒ C4 ============ -->
+<h2 class="sec">2 · Bộ sơ đồ kiến trúc vẽ lại theo chuẩn C4</h2>
+<div class="callout">
+  <b>Mô hình C4 là gì?</b> Bốn mức phóng to dần: <b>C1 Context</b> (hệ thống &amp; người dùng &amp; hệ ngoài) →
+  <b>C2 Container</b> (các ứng dụng/CSDL chạy độc lập) → <b>C3 Component</b> (thành phần bên trong 1 container) →
+  <b>Deployment</b> (triển khai vật lý). Mỗi mức trả lời một câu hỏi khác nhau, thay vì lặp lại cùng một góc nhìn
+  ở nhiều mức zoom như bộ sơ đồ gốc.
+  <div class="legend">
+    <span>🟦 <b>Person</b>: người dùng</span>
+    <span>⬜ <b>Container/Component</b>: phần mềm chạy được</span>
+    <span>🟫 <b>System_Ext</b>: hệ thống bên ngoài</span>
+    <span>➜ cạnh có <b>nhãn giao thức</b></span>
+  </div>
+</div>
+
+<!-- Figure 1: Context -->
+<div class="figure" data-name="C4-1_Context">
+  <div class="fig-head">
+    <div><span class="ttl">Sơ đồ 1 — C4 Level 1: System Context</span>
+      <div class="meta">Thay vai trò tổng quan của Hình 4.1 · Đề xuất đặt ở đầu Mục 4.1</div></div>
+    <div class="btns"><button class="exp" onclick="exportPng(this)">⬇ Tải PNG @2x</button></div>
+  </div>
+  <div class="fig-body"><pre class="mermaid">
+C4Context
+title Sơ đồ 1 — Bối cảnh hệ thống FinRisk
+Person(customer, "Khách hàng", "Thực hiện giao dịch chuyển tiền, xác thực sinh trắc học")
+Person(admin, "Quản trị viên", "Duyệt/từ chối giao dịch rủi ro cao, quản lý luật")
+System(finrisk, "FinRisk", "Đánh giá rủi ro giao dịch (Rule Engine) + Xác thực thích ứng đa lớp")
+System_Ext(twilio, "Twilio SMS API", "Gửi mã OTP qua SMS")
+System_Ext(gmail, "Gmail SMTP", "Kênh email dự phòng cho OTP")
+Rel(customer, finrisk, "Giao dịch &amp; xác thực", "HTTPS")
+Rel(admin, finrisk, "Quản trị &amp; duyệt", "HTTPS")
+Rel(finrisk, twilio, "Gửi OTP", "HTTPS / REST")
+Rel(finrisk, gmail, "Gửi OTP dự phòng", "SMTP")
+UpdateLayoutConfig($c4ShapeInRow="2", $c4BoundaryInRow="1")
+  </pre></div>
+  <p class="note"><b>Khắc phục so với Hình 4.1:</b> tách riêng mức bối cảnh để trả lời “hệ thống phục vụ ai &amp;
+  phụ thuộc hệ ngoài nào”. Twilio/Gmail được xác định đúng là <i>hệ thống bên ngoài</i>; MySQL, Redis, các dịch vụ AI
+  <b>không</b> xuất hiện ở mức này vì chúng là thành phần nội bộ (sẽ thấy ở Sơ đồ 2).</p>
+  <div class="cap-hint">📸 Vùng nền chấm phía trên là vùng cần chụp. Xem hướng dẫn ở Phần 3.</div>
+</div>
+
+<!-- Figure 2: Container -->
+<div class="figure" data-name="C4-2_Container">
+  <div class="fig-head">
+    <div><span class="ttl">Sơ đồ 2 — C4 Level 2: Container</span>
+      <div class="meta">Thay Hình 4.1 + gộp Hình 4.4 (AI) + Hình 4.5 (Data) · có Trust Boundary</div></div>
+    <div class="btns"><button class="exp" onclick="exportPng(this)">⬇ Tải PNG @2x</button></div>
+  </div>
+  <div class="fig-body"><pre class="mermaid">
+C4Container
+title Sơ đồ 2 — Container của FinRisk (gộp tầng AI &amp; Data, có ranh giới tin cậy)
+Person(customer, "Khách hàng")
+Person(admin, "Quản trị viên")
+System_Boundary(trust, "Ranh giới tin cậy FinRisk (TLS nội bộ)") {
+  Container(spa, "Web SPA", "React 18 · Vite · Tailwind (:5173)", "Giao diện, MediaPipe liveness phía client")
+  Container(api, "Backend Core", "Spring Boot 3.5 · Java 21 (:8081)", "Rule Engine, xác thực thích ứng, giao dịch")
+  Container(face, "Face AI Service", "Python FastAPI (:5000)", "InsightFace/ArcFace embedding, anti-spoofing")
+  Container(emo, "Emotion AI Service", "Python FastAPI (:5001)", "CNN FER, tín hiệu cảm xúc hỗ trợ")
+  Container(voice, "Voice AI Service", "Python · Vosk (:5002)", "STT tiếng Việt cho Voice OTP")
+  ContainerDb(mysql, "MySQL (:3306)", "RDBMS", "Users, Accounts, Transactions, transaction_ledgers (append-only + Trigger), Risk Policies, Behavior Profiles, Audit Logs")
+  ContainerDb(redis, "Redis (:6379)", "In-memory", "OTP cache, JWT blocklist, rate limiter")
+}
+System_Ext(twilio, "Twilio SMS API")
+System_Ext(gmail, "Gmail SMTP")
+Rel(customer, spa, "Sử dụng", "HTTPS")
+Rel(admin, spa, "Quản trị", "HTTPS")
+Rel(spa, api, "Gọi API + stream", "HTTPS / WSS")
+Rel(api, face, "Xác minh khuôn mặt", "REST")
+Rel(api, emo, "Phân tích cảm xúc", "WebSocket")
+Rel(api, voice, "Voice OTP", "WebSocket")
+Rel(api, mysql, "Đọc/ghi giao dịch &amp; sổ cái", "JDBC")
+Rel(api, redis, "OTP / rate limit", "RESP")
+Rel(api, twilio, "Gửi OTP", "HTTPS")
+Rel(api, gmail, "OTP dự phòng", "SMTP")
+UpdateLayoutConfig($c4ShapeInRow="3", $c4BoundaryInRow="1")
+  </pre></div>
+  <p class="note"><b>Khắc phục:</b> mọi cạnh đều có <b>nhãn giao thức</b>; phân biệt rõ <b>REST</b> (Face) với
+  <b>WebSocket</b> (Emotion, Voice) — điều Hình 4.4 làm phẳng. Bổ sung <code>transaction_ledgers</code> +
+  ghi chú <b>Trigger append-only</b> (thiếu ở Hình 4.5). Toàn bộ container nằm trong <b>ranh giới tin cậy</b>,
+  còn Twilio/Gmail ở ngoài — thể hiện đúng tinh thần Zero Trust.</p>
+  <div class="cap-hint">📸 Sơ đồ rộng — nên zoom trình duyệt 110–125% trước khi chụp, hoặc dùng “Tải PNG @2x”.</div>
+</div>
+
+<!-- Figure 3: Component (Backend) -->
+<div class="figure" data-name="C4-3_Component_Backend">
+  <div class="fig-head">
+    <div><span class="ttl">Sơ đồ 3 — C4 Level 3: Component (Backend Core)</span>
+      <div class="meta">Thay Hình 4.3 · Infra cắt ngang + VerificationSyncManager</div></div>
+    <div class="btns"><button class="exp" onclick="exportPng(this)">⬇ Tải PNG @2x</button></div>
+  </div>
+  <div class="fig-body"><pre class="mermaid">
+C4Component
+title Sơ đồ 3 — Thành phần bên trong Backend Core
+Container(spa, "Web SPA", "React")
+Container_Boundary(api, "Backend Core (Spring Boot)") {
+  Component(rest, "REST Controllers", "Spring MVC", "Tiếp nhận giao dịch, admin review")
+  Component(ws, "WebSocket Layer", "Emotion Handler + Voice Handler", "Stream sinh trắc realtime")
+  Component(tx, "TransactionService", "Service", "Điều phối: atomic claim, pessimistic lock, double-entry ledger")
+  Component(risk, "RiskEvaluationService", "Service", "Rule Engine 5 pha (SpEL, Category Cap, VETO)")
+  Component(beh, "BehavioralProfilingService", "Service", "Điểm bất thường (Mahalanobis 6 chiều)")
+  Component(otp, "OtpService", "Service", "Sinh/gửi/xác thực OTP, rate limit")
+  Component(sync, "VerificationSyncManager", "Service", "Đồng bộ 2 handler — chống double-execution")
+  Component(strat, "Strategy Layer", "Pass/Pin/Otp/BasicFace/AdvancedFace", "Chọn lớp xác thực theo policy")
+  Component(infra, "Infrastructure (cắt ngang)", "Thread Pools · Circuit Breakers (Resilience4j)", "Phục vụ mọi thành phần")
+}
+ContainerDb(mysql, "MySQL")
+ContainerDb(redis, "Redis")
+Container(ai, "AI Microservices", "Face/Emotion/Voice")
+Rel(spa, rest, "REST", "HTTPS")
+Rel(spa, ws, "WebSocket", "WSS")
+Rel(rest, tx, "khởi tạo giao dịch")
+Rel(tx, risk, "đánh giá rủi ro")
+Rel(risk, beh, "lấy điểm hành vi")
+Rel(tx, strat, "dispatch theo RiskPolicy")
+Rel(strat, otp, "yêu cầu OTP")
+Rel(strat, ai, "gọi dịch vụ AI", "REST/WSS")
+Rel(ws, sync, "đẩy kết quả sinh trắc")
+Rel(sync, tx, "finalize (pessimistic lock)")
+Rel(otp, redis, "lưu/đọc OTP")
+Rel(tx, mysql, "ghi giao dịch &amp; ledger")
+Rel(infra, ai, "thread pool + timeout", "")
+UpdateLayoutConfig($c4ShapeInRow="3", $c4BoundaryInRow="1")
+  </pre></div>
+  <p class="note"><b>Khắc phục so với Hình 4.3:</b> <code>Infrastructure</code> được vẽ là lớp <b>cắt ngang</b>
+  (không nằm “dưới” Strategy). Bổ sung quan hệ <b>WebSocket Layer → VerificationSyncManager → TransactionService</b>
+  — chính là cơ chế khoá bi quan xử lý race condition giữa hai handler (mục 6.4 của đồ án), điểm kỹ thuật giá trị
+  nhất nhưng bị thiếu trong bản gốc.</p>
+  <div class="cap-hint">📸 Nếu các nhãn chồng nhau, kéo rộng cửa sổ trình duyệt rồi chụp lại.</div>
+</div>
+
+<!-- Figure 6 (frontend) — placed here as the Presentation replacement -->
+<div class="figure" data-name="C4-3_Component_Frontend">
+  <div class="fig-head">
+    <div><span class="ttl">Sơ đồ 6 — C4 Level 3: Component (Web SPA)</span>
+      <div class="meta">Thay Hình 4.2 · nối lại node mồ côi, chuẩn hoá mức trừu tượng</div></div>
+    <div class="btns"><button class="exp" onclick="exportPng(this)">⬇ Tải PNG @2x</button></div>
+  </div>
+  <div class="fig-body"><pre class="mermaid">
+C4Component
+title Sơ đồ 6 — Thành phần bên trong Web SPA
+Person(customer, "Khách hàng")
+Person(admin, "Quản trị viên")
+Container_Boundary(spa, "Web SPA (React)") {
+  Component(auth, "Auth Module", "React", "Đăng nhập, JWT, refresh token")
+  Component(cust, "Customer Functions", "React", "Chuyển tiền, lịch sử giao dịch")
+  Component(adminui, "Admin Functions", "React", "Duyệt giao dịch, quản lý luật")
+  Component(adapt, "Adaptive Auth UI", "React", "OTP / Face / Voice theo mức rủi ro")
+  Component(media, "MediaPipe Processing", "WASM", "Liveness detection phía client")
+  Component(state, "State Management (cắt ngang)", "Store", "Phiên, token, trạng thái giao dịch")
+  Component(comm, "Communication Layer", "Axios + WebSocket client", "Gọi REST &amp; mở WSS")
+}
+Container(api, "Backend Core", "Spring Boot")
+Rel(customer, auth, "Đăng nhập", "HTTPS")
+Rel(customer, cust, "Giao dịch")
+Rel(admin, adminui, "Quản trị")
+Rel(cust, adapt, "Kích hoạt xác thực")
+Rel(adapt, media, "Yêu cầu liveness")
+Rel(auth, comm, "gọi API")
+Rel(cust, comm, "gọi API")
+Rel(adminui, comm, "gọi API")
+Rel(adapt, comm, "mở WebSocket")
+Rel(state, comm, "cung cấp token/phiên")
+Rel(comm, api, "REST + WSS", "HTTPS/WSS")
+UpdateLayoutConfig($c4ShapeInRow="3", $c4BoundaryInRow="1")
+  </pre></div>
+  <p class="note"><b>Khắc phục so với Hình 4.2:</b> <code>MediaPipe Processing</code> nay nối vào <b>Adaptive Auth UI</b>
+  (không còn mồ côi); <code>State Management</code> được đánh dấu <b>cắt ngang</b> và nối vào Communication Layer;
+  actor được ánh xạ đầy đủ (Customer dùng cả Auth/Customer/Adaptive; Admin dùng Admin Functions).</p>
+  <div class="cap-hint">📸 Đây là phương án thay cho Hình 4.2. Nếu muốn gọn, có thể bỏ hẳn Hình 4.2 và chỉ giữ Sơ đồ 2.</div>
+</div>
+
+<!-- Figure 4: Deployment -->
+<div class="figure" data-name="C4-4_Deployment">
+  <div class="fig-head">
+    <div><span class="ttl">Sơ đồ 4 — C4 Deployment (BỔ SUNG MỚI)</span>
+      <div class="meta">Góc nhìn triển khai vật lý · localhost / Docker</div></div>
+    <div class="btns"><button class="exp" onclick="exportPng(this)">⬇ Tải PNG @2x</button></div>
+  </div>
+  <div class="fig-body"><pre class="mermaid">
+C4Deployment
+title Sơ đồ 4 — Triển khai môi trường phát triển (sandbox)
+Deployment_Node(dev, "Máy phát triển", "Windows 11 / macOS / Ubuntu") {
+  Deployment_Node(browser, "Trình duyệt", "Chrome / Edge") {
+    Container(spa, "Web SPA", "React (:5173)")
+  }
+  Deployment_Node(docker, "Docker Host", "Docker Compose") {
+    Container(api, "Backend Core", "Spring Boot (:8081)")
+    Container(face, "Face AI", "FastAPI (:5000)")
+    Container(emo, "Emotion AI", "FastAPI (:5001)")
+    Container(voice, "Voice AI", "Vosk (:5002)")
+    ContainerDb(mysql, "MySQL", "(:3306)")
+    ContainerDb(redis, "Redis", "(:6379)")
+  }
+}
+Deployment_Node(cloud, "Dịch vụ đám mây", "Internet") {
+  System_Ext(twilio, "Twilio SMS")
+  System_Ext(gmail, "Gmail SMTP")
+}
+Rel(spa, api, "HTTPS / WSS")
+Rel(api, face, "REST")
+Rel(api, emo, "WSS")
+Rel(api, voice, "WSS")
+Rel(api, mysql, "JDBC")
+Rel(api, redis, "RESP")
+Rel(api, twilio, "HTTPS")
+Rel(api, gmail, "SMTP")
+UpdateLayoutConfig($c4ShapeInRow="3", $c4BoundaryInRow="1")
+  </pre></div>
+  <p class="note"><b>Vì sao cần bổ sung:</b> hệ thống chạy <b>đa tiến trình, đa cổng</b> và đóng gói Docker —
+  một <i>Deployment Diagram</i> thể hiện node, container và cổng giúp người đọc tái lập môi trường, đồng thời
+  bộc lộ rõ ranh giới mạng (máy dev ↔ Internet) mà các sơ đồ logic không có.</p>
+  <div class="cap-hint">📸 Đề xuất chèn ngay sau Sơ đồ 2 (mục 4.1) hoặc tại Mục 5.1 “Môi trường triển khai”.</div>
+</div>
+
+<!-- Figure 5: Dynamic -->
+<div class="figure" data-name="C4-5_Dynamic_HighRisk">
+  <div class="fig-head">
+    <div><span class="ttl">Sơ đồ 5 — Dynamic View: luồng giao dịch HIGH risk (BỔ SUNG MỚI)</span>
+      <div class="meta">Góc nhìn động · xác thực song song + đồng bộ</div></div>
+    <div class="btns"><button class="exp" onclick="exportPng(this)">⬇ Tải PNG @2x</button></div>
+  </div>
+  <div class="fig-body"><pre class="mermaid">
+sequenceDiagram
+  autonumber
+  actor U as Khách hàng
+  participant SPA as Web SPA
+  participant API as Backend Core
+  participant Face as Face AI
+  participant Emo as Emotion AI
+  participant Sync as VerificationSyncManager
+  participant DB as MySQL
+  U->>SPA: Khởi tạo giao dịch (HIGH risk)
+  SPA->>API: initiateTransaction()
+  API->>API: evaluateRisk() — Rule Engine 5 pha
+  par Xác thực sinh trắc song song (CompletableFuture.allOf, timeout 20s)
+    API->>Face: verifyIdentityAsync()
+    API->>Emo: evaluateSequenceAsync()
+  end
+  Face-->>Sync: matched = true
+  Emo-->>Sync: emotion + confidence (FEAR ≥ 0.65?)
+  Sync->>Sync: pessimistic lock — chỉ 1 thread finalize
+  Sync->>API: executeTransactionCore()
+  API->>DB: atomic claim + ghi ledger (double-entry)
+  API-->>SPA: FINAL_RESULT (gửi trong afterCommit)
+  Note over SPA,API: Nếu WS mất kết nối → frontend ACK timer 20s rồi polling REST
+  </pre></div>
+  <p class="note"><b>Vì sao cần bổ sung:</b> đây là <i>process view</i> làm rõ 3 quyết định kỹ thuật khó nhất của đồ án —
+  xác thực <b>song song</b>, <b>đồng bộ bằng khoá bi quan</b> để chống double-execution, và <b>gửi kết quả sau commit</b>
+  kèm cơ chế polling dự phòng. Có thể đặt tại Mục 4.2 “Thiết kế động”.</p>
+  <div class="cap-hint">📸 Sơ đồ tuần tự cao &amp; hẹp — chụp dọc hoặc tải PNG để giữ nét.</div>
+</div>
+
+<!-- ============ PHẦN 3: HƯỚNG DẪN SCREEN CAPTURE ============ -->
+<h2 class="sec">3 · Hướng dẫn screen capture &amp; chỉnh sửa Mục 4.1 trong Word</h2>
+
+<div class="callout warn">
+  <b>Khuyến nghị:</b> nút <b>“Tải PNG @2x”</b> ở mỗi sơ đồ cho ảnh nét gấp đôi màn hình — hãy ưu tiên dùng nó.
+  Chỉ chụp màn hình khi máy không tải được PNG (thường do thiếu mạng để render Mermaid).
+</div>
+
+<div class="grid2">
+  <div class="card">
+    <h3>🪟 Trên Windows</h3>
+    <ol>
+      <li>Mở file HTML này bằng <b>Chrome/Edge</b>, chờ sơ đồ render xong.</li>
+      <li>Phóng to trình duyệt <kbd>Ctrl</kbd>+<kbd>+</kbd> tới ~125% cho nét.</li>
+      <li>Nhấn <kbd>Win</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> mở <b>Snipping Tool</b>.</li>
+      <li>Kéo chọn đúng <b>vùng nền chấm</b> chứa sơ đồ.</li>
+      <li>Ảnh vào clipboard → dán thẳng vào Word bằng <kbd>Ctrl</kbd>+<kbd>V</kbd>, hoặc lưu <code>.png</code>.</li>
+    </ol>
+  </div>
+  <div class="card">
+    <h3>🍎 Trên macOS</h3>
+    <ol>
+      <li>Mở HTML bằng <b>Chrome/Safari</b>, chờ render.</li>
+      <li>Phóng to <kbd>Cmd</kbd>+<kbd>+</kbd> tới ~125%.</li>
+      <li>Nhấn <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>4</kbd>, kéo chọn vùng → ảnh PNG lưu ra Desktop.</li>
+      <li>Hoặc thêm <kbd>Ctrl</kbd> (<kbd>Cmd</kbd>+<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>4</kbd>) để copy vào clipboard.</li>
+      <li>Dán vào Word bằng <kbd>Cmd</kbd>+<kbd>V</kbd>.</li>
+    </ol>
+  </div>
+</div>
+
+<div class="card">
+  <h3>📥 Chèn &amp; chuẩn hoá ảnh trong Word</h3>
+  <ol>
+    <li><b>Chèn:</b> <code>Insert → Pictures → This Device…</code> (nếu đã lưu PNG) hoặc dán trực tiếp.</li>
+    <li><b>Canh giữa:</b> chọn ảnh → <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>E</kbd>; đặt Layout là <i>In Line with Text</i> để không trôi.</li>
+    <li><b>Đánh số caption:</b> chuột phải ảnh → <code>Insert Caption…</code> → nhãn “Hình”, ví dụ <i>“Hình 4.1. Sơ đồ bối cảnh hệ thống FinRisk (C4 – Context)”</i>.</li>
+    <li><b>Cập nhật mục lục hình:</b> vào Danh mục hình → chuột phải → <code>Update Field → Update entire table</code>.</li>
+    <li><b>Đồng bộ phần chữ:</b> sửa các câu dẫn “Như thể hiện trong Hình 4.x…” cho khớp số mới.</li>
+  </ol>
+</div>
+
+<div class="card">
+  <h3>🔁 Quy trình áp dụng cho Mục 4.1 (thứ tự đề xuất)</h3>
+  <table>
+    <thead><tr><th style="width:34%">Thao tác trong Word</th><th style="width:30%">Sơ đồ mới chèn</th><th>Ghi chú</th></tr></thead>
+    <tbody>
+      <tr><td><span class="tag t-replace">THAY</span> ảnh Hình 4.1 cũ</td><td>Sơ đồ 1 (Context) + Sơ đồ 2 (Container)</td><td>Mục 4.1 mở đầu bằng Context rồi tới Container.</td></tr>
+      <tr><td><span class="tag t-replace">THAY</span> ảnh Hình 4.2 cũ</td><td>Sơ đồ 6 (Frontend Component)</td><td>Hoặc <span class="tag t-cut">BỎ</span> hẳn nếu muốn gọn — Sơ đồ 2 đã có SPA.</td></tr>
+      <tr><td><span class="tag t-replace">THAY</span> ảnh Hình 4.3 cũ</td><td>Sơ đồ 3 (Backend Component)</td><td>Đặt ở mục 4.1.2 (Logic Layer).</td></tr>
+      <tr><td><span class="tag t-cut">BỎ</span> ảnh Hình 4.4 &amp; Hình 4.5 cũ</td><td>— (đã gộp vào Sơ đồ 2)</td><td>Xoá ảnh + xoá tiêu đề con 4.1.3, 4.1.4 nếu trùng lặp.</td></tr>
+      <tr><td><span class="tag t-fix">CHUYỂN</span> ảnh Hình 4.6 cũ</td><td>Đổi tên &amp; chuyển xuống Mục 5.3.4</td><td>Đổi caption “Luồng OTP đa kênh (fallback SMS→Email)”.</td></tr>
+      <tr><td><span class="tag t-new">THÊM</span> tại Mục 4.1 (cuối)</td><td>Sơ đồ 4 (Deployment)</td><td>Hoặc đưa sang Mục 5.1 “Môi trường triển khai”.</td></tr>
+      <tr><td><span class="tag t-new">THÊM</span> tại Mục 4.2</td><td>Sơ đồ 5 (Dynamic / Sequence)</td><td>Bổ sung cho “Thiết kế động” vốn đang trống.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="callout">
+  <b>Mẹo nhất quán cuối cùng:</b> thống nhất tên gọi trên mọi sơ đồ (“Voice AI <u>Service</u>”, không lẫn “Server”);
+  Logic Layer luôn ghi đủ “Spring Boot 3.5 / Java 21”; và thêm một <b>chú giải (legend)</b> nhỏ ở Hình đầu tiên
+  để người đọc hiểu ký pháp C4.
+</div>
+
+<footer>FinRisk · Bộ sơ đồ kiến trúc chuẩn hoá theo mô hình C4 — tài liệu tham khảo kỹ thuật cho Mục 4.1.</footer>
+
+</div>
+
+<script>
+  mermaid.initialize({ startOnLoad:true, theme:'default', securityLevel:'loose',
+    sequence:{ useMaxWidth:true }, c4:{ useMaxWidth:true } });
+
+  function exportPng(btn){
+    var fig = btn.closest('.figure');
+    var svg = fig.querySelector('svg');
+    if(!svg){ alert('Sơ đồ chưa render xong (hoặc thiếu mạng để tải Mermaid). Hãy chờ vài giây rồi thử lại, hoặc dùng chụp màn hình.'); return; }
+    try{
+      var clone = svg.cloneNode(true);
+      // bảo đảm có nền trắng & kích thước rõ ràng
+      var vb = svg.viewBox && svg.viewBox.baseVal;
+      var w = (vb && vb.width)  ? vb.width  : svg.getBoundingClientRect().width;
+      var h = (vb && vb.height) ? vb.height : svg.getBoundingClientRect().height;
+      clone.setAttribute('width', w); clone.setAttribute('height', h);
+      var xml = new XMLSerializer().serializeToString(clone);
+      var svg64 = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(xml)));
+      var img = new Image();
+      img.onload = function(){
+        var scale = 2;
+        var canvas = document.createElement('canvas');
+        canvas.width = Math.ceil(w*scale); canvas.height = Math.ceil(h*scale);
+        var ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,canvas.width,canvas.height);
+        ctx.scale(scale,scale); ctx.drawImage(img,0,0,w,h);
+        canvas.toBlob(function(blob){
+          var a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = (fig.dataset.name || 'sodo') + '@2x.png';
+          document.body.appendChild(a); a.click(); a.remove();
+        }, 'image/png');
+      };
+      img.onerror = function(){ alert('Không xuất PNG tự động được. Vui lòng dùng chụp màn hình (Phần 3).'); };
+      img.src = svg64;
+    }catch(e){ alert('Trình duyệt chặn xuất ảnh. Vui lòng dùng chụp màn hình (Phần 3).'); }
+  }
+</script>
+</body>
+</html>

@@ -40,7 +40,7 @@ public class AdvancedFaceActionStrategy implements RiskActionStrategy {
     @Qualifier("biometricVerifyExecutor")
     private ThreadPoolTaskExecutor biometricVerifyExecutor;
 
-    private static final int AI_PARALLEL_TIMEOUT_SECONDS = 20;
+    private static final int AI_PARALLEL_TIMEOUT_SECONDS = 13;
     private static final int BIOMETRIC_QUEUE_WARN_THRESHOLD   = 30;
     private static final int BIOMETRIC_QUEUE_REJECT_THRESHOLD = 40;
 

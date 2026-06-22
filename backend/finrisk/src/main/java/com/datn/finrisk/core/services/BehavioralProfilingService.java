@@ -3,8 +3,10 @@ package com.datn.finrisk.core.services;
 
 import com.datn.finrisk.application.dtos.BehaviorInsightResult;
 import com.datn.finrisk.application.dtos.BehaviorProfileDTO;
+import com.datn.finrisk.core.entities.PeerGroup;
 import com.datn.finrisk.core.entities.Transaction;
 import com.datn.finrisk.core.entities.TransactionAiInsight;
+import com.datn.finrisk.core.entities.User;
 import com.datn.finrisk.core.entities.UserBehaviorProfile;
 import com.datn.finrisk.core.repository.UserBehaviorProfileRepository;
 import com.datn.finrisk.core.utils.MahalanobisCalculator;
@@ -22,6 +24,9 @@ public class BehavioralProfilingService {
 
     @Autowired
     private UserBehaviorProfileRepository profileRepository;
+
+    @Autowired
+    private PeerGroupService peerGroupService;
 
     private static final int DIMENSIONS = MahalanobisCalculator.DIMENSIONS; // P1.5: 6 chiều
  
@@ -57,11 +62,26 @@ public class BehavioralProfilingService {
         String phase, method;
 
         if (txCount < 10) {
-            double raw = mathCalculator.calculateEuclidean(currentVector, meanVector);
-            totalScore    = normalizeEuclidean(raw);
-            dSquaredForLog = raw * raw;
-            phase  = "COLD_START";
-            method = "EUCLIDEAN";
+            // P2.1: dùng Peer-Group Mahalanobis nếu user có dữ liệu nhân khẩu
+            User sender = currentTx.getFromAccount().getUser();
+            java.util.Optional<PeerGroup> peerOpt = peerGroupService.findPeerGroup(sender);
+            if (peerOpt.isPresent()) {
+                PeerGroup pg     = peerOpt.get();
+                double[] pgMean  = convertListToArray(pg.getMeanVector());
+                double[][] pgCov = peerGroupService.toCovArray(pg.getCovarianceMatrix());
+                double dSquared  = mathCalculator.calculateFromPrecomputedCov(
+                                       currentVector, pgMean, pgCov, 0.1);
+                totalScore     = normalizeMahalanobis(dSquared);
+                dSquaredForLog = dSquared;
+                phase  = "COLD_START";
+                method = "PEER_MAHALANOBIS";
+            } else {
+                double raw = mathCalculator.calculateEuclidean(currentVector, meanVector);
+                totalScore    = normalizeEuclidean(raw);
+                dSquaredForLog = raw * raw;
+                phase  = "COLD_START";
+                method = "EUCLIDEAN";
+            }
 
         } else if (txCount < 50) {
             // P1.1: WARM_START — Mahalanobis blended với global prior, bắt đầu từ 10 tx

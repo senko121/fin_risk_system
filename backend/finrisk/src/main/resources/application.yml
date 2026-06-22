@@ -51,6 +51,11 @@ twilio:
 app:
   cors:
     allowed-origins: "${CORS_ALLOWED_ORIGINS:http://localhost:5173}"
+  emotion:
+    override:
+      enabled: ${EMOTION_OVERRIDE_ENABLED:false}
+      emotion: ${EMOTION_OVERRIDE_VALUE:FEAR}
+      confidence: ${EMOTION_OVERRIDE_CONFIDENCE:0.90}
 jwt:
   secret: "${JWT_SECRET}"
   expiration: 600000
@@ -89,8 +94,22 @@ ai:
     voice-url: http://localhost:5003/api/ai/verify-voice
   timeout:
     connect-ms: 3000
-    read-ms: 15000
-    parallel-seconds: 20
+    read-ms: 10000
+    parallel-seconds: 13
+
+logging:
+  level:
+    "[com.datn.finrisk]": DEBUG
+    "[org.hibernate.SQL]": WARN
+    "[org.hibernate.type.descriptor.sql]": WARN
+  file:
+    name: logs/finrisk-debug.log
+  logback:
+    rollingpolicy:
+      max-file-size: 20MB
+      max-history: 5
+  pattern:
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [txId=%X{txId}] [corrId=%X{correlationId}] %logger{36} - %msg%n"
 
 springdoc:
   swagger-ui:

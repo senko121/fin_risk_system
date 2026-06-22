@@ -100,6 +100,13 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long>,
     @Query("UPDATE Transaction t SET t.status = 'BLOCKED' WHERE t.id = :id AND t.status = 'UNDER_REVIEW'")
     int blockIfUnderReview(@Param("id") Long id);
 
+    // Atomic guard for admin FREEZE: only transitions UNDER_REVIEW → FROZEN.
+    // Returns 1 on success, 0 if another admin already changed the status (race lost).
+    @Transactional
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Transaction t SET t.status = 'FROZEN' WHERE t.id = :id AND t.status = 'UNDER_REVIEW'")
+    int freezeIfUnderReview(@Param("id") Long id);
+
     // Lightweight ID-only scan for scheduler audit trail — no entity hydration.
     @Query("SELECT t.id FROM Transaction t WHERE t.status = 'UNDER_REVIEW' AND t.createdAt < :threshold")
     List<Long> findStaleUnderReviewIds(@Param("threshold") LocalDateTime threshold);
